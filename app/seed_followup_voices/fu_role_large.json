@@ -1,0 +1,64 @@
+{
+  "created_at": "2026-01-01T00:00:00+00:00",
+  "updated_at": "2026-01-01T00:00:00+00:00",
+  "seeded_from": "builtin",
+  "kind": "followup",
+  "id": "fu_role_large",
+  "display_name": "Follow-up · role · large company",
+  "situations": ["role_large"],
+  "subject": "",
+  "mention_sci_po": false,
+  "length_min": 35,
+  "length_max": 70,
+  "blocks": [
+    {
+      "id": "greeting",
+      "label": "Greeting",
+      "mode": "fixed",
+      "text": "Hi {contact_first},"
+    },
+    {
+      "id": "reanchor",
+      "label": "Re-anchor",
+      "mode": "fixed",
+      "length": "one_line",
+      "text": "Circling my earlier note back to the top, in case it got buried."
+    },
+    {
+      "id": "body",
+      "label": "New angle",
+      "mode": "ai",
+      "length": "body",
+      "fact_scope": ["target_proofs", "candidate_evidence", "candidate_spine", "situation_read"],
+      "guidance": "Add ONE new, specific hook not in the first email, sharpened for a larger organisation: reference a concrete team, product line, or recent announcement, and tie it in one clause to a single relevant piece of the candidate's evidence and to the specific function they could support part-time. At most two tight sentences. Do not recap the first email. No filler openers."
+    },
+    {
+      "id": "close",
+      "label": "Single ask",
+      "mode": "fixed",
+      "length": "one_line",
+      "text": "If it is easier, happy to be pointed to whoever owns this. Open to a short call?"
+    }
+  ],
+  "style": {
+    "formality": 3,
+    "warmth": 2,
+    "directness": 3,
+    "sentence_length": "short",
+    "hedging": "neutral",
+    "humor": "none",
+    "person_focus": "recipient_first",
+    "proof_density": "single",
+    "notes": "For a larger firm, precision and a clear routing offer matter: make it trivially easy to forward or to say who owns this. One new specific hook, one low-friction ask. No apology, no chasing tone.",
+    "examples": []
+  },
+  "evidence": {
+    "prefer": [],
+    "pin": [],
+    "exclude": [],
+    "category_weights": {},
+    "count": 1,
+    "custom_facts": [],
+    "identity_note": ""
+  }
+}

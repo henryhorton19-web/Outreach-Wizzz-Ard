@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Paris · Outreach</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+  <script>
+    // The server injects the per-launch session token here; every /api/* call carries it.
+    window.__PARIS_TOKEN__ = "__PARIS_TOKEN__";
+  </script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span style="font-family: var(--serif); font-size: 19px; color: #fff; font-weight: 600; letter-spacing: .01em;">Paris</span>
+      <span class="sub">Outreach</span>
+    </div>
+
+    <!-- LEFT: primary working views (where am I working) -->
+    <nav class="topbar-tabs" id="topbarTabs" role="tablist" aria-label="Views">
+      <button class="topbar-tab is-active" id="tab-workspace" role="tab" aria-selected="true" data-view="workspace">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+        <span>Workspace</span>
+      </button>
+      <button class="topbar-tab" id="tab-followups" role="tab" aria-selected="false" data-view="followups">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9"></path><polyline points="3 3 3 8 8 8"></polyline><polyline points="12 7 12 12 15 14"></polyline></svg>
+        <span>Follow-ups</span>
+        <span class="badge-count hidden" id="followupsBadge"></span>
+      </button>
+      <button class="topbar-tab" id="tab-pipeline" role="tab" aria-selected="false" data-view="pipeline">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="4" x2="4" y2="20"></line><line x1="10" y1="4" x2="10" y2="14"></line><line x1="16" y1="4" x2="16" y2="18"></line></svg>
+        <span>Pipeline</span>
+      </button>
+      <button class="topbar-tab" id="tab-performance" role="tab" aria-selected="false" data-view="performance">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"></path><path d="M18 9l-5 5-3-3-4 4"></path></svg>
+        <span>Performance</span>
+      </button>
+      <button class="topbar-tab" id="tab-triage" role="tab" aria-selected="false" data-view="triage">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+        <span>Triage</span>
+        <span class="badge-count hidden" id="triageBadge"></span>
+      </button>
+    </nav>
+
+    <div class="spacer"></div>
+
+    <!-- RIGHT: tools + status (open a thing) -->
+    <button class="cost-meter hidden" id="costMeter" title="Session model cost — click for a breakdown" aria-label="Session cost">~$0.00 · 0 drafts</button>
+    <span id="providerPill" class="pill-provider">provider: —</span>
+    <div class="topbar-utils">
+      <button class="icon-btn" id="archiveBtn" title="Sent" aria-label="Sent">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="21 8 21 21 3 21 3 8"></polyline><rect x="1" y="3" width="22" height="5"></rect><line x1="10" y1="12" x2="14" y2="12"></line></svg>
+      </button>
+      <button class="icon-btn" id="voicesBtn" title="Voices" aria-label="Voices">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg>
+      </button>
+      <button class="icon-btn" id="settingsBtn" title="Settings" aria-label="Settings">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+      </button>
+      <button class="icon-btn" id="guideBtn" title="Guide" aria-label="Guide">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+      </button>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="ingest" id="ingestPanel">
+      <span class="eyebrow">New batch</span>
+      <h2>Paste target names</h2>
+      <p class="hint">One target per line. Add a category, source, or URL after a comma if you like (e.g. Acclaim AI, https://acclaim.ai). These are drafts to review, not sends &mdash; you are the final check on every one.</p>
+      <textarea id="namesInput" placeholder="Alan&#10;Acclaim AI, https://acclaim.ai&#10;Qonto"></textarea>
+      <div class="ingest-actions">
+        <button class="btn primary" id="draftBtn">Add to queue</button>
+        <button class="btn ghost" id="uploadBtn">Upload CSV / XLSX / Tracker</button>
+        <div class="upload-hint">CSV/XLSX first col = name, or the Outreach_Tracker workbook</div>
+        <input type="file" id="fileInput" accept=".csv,.xlsx" class="hidden" />
+        <span class="count" id="nameCount"></span>
+      </div>
+    </section>
+
+    <div class="ingest-banner hidden" id="ingestBanner">
+      <button class="ingest-banner-close" id="ingestBannerClose" aria-label="Dismiss">&times;</button>
+      <div id="ingestBannerText"></div>
+    </div>
+
+    <div class="split-layout" id="splitLayout">
+      <!-- LEFT: target queue -->
+      <div class="queue-col" id="queueCol">
+        <div class="col-header">
+          <h3>Targets <span class="col-count" id="queueCount"></span></h3>
+          <div class="col-actions">
+            <button class="btn primary small" id="draft5Btn">Draft 5</button>
+            <button class="btn ghost small" id="clearQueueBtn">Clear queue</button>
+          </div>
+        </div>
+        <div id="queueList"></div>
+        <div class="col-empty hidden" id="queueEmpty">
+          <span>Queue is empty.</span>
+        </div>
+      </div>
+
+      <!-- RIGHT: active drafts -->
+      <div class="drafts-col" id="draftsCol">
+        <div class="col-header" id="draftsHeader">
+          <h3>Drafts <span class="col-count" id="draftsCount"></span></h3>
+          <div class="col-actions">
+            <button class="btn ghost small" id="exportBtn" title="Export drafts to CSV">Export</button>
+            <button class="btn ghost small" id="clearDraftsBtn">Clear drafts</button>
+          </div>
+        </div>
+        <section id="results"></section>
+        <div class="col-empty hidden" id="draftsEmpty">
+          <span>No drafts yet. Click Draft &rarr; on a target to begin.</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Follow-ups view (toggles with the workspace) -->
+    <section class="followups-view hidden" id="followupsView">
+      <div class="fu-head">
+        <div>
+          <span class="eyebrow">Work queue</span>
+          <h2>Follow-ups</h2>
+          <p class="hint">Approving an email queues a follow-up here, oldest first so the most
+            overdue surface on top. Draft it, review, and approve it the same way you approve any
+            email &mdash; a follow-up voice writes it, and it stays in the same subject thread.</p>
+        </div>
+        <button class="btn ghost small" id="fuClearBtn">Clear all</button>
+      </div>
+      <div id="followupsList"></div>
+      <div class="col-empty hidden" id="followupsEmpty">
+        <span>No follow-ups yet. When you approve an email, a suggested follow-up appears here.</span>
+      </div>
+    </section>
+
+    <!-- PIPELINE board (Phase 2) -->
+    <section class="board-view hidden" id="pipelineView">
+      <div class="fu-head">
+        <div>
+          <span class="eyebrow">Board</span>
+          <h2>Pipeline</h2>
+        </div>
+      </div>
+      <div class="board-summary" id="pipelineSummary"></div>
+      <div class="board-filters" id="pipelineFilters">
+        <label class="board-filter">Voice
+          <select id="pipeVoiceFilter" class="mini-select"><option value="">all</option></select>
+        </label>
+        <label class="board-filter"><input type="checkbox" id="pipeStaleOnly" /> Quiet only</label>
+      </div>
+      <div class="board-cols" id="pipelineCols"></div>
+    </section>
+
+    <!-- VOICE PERFORMANCE (Phase 3) -->
+    <section class="perf-view hidden" id="performanceView">
+      <div class="fu-head">
+        <div>
+          <span class="eyebrow">Learning</span>
+          <h2>Voice performance</h2>
+          <p class="hint">Reply rate excludes bounces from the denominator, and stays hidden until a
+            voice clears the minimum sample. Every rate is shown with its 95% interval and n so a
+            small sample is never read as a trend.</p>
+        </div>
+        <div class="vk-toggle" role="tablist" aria-label="Voice set">
+          <button class="vk-seg is-active" id="perfKindOutreach" role="tab" aria-selected="true">Outreach</button>
+          <button class="vk-seg" id="perfKindFollowup" role="tab" aria-selected="false">Follow-up</button>
+        </div>
+      </div>
+      <div class="perf-summary" id="perfSummary"></div>
+      <div id="perfTableWrap"></div>
+      <div class="col-empty hidden" id="perfEmpty"><span>No sends recorded yet. Approve some emails, then check back after a sweep.</span></div>
+    </section>
+
+    <!-- TRIAGE worklist (Phase 6a) -->
+    <section class="triage-view hidden" id="triageView">
+      <div class="fu-head">
+        <div>
+          <span class="eyebrow">Worklist</span>
+          <h2>Triage</h2>
+          <p class="hint">Replies to answer, bounces to re-target, and sends that have gone quiet.
+            Run <b>Check for replies</b> to sweep your inbox, or mark any send by hand — a hand-mark
+            fires the same effects (pause the follow-up, suppress a dead address, stage a retry).</p>
+        </div>
+        <button class="btn primary small" id="triageSweepBtn">Check for replies</button>
+      </div>
+      <div class="triage-filter" role="tablist" aria-label="Triage filter">
+        <button class="vk-seg is-active" data-bucket="replied" role="tab" aria-selected="true">Replied <span class="col-count" id="triageCountReplied"></span></button>
+        <button class="vk-seg" data-bucket="bounced" role="tab" aria-selected="false">Bounced <span class="col-count" id="triageCountBounced"></span></button>
+        <button class="vk-seg" data-bucket="gone_quiet" role="tab" aria-selected="false">Gone quiet <span class="col-count" id="triageCountQuiet"></span></button>
+        <button class="vk-seg" data-bucket="awaiting" role="tab" aria-selected="false">Awaiting <span class="col-count" id="triageCountAwaiting"></span></button>
+      </div>
+      <div class="triage-status" id="triageStatus"></div>
+      <div id="triageList"></div>
+      <div class="col-empty hidden" id="triageEmpty"><span>No items to work here. Check again after your next sweep.</span></div>
+    </section>
+  </main>
+
+  <template id="fuRowTpl">
+    <div class="fu-row">
+      <div class="fu-row-main">
+        <div class="fu-row-left">
+          <div class="fu-name"></div>
+          <div class="fu-sub"></div>
+        </div>
+        <div class="fu-row-mid">
+          <span class="fu-elapsed"></span>
+          <span class="fu-due"></span>
+        </div>
+        <div class="fu-row-act"></div>
+      </div>
+    </div>
+  </template>
+
+  <footer class="footer hidden" id="footer">
+    <div class="summary" id="summary">&mdash;</div>
+  </footer>
+
+  <!-- Startup: provider + key (no identity picker; voice is chosen per target by situation) -->
+  <div class="modal-scrim hidden" id="startupModal">
+    <div class="modal">
+      <div class="modal-hero">
+        <span class="eyebrow">Set up drafting</span>
+        <h2>Connect a model</h2>
+        <p class="lede">The engine researches each target and drafts an email you review. Your key
+          is used only from this machine and is never stored in a draft or an audit record.</p>
+      </div>
+      <div class="field">
+        <label>Provider</label>
+        <select id="startProvider">
+          <option value="gemini">Gemini (default)</option>
+          <option value="anthropic">Claude</option>
+          <option value="stub">Offline demo (no calls)</option>
+        </select>
+      </div>
+      <div class="field" id="keyField" style="margin-top:14px;">
+        <label id="keyLabel">API key</label>
+        <div class="desc" id="keyDesc">Used only from this machine to draft. Never stored in the batch or the audit trail.</div>
+        <input type="password" id="keyInput" placeholder="paste key" autocomplete="off" />
+      </div>
+      <div class="field" id="apolloKeyField" style="margin-top:14px;">
+        <label>Apollo API key</label>
+        <div class="desc">Required for verifying emails before staging.</div>
+        <input type="password" id="apolloKeyInput" placeholder="paste Apollo key" autocomplete="off" />
+      </div>
+      <label class="check"><input type="checkbox" id="rememberKey" checked /> Remember on this machine</label>
+      <div class="modal-actions">
+        <button class="btn primary" id="startBtn">Start drafting</button>
+      </div>
+      <div class="note-line" id="startupNote"></div>
+    </div>
+  </div>
+
+  <div class="modal-scrim hidden" id="settingsModal">
+    <div class="modal">
+      <span class="eyebrow">Settings</span>
+      <h2>Model &amp; keys</h2>
+      <p class="lede">Model ids are defaults &mdash; check them against the provider docs and change here if they've moved.</p>
+      <div class="field">
+        <label>Provider</label>
+        <select id="setProvider">
+          <option value="gemini">Gemini (default)</option>
+          <option value="anthropic">Claude</option>
+          <option value="stub">Offline demo (no calls)</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Gemini model (research + base)</label>
+        <input type="text" id="setGeminiModel" />
+      </div>
+      <div class="field">
+        <label>Claude model</label>
+        <input type="text" id="setAnthropicModel" />
+      </div>
+      <div class="field">
+        <label>Max web searches per target</label>
+        <input type="text" id="setMaxWeb" />
+      </div>
+      <div class="field">
+        <label class="check"><input type="checkbox" id="setFuEnabled" checked /> Queue a follow-up when I approve an email</label>
+        <div class="desc">Approving an email adds a suggested follow-up to the Follow-ups tab.</div>
+      </div>
+      <div class="field" id="setFuStepsField">
+        <label>How many follow-ups per contact</label>
+        <div class="desc">1 is a single follow-up. 2&ndash;3 gives a multi-touch cadence (industry guidance caps at 3 &mdash; more raises spam risk).</div>
+        <select id="setFuMaxSteps">
+          <option value="1">1 follow-up</option>
+          <option value="2">2 follow-ups</option>
+          <option value="3">3 follow-ups</option>
+        </select>
+      </div>
+      <div class="field" id="setFuDelaysField">
+        <label>Days to wait before each follow-up</label>
+        <div class="desc">Chained from when the previous email was approved. Default 3, 7, 7 follows the 2026 cold-outreach consensus (Day 3, 10, 17).</div>
+        <input type="text" id="setFuDelays" placeholder="3, 7, 7" />
+      </div>
+      <div class="field">
+        <label>Outreach tracker path (for write-back on approve)</label>
+        <div class="desc">Absolute path to Outreach_Tracker.xlsx. Leave blank to skip write-back.</div>
+        <input type="text" id="setTrackerPath" placeholder="/Users/you/Outreach_Tracker.xlsx" />
+      </div>
+      <div class="field">
+        <label>Draft outbox folder (optional)</label>
+        <div class="desc">Where staged <code>.eml</code> drafts are written before your mail app opens them. Leave blank to use the app's data folder. Set an absolute path (e.g. a Documents or synced folder) to keep them findable. Per-machine — stays portable.</div>
+        <input type="text" id="setEmlDir" placeholder="leave blank for the default" />
+      <div class="field">
+        <label>Default attachment (e.g. CV)</label>
+        <div class="desc">Attached to every staged draft. Stored on this machine only.</div>
+        <input type="file" id="setAttachInput" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg" />
+        <div id="attachmentsList" class="attachments-list"></div>
+        <label class="check" style="margin-top:8px;">
+          <input type="checkbox" id="setAttachDefault" checked /> Attach the selected file to every draft
+        </label>
+      </div>
+      <!-- Inbox (reply detection) — Phase 5, entirely behind the toggle -->
+      <div class="field">
+        <label class="check"><input type="checkbox" id="setImapEnabled" /> Check my inbox for replies and bounces</label>
+        <div class="desc">Read-only. Your app password is stored in your OS keychain, never sent anywhere else.</div>
+      </div>
+      <div id="imapFields" class="hidden" style="border-left:2px solid var(--line-strong); padding-left:12px; margin-bottom:12px;">
+        <div class="field"><label>IMAP host</label><input type="text" id="setImapHost" placeholder="imap.gmail.com" /></div>
+        <div class="field" style="display:flex; gap:10px;">
+          <div style="flex:1;"><label>Port</label><input type="text" id="setImapPort" placeholder="993" /></div>
+          <div style="flex:1;"><label class="check" style="margin-top:22px;"><input type="checkbox" id="setImapSsl" checked /> SSL</label></div>
+        </div>
+        <div class="field"><label>Username</label><input type="text" id="setImapUser" placeholder="you@example.com" autocomplete="off" /></div>
+        <div class="field"><label>App password</label><input type="password" id="setImapPass" placeholder="leave blank to keep current" autocomplete="off" /></div>
+        <div class="field"><label>Mailboxes (comma-separated)</label><input type="text" id="setImapMailboxes" placeholder="INBOX, All Mail" /></div>
+        <div class="field"><label>Poll every N minutes (0 = manual)</label><input type="text" id="setImapPoll" placeholder="0" /></div>
+        <div style="display:flex; gap:10px; align-items:center;">
+          <button class="btn ghost small" id="imapTestBtn" type="button">Test connection</button>
+          <span id="imapTestResult" class="note-line"></span>
+        </div>
+      </div>
+
+      <!-- Learning routing — Phase 7 -->
+      <div class="field">
+        <label>Learn which voice replies best</label>
+        <div class="desc">Uses reply rates to break routing ties between voices tagged for the same situation — only when both clear the minimum sample and their intervals separate. Never overrides a voice you pick by hand.</div>
+        <select id="setLearningRouting">
+          <option value="off">Off — route by situation only (default)</option>
+          <option value="suggest">Suggest — prefer the stronger voice on ties</option>
+          <option value="auto">Auto — apply automatically on clear ties</option>
+        </select>
+      </div>
+
+      <!-- Learn from my edits — Layer 4 (content learning) -->
+      <div class="field">
+        <label>Learn how you write from your edits</label>
+        <div class="desc">Turns the edits you make before sending into voice updates (tone, notes, examples) so drafts drift toward your style. Suggest proposes a change you accept in the voice editor; Auto applies it — always versioned with one-click rollback, and bounded per run. Off = unchanged.</div>
+        <select id="setLearningMode">
+          <option value="off">Off — never change a voice on its own (default)</option>
+          <option value="suggest">Suggest — propose a change I accept</option>
+          <option value="auto">Auto — apply automatically (versioned)</option>
+        </select>
+        <label class="check" style="margin-top:8px;"><input type="checkbox" id="setLearningPromote" /> A/B test a learned change as a challenger before it wins (uses reply rates)</label>
+      </div>
+
+      <!-- thresholds -->
+      <div class="field" style="display:flex; gap:10px;">
+        <div style="flex:1;"><label>Min sends before showing a reply rate</label><input type="text" id="setMinN" placeholder="15" /></div>
+        <div style="flex:1;"><label>Days before a sent card is "quiet"</label><input type="text" id="setStaleDays" placeholder="7" /></div>
+      </div>
+
+      <!-- bounce re-draft — Phase 6b -->
+      <div class="field">
+        <label>Bounce retries</label>
+        <div class="desc">On a bounce, how many re-drafts to stage down the address ladder — the current person's remaining formats first, then a <b>different person</b> at the target. Approve-first: retries are staged, never sent.</div>
+        <input type="text" id="setMaxBounce" placeholder="3" style="max-width:120px;" />
+      </div>
+
+      <!-- send-window advisory — Phase 6c -->
+      <div class="field">
+        <label class="check"><input type="checkbox" id="setSendWindow" checked /> Suggest a better send window on weekends / late nights</label>
+        <div class="desc">A non-blocking hint at approve time. Never blocks staging.</div>
+      </div>
+
+      <!-- do-not-contact — Phase 4a -->
+      <div class="field">
+        <label>Do-not-contact list</label>
+        <div class="desc">Addresses and domains that are skipped at ingest and never staged. Bounces add here automatically.</div>
+        <button class="btn ghost small" id="openSuppBtn" type="button">Manage do-not-contact</button>
+      </div>
+
+      <div class="field" id="setKeyField">
+        <label id="setKeyLabel">Update key</label>
+        <div class="desc">Leave blank to keep the current key.</div>
+        <input type="password" id="setKeyInput" placeholder="paste new key" autocomplete="off" />
+      </div>
+      <div class="field" id="setApolloKeyField" style="margin-top:14px;">
+        <label>Update Apollo key</label>
+        <div class="desc">Leave blank to keep the current Apollo key.</div>
+        <input type="password" id="setApolloKeyInput" placeholder="paste Apollo key" autocomplete="off" />
+      </div>
+      <label class="check" style="margin-top:12px;"><input type="checkbox" id="setRemember" checked /> Remember on this machine</label>
+      <div class="modal-actions">
+        <button class="btn ghost" id="settingsCancel">Cancel</button>
+        <button class="btn primary" id="settingsSave">Save</button>
+      </div>
+      <div class="note-line" id="settingsNote"></div>
+    </div>
+  </div>
+
+  <!-- Do-not-contact manager (Phase 4a) -->
+  <div class="modal-scrim hidden" id="suppModal">
+    <div class="modal" style="max-width: 640px; max-height: 88vh; overflow-y: auto;">
+      <div style="display:flex; justify-content:space-between; align-items:baseline;">
+        <h2>Do-not-contact</h2>
+        <button class="btn ghost small" id="suppClearBtn">Clear all</button>
+      </div>
+      <p class="hint">Email addresses and domains skipped at ingest and never staged. Bounces add here automatically, with the reason recorded.</p>
+      <div class="supp-add">
+        <input type="text" id="suppInput" placeholder="jane@acme.com or acme.com" style="flex:1;" autocomplete="off" />
+        <button class="btn primary small" id="suppAddBtn">Add</button>
+      </div>
+      <div id="suppTableWrap"></div>
+      <div class="modal-actions"><button class="btn ghost" id="suppCloseBtn">Close</button></div>
+    </div>
+  </div>
+
+  <!-- Keyboard shortcuts cheat-sheet (Phase 4c) -->
+  <div class="modal-scrim hidden" id="shortcutModal">
+    <div class="modal" style="max-width: 420px;">
+      <h2>Keyboard shortcuts</h2>
+      <div class="shortcut-sheet" style="margin-top:12px;">
+        <kbd>j</kbd><span>Next draft</span>
+        <kbd>k</kbd><span>Previous draft</span>
+        <kbd>a</kbd><span>Approve focused draft</span>
+        <kbd>e</kbd><span>Open / edit focused draft</span>
+        <kbd>/</kbd><span>Focus the ingest box</span>
+        <kbd>?</kbd><span>Show this sheet</span>
+      </div>
+      <div class="modal-actions"><button class="btn ghost" id="shortcutCloseBtn">Close</button></div>
+    </div>
+  </div>
+
+  <div class="modal-scrim hidden" id="archiveModal">
+    <div class="modal" style="max-width: 800px; max-height: 90vh; overflow-y: auto;">
+      <div style="display: flex; justify-content: space-between; align-items: baseline;">
+        <h2>Sent</h2>
+        <button class="btn ghost small" id="clearArchiveBtn">Clear</button>
+      </div>
+      <p class="lede">Approved emails from all sessions. Auto-trimmed to the 15 most recent.</p>
+      <div id="archiveList" style="display: flex; flex-direction: column; gap: 16px;"></div>
+      <div class="modal-actions" style="margin-top: 24px;">
+        <button class="btn ghost" id="archiveCloseBtn">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-scrim hidden" id="guideModal">
+    <div class="modal" style="max-height: 80vh; overflow-y: auto;">
+      <h2>How to use Paris Outreach</h2>
+      <p style="margin-top: 8px;">This app writes first-draft outreach emails to companies and funds you're targeting for a
+        part-time seat during your Sciences Po year, so you start from a solid draft instead of a blank
+        page. You review and edit every draft; nothing is ever sent automatically. Approving stages the
+        email as a file you open in your mail client and records the send in your tracker.</p>
+
+      <span class="eyebrow" style="display:block; margin-top:16px;">Voices you control</span>
+      <p style="margin-top: 4px;">The engine reads each target's situation and auto-matches a voice: <strong>no role at a
+        small company</strong> (a create-the-seat pitch), <strong>a role at a small company</strong>, or
+        <strong>a role at a large company</strong>. Open <strong>Voices</strong> in the header to edit any voice,
+        create your own, or delete the ones that ship &mdash; nothing is fixed. Per block you choose your exact
+        words or let the model write from your guidance. Set a default voice, force one for a whole session, or
+        switch a single draft from its drawer.</p>
+
+      <span class="eyebrow" style="display:block; margin-top:16px;">Creating drafts</span>
+      <p style="margin-top: 4px;">Paste target names (one per line) or upload a list or your Outreach_Tracker workbook, then click
+        Draft. The app researches each target for two proof points and one recent trigger, ties them to
+        your background, and writes a first draft. Drafts save automatically.</p>
+
+      <span class="eyebrow" style="display:block; margin-top:16px;">Reviewing and editing</span>
+      <p style="margin-top: 4px;">Click any draft to open it. On the left you see the research and the parts of your profile the
+        engine tied in, with source links. On the right is the full email; the greeting, opening and ask
+        are locked as the house frame, and the body is yours to edit. Your changes save as you go.</p>
+
+      <span class="eyebrow" style="display:block; margin-top:16px;">The "contact unverified" note</span>
+      <p style="margin-top: 4px;">If a draft shows "contact unverified," the app couldn't fully confirm the recipient. It still fills
+        in a best guess; double-check before sending. A target may also be marked <strong>disqualified</strong>
+        if the role needs presence outside Paris or is French-dominant.</p>
+
+      <span class="eyebrow" style="display:block; margin-top:16px;">Approving and sending</span>
+      <p style="margin-top: 4px;">When a draft is ready, approve it. The app stages a .eml file you can open in your mail client and
+        writes the send to your tracker's "Reach Out To" sheet. Nothing leaves your outbox until you press
+        send yourself.</p>
+
+      <div class="modal-actions" style="margin-top: 24px;">
+        <button class="btn ghost" id="guideCloseBtn">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Voices manager -->
+  <div class="modal-scrim hidden" id="voicesModal">
+    <div class="modal" style="max-width: 720px; max-height: 90vh; overflow-y: auto;">
+      <div style="display:flex; justify-content:space-between; align-items:baseline;">
+        <h2>Voices</h2>
+        <button class="btn primary small" id="newVoiceBtn">+ New voice</button>
+      </div>
+      <p class="lede">Every voice is editable data, including the three that ship. Each target is
+        auto-matched to a voice by its situation; you can override for this session or per draft.</p>
+
+      <div class="voice-kind-toggle" id="voiceKindToggle" role="tablist" aria-label="Voice set">
+        <button class="vk-seg is-active" data-kind="outreach" role="tab">Outreach</button>
+        <button class="vk-seg" data-kind="followup" role="tab">Follow-up</button>
+      </div>
+      <p class="lede" id="followupVoiceHint" style="display:none;">These voices write the
+        follow-up emails in the Follow-ups tab. Same editor, separate set. Defaults follow
+        best practice: short, one new angle, a single ask, same subject thread.</p>
+
+      <div class="voices-routing">
+        <div class="field">
+          <label>This session</label>
+          <div class="desc">Force one voice for every draft this session, or Auto to match by situation.</div>
+          <select id="sessionVoiceSel"></select>
+        </div>
+        <div class="field" style="margin-top:12px;">
+          <label>Default voice (fallback)</label>
+          <div class="desc">Used when a target's situation has no voice tagged for it.</div>
+          <select id="defaultVoiceSel"></select>
+        </div>
+      </div>
+
+      <div id="voicesList" style="display:flex; flex-direction:column; gap:8px; margin-top:18px;"></div>
+      <div class="modal-actions" style="margin-top:22px;">
+        <button class="btn ghost" id="voicesCloseBtn">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Voice editor -->
+  <div class="modal-scrim hidden" id="voiceEditorModal">
+    <div class="modal" style="max-width: 1000px; max-height: 92vh; overflow: hidden; display:flex; flex-direction:column; padding:0;">
+      <div style="padding:20px 26px; border-bottom:1px solid var(--line); display:flex; align-items:center; justify-content:space-between;">
+        <div>
+          <span class="eyebrow" id="veTitle">New voice</span>
+          <h2 id="veHeader" style="margin-bottom:0;">Voice</h2>
+        </div>
+        <div class="modal-actions" style="margin-top:0;">
+          <button class="btn ghost" id="veCancel">Cancel</button>
+          <button class="btn primary" id="veSave">Save voice</button>
+        </div>
+      </div>
+
+      <div style="display:flex; flex:1; overflow:hidden;">
+        <!-- form -->
+        <div style="flex:1.25; overflow-y:auto; padding:24px 26px; border-right:1px solid var(--line);">
+          <div class="note-line" style="margin-top:0; margin-bottom:20px;">A voice is the whole recipe.
+            Order the blocks, set each to your exact words (Fixed) or written by the model (AI), steer
+            which of your experiences it draws on, and tune the style. Only the honesty floor (no
+            invented facts, HPE present tense, no sign-off) is fixed.</div>
+
+          <h3 class="ve-h">Identity</h3>
+          <div class="field">
+            <label>Name <span class="req">(required)</span></label>
+            <input type="text" id="veName" placeholder="e.g. Warm founder pitch" autocomplete="off" spellcheck="false" />
+          </div>
+          <div class="field" style="margin-top:12px;" id="veStartFromWrap">
+            <label>Start from</label>
+            <div class="desc">Copy an existing voice as a starting point (optional).</div>
+            <select id="veStartFrom"></select>
+          </div>
+          <div class="field" style="margin-top:12px;">
+            <label>Subject</label>
+            <input type="text" id="veSubject" class="ve-tok-target" />
+            <div class="desc">Accepts tokens, e.g. {role_or_company}, {company}.</div>
+          </div>
+          <div class="field" style="margin-top:12px;">
+            <label>Auto-select this voice for</label>
+            <div class="desc">Which situations pick this voice automatically. All off = manual-only.</div>
+            <label class="check"><input type="checkbox" id="veSit_no_role_small" /> No role · small company (create the seat)</label>
+            <label class="check"><input type="checkbox" id="veSit_role_small" /> A role · small company</label>
+            <label class="check"><input type="checkbox" id="veSit_role_large" /> A role · large company</label>
+          </div>
+          <div style="margin-top:12px; display:flex; gap:16px;">
+            <div class="field" style="flex:1;"><label>Body words min</label><input type="number" id="veLenMin" min="10" max="400" /></div>
+            <div class="field" style="flex:1;"><label>Body words max</label><input type="number" id="veLenMax" min="10" max="400" /></div>
+          </div>
+          <label class="check" style="margin-top:12px;"><input type="checkbox" id="veMentionSci" /> Mention Sciences Po (once)</label>
+          <label class="check"><input type="checkbox" id="veAllowDashes" /> Allow dashes (otherwise commas / full stops)</label>
+
+          <h3 class="ve-h">Blocks</h3>
+          <div class="desc" style="margin-bottom:10px;">The email, in order. Use the arrows to reorder.</div>
+          <div id="veBlocks" style="display:flex; flex-direction:column; gap:12px;"></div>
+          <button class="btn ghost small" id="veAddBlock" style="margin-top:12px;">+ Add block</button>
+
+          <h3 class="ve-h">Tokens</h3>
+          <div class="desc" style="margin-bottom:8px;">Click to insert into the last block field or the
+            subject you focused. Experience tokens expand to that experience's line; {relevant} lets the
+            model pick the best-fitting experience for the point.</div>
+          <div id="veTokenPalette" class="token-palette"></div>
+
+          <h3 class="ve-h">Style</h3>
+          <div id="veStyle"></div>
+          <div class="field" style="margin-top:12px;">
+            <label>Notes</label>
+            <textarea id="veStyleNotes" style="height:72px;" class="ve-tok-target"></textarea>
+            <div class="desc">Freeform steer, e.g. "offer a read of their business, not a lecture."</div>
+          </div>
+          <div class="field" style="margin-top:12px;">
+            <label>Example emails <span style="font-weight:normal;color:var(--ink-faint);">(optional)</span></label>
+            <div class="desc" style="margin-bottom:8px;">Paste emails whose style you want matched.</div>
+            <div id="veExamples" style="display:flex; flex-direction:column; gap:8px;"></div>
+            <button class="btn ghost small" id="veAddExample" style="margin-top:8px;">+ Add example</button>
+          </div>
+
+          <!-- Layer 4: learning-from-edits panel (only for a saved voice) -->
+          <div id="veLearningWrap" class="hidden" style="margin-top:16px;">
+            <h3 class="ve-h">Learning from your edits</h3>
+            <div class="desc" id="veLearningDesc" style="margin-bottom:8px;"></div>
+            <div id="veLearningBody" class="ve-learning"></div>
+            <div style="display:flex; gap:8px; margin-top:10px; flex-wrap:wrap;">
+              <button class="btn ghost small" id="veLearnNow" type="button">Learn from my edits now</button>
+              <button class="btn ghost small" id="veOptimize" type="button" title="Batch-optimise over the full edit history and A/B the best result">Optimise (A/B)</button>
+              <button class="btn ghost small" id="veArbitrate" type="button" title="Resolve any running A/B by reply rate">Resolve A/B</button>
+            </div>
+          </div>
+
+          <h3 class="ve-h">Evidence</h3>
+          <div class="desc" style="margin-bottom:8px;">Which of your experiences this voice draws on, and
+            how much it says. Prefer nudges up, pin forces in, exclude removes.</div>
+          <div id="veEvidence"></div>
+          <div class="field" style="margin-top:12px;">
+            <label>Emphasis note</label>
+            <input type="text" id="veIdentityNote" />
+            <div class="desc">One line on how to frame you, e.g. "builder who can also value a company."</div>
+          </div>
+          <div class="field" style="margin-top:12px;">
+            <label>Custom facts <span style="font-weight:normal;color:var(--ink-faint);">(optional)</span></label>
+            <div class="desc" style="margin-bottom:8px;">True claims the model may use and cite, beyond your profile.</div>
+            <div id="veCustomFacts" style="display:flex; flex-direction:column; gap:8px;"></div>
+            <button class="btn ghost small" id="veAddFact" style="margin-top:8px;">+ Add fact</button>
+          </div>
+
+          <h3 class="ve-h">Variables</h3>
+          <div class="desc" style="margin-bottom:8px;">Custom tokens for this voice, usable as {key} anywhere.</div>
+          <div id="veVars" style="display:flex; flex-direction:column; gap:8px;"></div>
+          <button class="btn ghost small" id="veAddVar" style="margin-top:8px;">+ Add variable</button>
+        </div>
+
+        <!-- live preview -->
+        <div style="flex:1; padding:24px 26px; overflow-y:auto; background:#fafafa;">
+          <h3 class="ve-h" style="margin-top:0;">Live preview</h3>
+          <div class="letter" style="background:#fff;">
+            <div class="letter-head" style="padding:12px 14px;">
+              <div class="letter-subject">Subject: <b id="pvSubject"></b></div>
+            </div>
+            <div class="letter-body" style="padding:16px 18px;">
+              <div id="pvBody" style="white-space:pre-wrap; font-size:14px; line-height:1.6;"></div>
+            </div>
+          </div>
+          <div class="note-line" style="margin-top:14px;">Tokens show sample values; experience tokens like
+            {hpe} expand to their line. AI blocks and {relevant} appear as labelled placeholders.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
+
+  <template id="rowTpl">
+    <div class="row" data-slug="">
+      <div class="row-main">
+        <div class="chev">&#9654;</div>
+        <div class="cell-co">
+          <div class="co-name"></div>
+          <div class="co-crm"></div>
+        </div>
+        <div class="cell-contact">
+          <div class="c-name"></div>
+          <div class="c-mail"></div>
+          <div class="badges"></div>
+        </div>
+        <div class="cell-status"><span class="pill">&mdash;</span></div>
+        <div class="cell-act"></div>
+      </div>
+      <div class="drawer"></div>
+    </div>
+  </template>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

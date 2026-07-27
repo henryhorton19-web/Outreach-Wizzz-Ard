@@ -1,0 +1,136 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Paris outreach enrichment cache",
+  "description": "Stage-1 research output, Stage-2 (prepare/compose/finalize) input. Built around two proof points and one recent point ABOUT THE TARGET, plus the routing signals the voice selector and honesty gates need. Nothing outside this cache (or the fixed candidate profile) can enter a draft.",
+  "type": "object",
+  "required": ["company", "proof_points", "contact", "overall_confidence"],
+  "additionalProperties": true,
+  "properties": {
+    "company": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "website": {"type": "string"},
+        "what_they_do": {"type": "string", "description": "One neutral sentence; NOT recited back to the founder, used only for routing."},
+        "role_exists": {"type": "boolean", "description": "Is there an advertised/known role? Drives voice selection."},
+        "role_title": {"type": "string", "description": "The role, if one exists."},
+        "role_source": {"type": "string"},
+        "company_size": {"enum": ["small", "large"], "description": "small = pre-Series B / <~80 headcount; large otherwise."},
+        "company_size_evidence": {"type": "string", "description": "Brief explanation for the size categorization."},
+        "work_mode": {"enum": ["paris_office", "remote_english", "disqualify"], "description": "disqualify if presence required outside Paris."},
+        "working_language": {"type": "string", "description": "English, English-dominant, or the dominant language if it disqualifies."},
+        "disqualified": {"type": "boolean", "description": "true if work-mode/language rules this target out; research still returns, the app surfaces the reason."},
+        "disqualify_reason": {"type": "string"}
+      }
+    },
+    "proof_points": {
+      "type": "array",
+      "description": "Exactly two sourced facts ABOUT THE TARGET (what they do/have built, traction, product, market position). The bridge hooks the engine ties to the candidate profile.",
+      "minItems": 1,
+      "maxItems": 3,
+      "items": {
+        "type": "object",
+        "required": ["fact"],
+        "properties": {
+          "fact": {"type": "string", "minLength": 1},
+          "source": {"type": "string"},
+          "kind": {"enum": ["product", "traction", "market", "team", "other"], "description": "Loose tag; helps the engine choose which profile evidence answers it."},
+          "staleness": {"enum": ["fresh", "aging", "stale"], "description": "Recency of the fact relative to the recency floor; drives freshest-first ordering in the draft."}
+        }
+      }
+    },
+    "recent_point": {
+      "type": "object",
+      "description": "One recent (< ~6 months) sourced trigger: raise, launch, hire, expansion. Powers the opener (the 'why now').",
+      "properties": {
+        "present": {"type": "boolean"},
+        "kind": {"enum": ["raise", "funding", "launch", "hire", "expansion", "other"]},
+        "detail": {"type": "string"},
+        "source": {"type": "string"},
+        "staleness": {"enum": ["fresh", "aging", "stale"]}
+      }
+    },
+    "thesis": {
+      "type": "object",
+      "required": ["market_shift", "company_positioning"],
+      "properties": {
+        "market_shift": {"type": "string", "minLength": 1},
+        "market_shift_source": {"type": "string"},
+        "company_positioning": {"type": "string", "minLength": 1},
+        "positioning_source": {"type": "string"}
+      }
+    },
+    "traction_signals": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["signal"],
+        "properties": {
+          "signal": {"type": "string"},
+          "source": {"type": "string"}
+        }
+      }
+    },
+    "stated_plan": {
+      "type": "object",
+      "properties": {
+        "detail": {"type": "string"},
+        "short": {"type": "string"},
+        "label": {"type": "string"},
+        "source": {"type": "string"}
+      }
+    },
+    "earned_observation": {
+      "type": "object",
+      "properties": {
+        "present": {"type": "boolean"},
+        "read": {"type": "string", "minLength": 1},
+        "mood": {"enum": ["hypothesis", "question"]},
+        "basis": {"type": "string"}
+      }
+    },
+    "contact": {
+      "type": "object",
+      "required": ["status"],
+      "properties": {
+        "status": {"enum": ["found", "to_research"]},
+        "name": {"type": "string"},
+        "title": {"type": "string"},
+        "role_basis": {"type": "string", "description": "founder | partner | hiring_manager"},
+        "email": {"type": "string"},
+        "email_confidence": {"enum": ["high", "medium", "low"]},
+        "contact_verified": {"type": "boolean", "description": "true only if the named person was confirmed from a primary/recent source."}
+      }
+    },
+    "contacts_alt": {
+      "type": "array",
+      "maxItems": 2,
+      "description": "Up to two BACKUP contacts at the target — DIFFERENT people from `contact` — used only if the primary address bounces. Same shape as contact; name from what you already found, no extra searches. Omit if a second person cannot be named.",
+      "items": {
+        "type": "object",
+        "required": ["name"],
+        "properties": {
+          "name": {"type": "string"},
+          "title": {"type": "string"},
+          "role_basis": {"type": "string", "description": "founder | partner | hiring_manager"},
+          "email": {"type": "string"},
+          "email_confidence": {"enum": ["high", "medium", "low"]}
+        }
+      }
+    },
+    "situation_read": {
+      "type": "string",
+      "description": "One sentence: the specific, verifiable read of the target's moment that the no-role/create-the-seat opener can use. Optional but valuable for no_role_small."
+    },
+    "evidence_sources": {
+      "type": "array",
+      "items": {"type": "string"}
+    },
+    "research_failures": {
+      "type": "array",
+      "items": {"type": "string"}
+    },
+    "overall_confidence": {"enum": ["high", "medium", "low"]}
+  }
+}

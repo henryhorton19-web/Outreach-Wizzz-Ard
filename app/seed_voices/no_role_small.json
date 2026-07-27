@@ -1,0 +1,82 @@
+{
+  "created_at": "2026-01-01T00:00:00+00:00",
+  "updated_at": "2026-01-01T00:00:00+00:00",
+  "seeded_from": "builtin",
+  "id": "no_role_small",
+  "display_name": "No role · small (create the seat)",
+  "situations": [
+    "no_role_small"
+  ],
+  "subject": "an idea for {company}",
+  "mention_sci_po": true,
+  "length_min": 70,
+  "length_max": 120,
+  "blocks": [
+    {
+      "id": "greeting",
+      "label": "Greeting",
+      "mode": "fixed",
+      "text": "Hi {contact_first},"
+    },
+    {
+      "id": "opening",
+      "label": "Opening",
+      "mode": "ai",
+      "fact_scope": [
+        "recent"
+      ],
+      "length": "one_line",
+      "optional": true,
+      "guidance": "In one clean sentence, acknowledge the recent event as the reason for writing now."
+    },
+    {
+      "id": "body",
+      "label": "Body",
+      "mode": "ai",
+      "length": "body",
+      "fact_scope": [
+        "situation_read",
+        "candidate_evidence",
+        "candidate_spine",
+        "target_proofs"
+      ],
+      "guidance": "Lead with a read of their situation and an offer, not a CV recital. Name a specific problem you could take off their plate and tie one piece of evidence to it. Do not tell the founder what they already know."
+    },
+    {
+      "id": "positioning",
+      "label": "Positioning",
+      "mode": "fixed",
+      "owns_sci_po": true,
+      "length": "short",
+      "text": "I am on exchange at Sciences Po in Paris this year (September to June) and looking for a part-time operating seat around classes."
+    },
+    {
+      "id": "close",
+      "label": "Close",
+      "mode": "fixed",
+      "length": "one_line",
+      "text": "I'd happily start by owning a real problem for you. Worth a quick call?"
+    }
+  ],
+  "style": {
+    "formality": 1,
+    "warmth": 3,
+    "directness": 3,
+    "sentence_length": "flowing",
+    "hedging": "neutral",
+    "humor": "none",
+    "person_focus": "recipient_first",
+    "proof_density": "single",
+    "notes": "Warm, entrepreneurial, offer-led. No entitlement.",
+    "examples": []
+  },
+  "evidence": {
+    "prefer": [],
+    "pin": [],
+    "exclude": [],
+    "category_weights": {},
+    "count": 1,
+    "custom_facts": [],
+    "identity_note": ""
+  }
+}

@@ -1,0 +1,14 @@
+# Requires Python >=3.11,<3.13  (3.14 aborts inside anyio annotation eval)
+fastapi>=0.110
+python-multipart>=0.0.9
+uvicorn>=0.29
+pydantic>=2.6
+jsonschema>=4.0
+openpyxl>=3.1
+pywebview>=5.0
+keyring>=24.0
+google-genai>=0.3
+anthropic>=0.34
+# Optional: preferred IMAP client for the read-only inbox sweep (reply/bounce detection).
+# The app falls back to the stdlib `imaplib` if this is absent, so it is not required.
+imap-tools>=1.0 ; python_version >= "3.11"

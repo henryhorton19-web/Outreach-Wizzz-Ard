@@ -1,0 +1,82 @@
+{
+  "created_at": "2026-01-01T00:00:00+00:00",
+  "updated_at": "2026-01-01T00:00:00+00:00",
+  "seeded_from": "builtin",
+  "id": "role_small",
+  "display_name": "Role · small company",
+  "situations": [
+    "role_small"
+  ],
+  "subject": "{role_or_company}, part-time from September",
+  "mention_sci_po": true,
+  "length_min": 70,
+  "length_max": 120,
+  "blocks": [
+    {
+      "id": "greeting",
+      "label": "Greeting",
+      "mode": "fixed",
+      "text": "Hi {contact_first},"
+    },
+    {
+      "id": "opening",
+      "label": "Opening",
+      "mode": "ai",
+      "fact_scope": [
+        "recent"
+      ],
+      "length": "one_line",
+      "optional": true,
+      "guidance": "Acknowledge the recent event in one clean sentence as the reason for writing now."
+    },
+    {
+      "id": "body",
+      "label": "Body",
+      "mode": "ai",
+      "length": "body",
+      "fact_scope": [
+        "target_proofs",
+        "candidate_evidence",
+        "candidate_spine",
+        "situation_read"
+      ],
+      "guidance": "Tie one piece of the candidate's evidence to what the role actually needs. Lead with wanting to build inside a company rather than evaluate it from outside, and signal willingness to do the day-to-day."
+    },
+    {
+      "id": "positioning",
+      "label": "Positioning",
+      "mode": "fixed",
+      "owns_sci_po": true,
+      "length": "short",
+      "text": "I am on exchange at Sciences Po in Paris this year, so I am after a part-time seat (around 2 days a week) rather than a full-time role."
+    },
+    {
+      "id": "close",
+      "label": "Close",
+      "mode": "fixed",
+      "length": "one_line",
+      "text": "~2 days a week, September to June. Open to a short call?"
+    }
+  ],
+  "style": {
+    "formality": 2,
+    "warmth": 2,
+    "directness": 3,
+    "sentence_length": "flowing",
+    "hedging": "neutral",
+    "humor": "none",
+    "person_focus": "recipient_first",
+    "proof_density": "single",
+    "notes": "Offer a read of their business as a hypothesis and an offer, not a lecture. Do not recite what the company does; assume they know their own product.",
+    "examples": []
+  },
+  "evidence": {
+    "prefer": [],
+    "pin": [],
+    "exclude": [],
+    "category_weights": {},
+    "count": 1,
+    "custom_facts": [],
+    "identity_note": ""
+  }
+}

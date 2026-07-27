@@ -1,0 +1,82 @@
+{
+  "created_at": "2026-07-17T00:00:00+00:00",
+  "updated_at": "2026-07-17T00:00:00+00:00",
+  "seeded_from": "builtin",
+  "id": "fractional_ops",
+  "display_name": "Fractional Ops / Automation",
+  "situations": [
+    "fractional_ops"
+  ],
+  "subject": "quick question about {company}",
+  "mention_sci_po": true,
+  "length_min": 75,
+  "length_max": 120,
+  "blocks": [
+    {
+      "id": "greeting",
+      "label": "Greeting",
+      "mode": "fixed",
+      "text": "Hi {contact_first},"
+    },
+    {
+      "id": "opening",
+      "label": "Opening",
+      "mode": "ai",
+      "fact_scope": [
+        "recent"
+      ],
+      "length": "one_line",
+      "optional": true,
+      "guidance": "Acknowledge the recent event in one clean sentence as the reason for writing now."
+    },
+    {
+      "id": "body",
+      "label": "Body",
+      "mode": "ai",
+      "length": "body",
+      "fact_scope": [
+        "target_proofs",
+        "candidate_evidence",
+        "candidate_spine",
+        "situation_read"
+      ],
+      "guidance": "Name a specific operational or workflow pain they likely have. Offer a done-for-you solution, and tie in one concrete piece of evidence (e.g. automating a pipeline or building a system) to prove you can do it. Use quantified proof where possible."
+    },
+    {
+      "id": "positioning",
+      "label": "Positioning",
+      "mode": "fixed",
+      "owns_sci_po": true,
+      "length": "short",
+      "text": "I am on exchange at Sciences Po in Paris this year and taking on a couple of fractional ops projects."
+    },
+    {
+      "id": "close",
+      "label": "Close",
+      "mode": "fixed",
+      "length": "one_line",
+      "text": "Worth a quick chat to see if I can save you 10 hours a week?"
+    }
+  ],
+  "style": {
+    "formality": 2,
+    "warmth": 2,
+    "directness": 3,
+    "sentence_length": "flowing",
+    "hedging": "neutral",
+    "humor": "none",
+    "person_focus": "recipient_first",
+    "proof_density": "single",
+    "notes": "Direct, evidence-led, no fluff. Focus purely on their operational bottlenecks.",
+    "examples": []
+  },
+  "evidence": {
+    "prefer": [],
+    "pin": [],
+    "exclude": [],
+    "category_weights": {},
+    "count": 1,
+    "custom_facts": [],
+    "identity_note": ""
+  }
+}

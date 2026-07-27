@@ -1,0 +1,22 @@
+# --- Python ---
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+venv/
+build/
+dist/
+*.spec.bak
+
+# --- runtime / logs ---
+faults.log
+.test_data/
+session_stats.json
+
+# --- PRIVATE: personal profile & real outreach voices (never commit) ---
+engine/config_local.py
+app/seed_voices_local/
+
+# --- OS noise ---
+.DS_Store
+Thumbs.db
