@@ -144,7 +144,7 @@ def test_apollo_verify_wiring(clean_data_dir, monkeypatch):
     
     recorded_args = {}
     
-    def mock_open_email_draft(to, subject, body_text, attachments=None, message_id=None):
+    def mock_open_email_draft(to, subject, body_text, attachments=None, message_id=None, company_name=None, **kwargs):
         recorded_args["to"] = to
         recorded_args["subject"] = subject
         recorded_args["body_text"] = body_text

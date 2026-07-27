@@ -332,7 +332,15 @@ def atomic_write_text(path: Path, text: str) -> None:
             f.write(text)
             f.flush()
             os.fsync(f.fileno())
-        os.replace(tmp, path)
+        for _attempt in range(5):
+            try:
+                os.replace(tmp, path)
+                break
+            except PermissionError:
+                if _attempt == 4:
+                    raise
+                import time
+                time.sleep(0.02)
     except BaseException:
         try:
             os.unlink(tmp)

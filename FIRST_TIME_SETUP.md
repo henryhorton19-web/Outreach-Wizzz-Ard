@@ -23,11 +23,21 @@ If `engine/config_local.py` is absent the app still runs, using a placeholder pr
 Put any private/real seed voices in `app/seed_voices_local/*.json` (git-ignored). They seed
 on first launch alongside the generic starters in `app/seed_voices/`.
 
-## 4. Run
+## 4. Run (System-Agnostic Synced Launcher)
+
+Always use the system-agnostic launcher scripts to run the desktop application (`pywebview`). They automatically sync both public code and private data (`git pull` before launch, auto-commit & push on exit):
+
+### Windows (PowerShell)
+```powershell
+.\run-paris.ps1
 ```
-python run_local.py            # opens in your browser
-# PARIS_PROVIDER=stub python run_local.py   # offline demo, no API calls
+
+### macOS / Linux (Bash/Zsh)
+```bash
+./run-paris.sh
 ```
+
+*(To run web-only offline demo without sync: `PARIS_PROVIDER=stub python run_local.py`)*
 API keys are prompted on first use and stored in your OS keychain — never on disk, never here.
 
 ---

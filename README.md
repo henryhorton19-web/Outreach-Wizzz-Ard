@@ -11,28 +11,23 @@ and writes a first-draft email in a voice you control. You review and edit every
 automatically. Approving stages a `.eml` file for your mail client and writes the send to your
 tracker.
 
-## Quick start (no build)
+## Quick Start & AI Agent Rules (System-Agnostic Launchers)
 
-```bash
-cd paris_app
-python -m pip install -r requirements.txt
+When opening, modifying, or launching Paris Outreach in a fresh chat or workspace, **always use the system-agnostic synced launcher command** for your operating system. These launchers automatically perform pre-launch git pulling (both public code and private data), start the native desktop GUI app (`pywebview`), and automatically commit & push any modified code on exit.
 
-# offline demo — no API key, deterministic drafts:
-PARIS_PROVIDER=stub python run_local.py
-
-# real drafting (set a key in the UI's Settings, or it will prompt on first run):
-python run_local.py
+### Windows (PowerShell)
+```powershell
+cd "<ABSOLUTE_PATH_TO_PARIS_OUTREACH>"
+.\run-paris.ps1
 ```
 
-Then open http://127.0.0.1:8770/ (the dev launcher opens it for you).
-
-For a double-clickable desktop app:
-
+### macOS / Linux (Bash/Zsh)
 ```bash
-python main.py                 # runs in a native window (needs pywebview)
-# or build a standalone bundle:
-pyinstaller build.spec         # -> dist/ParisOutreach(.exe/.app)
+cd "<ABSOLUTE_PATH_TO_PARIS_OUTREACH>"
+./run-paris.sh
 ```
+
+**AI Assistants & Collaborator Note**: Always launch the full desktop app GUI (`run-paris.ps1` / `run-paris.sh` -> `main.py`). Do not start only the headless web backend (`server.py` / `uvicorn`) unless explicitly asked. The launcher scripts handle the **Two-Repo Model**: public source code in `paris-outreach`, and private runtime data/voices in `%APPDATA%\ParisOutreach` (or `~/.paris_outreach`). Secrets and personal profiles (`engine/config_local.py`, `app/seed_voices_local/`) are git-ignored and never pushed.
 
 ## How it works
 
