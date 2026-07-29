@@ -25,7 +25,7 @@ Paris Outreach is a self-contained desktop application powered by Python (`pyweb
 
 ## 4. Automatic Two-Repo Git Sync Architecture
 The launcher scripts (`run-paris.ps1` and `run-paris.sh` -> `run_synced.py`) automatically manage a **Two-Repo Model**:
-* **Public Code Repo (`paris-outreach`)**: Contains source code only. The launcher automatically executes `git pull` before starting the application, and upon app exit, checks for modified code files and automatically runs `git add -u`, `git commit -m "Auto-commit: Paris Outreach session updates"`, and `git push`.
+* **Public Code Repo (`paris-outreach`)**: Contains source code only. Before launch the launcher runs `git pull --rebase --autostash`. On exit it runs `git add -A` and commits **if the working tree is dirty**, then pushes **whenever the branch is ahead of its upstream** — the push is deliberately *not* conditional on this session having changed anything, because a clean tree with unpushed commits (from an earlier manual commit, or a push that failed) must still reach the remote. A failed push prints a loud, unmissable warning rather than a one-line aside. Do not reintroduce `git add -u` with a subdirectory allowlist: it silently skips new files at the repo root and in `ui/`. Privacy is enforced by `.gitignore`, not by narrowing what gets staged. See `tests/test_sync_launcher.py`.
 * **Private Data Repo (`paris-data`)**: Holds runtime data (drafts, outbox queue, edit ledger, and real voices) stored in `%APPDATA%\ParisOutreach` (Windows) or `~/.paris_outreach` (macOS/Linux). The application runtime (`app/sync.py`) automatically pulls on launch, pushes every ~10 minutes, and commits/pushes upon closing.
 
 ## 5. Data Privacy & Local Overrides

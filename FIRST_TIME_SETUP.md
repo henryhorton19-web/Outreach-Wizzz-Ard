@@ -49,7 +49,7 @@ on first launch alongside the generic starters in `app/seed_voices/`.
 
 ## 4. Run (System-Agnostic Synced Launcher)
 
-Always use the system-agnostic launcher scripts to run the desktop application (`pywebview`). They automatically sync both public code and private data (`git pull` before launch, auto-commit & push on exit):
+Always use the system-agnostic launcher scripts to run the desktop application (`pywebview`). They automatically sync both public code and private data — `git pull --rebase --autostash` before launch, then on exit commit any changes and push whenever this machine has commits the remote doesn't (including commits you made by hand outside the app):
 
 ### Windows (PowerShell)
 ```powershell
