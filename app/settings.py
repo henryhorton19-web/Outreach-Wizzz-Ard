@@ -49,6 +49,19 @@ for _d in (DATA_DIR, CACHE_DIR, BATCH_DIR, AUDIT_DIR, VOICES_DIR, VOICE_HISTORY_
     _d.mkdir(parents=True, exist_ok=True)
 
 
+def get_outbox_dir() -> Path:
+    try:
+        st = load_settings()
+        if st.eml_dir and st.eml_dir.strip():
+            p = Path(st.eml_dir.strip()).expanduser()
+            p.mkdir(parents=True, exist_ok=True)
+            return p
+    except Exception:
+        pass
+    OUTBOX_DIR.mkdir(parents=True, exist_ok=True)
+    return OUTBOX_DIR
+
+
 def ensure_seeded() -> None:
     """Bootstrap-once PER KIND: if the store has ZERO items of a given kind, insert that kind's
     shipped starter items.

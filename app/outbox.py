@@ -53,8 +53,9 @@ def build_eml(to: str, subject: str, body_text: str,
 
 
 def save_to_outbox(record_or_cs, sent_id: str | None = None, message_id: str | None = None) -> Path:
-    """Save an approved email (CompanyState or dict from archive/sent_items) as a .eml file in S.OUTBOX_DIR."""
-    S.OUTBOX_DIR.mkdir(parents=True, exist_ok=True)
+    """Save an approved email (CompanyState or dict from archive/sent_items) as a .eml file in S.get_outbox_dir()."""
+    outbox_dir = S.get_outbox_dir()
+    outbox_dir.mkdir(parents=True, exist_ok=True)
 
     if isinstance(record_or_cs, dict):
         rec = record_or_cs
@@ -88,7 +89,7 @@ def save_to_outbox(record_or_cs, sent_id: str | None = None, message_id: str | N
     cname = clean_filename(name)
     csid = clean_filename(sid)
     filename = f"{cname}_{csid}.eml"
-    out_path = S.OUTBOX_DIR / filename
+    out_path = outbox_dir / filename
 
     out_path.write_bytes(eml_bytes)
     return out_path
@@ -96,8 +97,9 @@ def save_to_outbox(record_or_cs, sent_id: str | None = None, message_id: str | N
 
 def sync_historical_outbox() -> int:
     """Read all historical approved emails from archive and sent items, generating .eml files if missing."""
-    S.OUTBOX_DIR.mkdir(parents=True, exist_ok=True)
-    existing_files = {p.name for p in S.OUTBOX_DIR.glob("*.eml")}
+    outbox_dir = S.get_outbox_dir()
+    outbox_dir.mkdir(parents=True, exist_ok=True)
+    existing_files = {p.name for p in outbox_dir.glob("*.eml")}
 
     count = 0
     archive_items = store.load_archive()
