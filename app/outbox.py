@@ -28,7 +28,9 @@ def build_eml(to: str, subject: str, body_text: str,
     """Construct an X-Unsent .eml payload. Returns (eml_bytes, message_id)."""
     msg = EmailMessage(policy=SMTP)
     msg["To"] = to
-    msg["From"] = S.load_settings().user_email or "me@example.com"
+    st = S.load_settings()
+    from_addr = getattr(st, "from_email", "") or getattr(st, "imap_username", "") or "me@example.com"
+    msg["From"] = from_addr
     msg["Subject"] = subject or "(No Subject)"
     msg["Date"] = formatdate(localtime=True)
     msg["X-Unsent"] = "1"  # tells Outlook / Mail.app to open in draft/compose mode

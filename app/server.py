@@ -41,13 +41,14 @@ from . import pipeline_view
 from . import outcomes as outcomes_mod
 from .providers.base import make_provider, ProviderError
 
-UI_DIR = Path(__file__).resolve().parent.parent / "ui"
+from contextlib import asynccontextmanager
 
-app = FastAPI(title="Paris Outreach")
-
-@app.on_event("startup")
-async def _on_startup():
+@asynccontextmanager
+async def lifespan(app: FastAPI):
     outbox.sync_historical_outbox()
+    yield
+
+app = FastAPI(title="Paris Outreach", lifespan=lifespan)
 
 # The volatile server state.
 # "voice": an optional CustomVoice ID that overrides situation-matching for all drafts this session.
