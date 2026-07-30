@@ -1,0 +1,9 @@
+{
+  "id": "default_hot_startups",
+  "display_name": "Hot Startups & Fresh Funding",
+  "seeded_from": "default_hot_startups.json",
+  "criteria_text": "Hottest new startups in Paris or remote-English orbit with fresh seed/Series A funding, active GTM/ops expansion, or strong tech press momentum.",
+  "sources": ["techeu_funding_feed", "grounded_search"],
+  "recency_days": 120,
+  "exclude_notes": "Skip mature corporate enterprises, non-tech agencies, or fully French-only local businesses."
+}

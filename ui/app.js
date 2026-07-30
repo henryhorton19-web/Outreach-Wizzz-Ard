@@ -368,8 +368,22 @@ function renderQueue() {
   state.queue.forEach(rec => {
     const el = document.createElement("div");
     el.className = "qrow";
+    const m = rec.meta || {};
+    const chips = [];
+    if (m.employees_band) chips.push(m.employees_band);
+    if (m.funding_heat || m.signal_basis || m.discovery_label) chips.push(m.funding_heat || m.signal_basis || m.discovery_label);
+    if (m.hq_city || m.hq_country) chips.push([m.hq_city, m.hq_country].filter(Boolean).join(", "));
+
+    const chipHtml = chips.map(c => `<span class="qrow-chip" title="${esc(c)}">${esc(c)}</span>`).join("");
+
     el.innerHTML = `
-      <div class="qrow-name">${esc(rec.name)}${rec.crm_id || rec.ref ? `<span class="qrow-ref">${esc(rec.crm_id || rec.ref)}</span>` : ""}</div>
+      <div class="qrow-info">
+        <div class="qrow-name">
+          ${esc(rec.name)}
+          ${rec.crm_id || rec.ref ? `<span class="qrow-ref">${esc(rec.crm_id || rec.ref)}</span>` : ""}
+        </div>
+        ${chips.length ? `<div class="qrow-chips">${chipHtml}</div>` : ""}
+      </div>
       <div class="qrow-act">
         <button class="btn primary small" data-act="draft">Draft &rarr;</button>
         <button class="icon-btn small" data-act="remove" title="Remove">&times;</button>
@@ -1971,6 +1985,11 @@ function wire() {
   $("#clearQueueBtn").onclick = clearQueue;
   $("#clearDraftsBtn").onclick = clearDrafts;
 
+  // Find New Targets (Sourcing)
+  if ($("#findTargetsBtn")) $("#findTargetsBtn").onclick = openSourcingPanel;
+  if ($("#closeSourcingPanelBtn")) $("#closeSourcingPanelBtn").onclick = closeSourcingPanel;
+  if ($("#runSourcingBtn")) $("#runSourcingBtn").onclick = runSourcing;
+
   $("#settingsBtn").onclick = openSettings;
   $("#settingsCancel").onclick = () => $("#settingsModal").classList.add("hidden");
   $("#settingsSave").onclick = saveSettings;
@@ -2079,6 +2098,144 @@ function wire() {
   document.addEventListener("focusin", (e) => {
     const t = e.target;
     if (t && t.classList && t.classList.contains("ve-tok-target")) veLastFocus = t;
+  });
+}
+
+/* ================= SOURCING ("Find new targets") ================= */
+let sourcingPrompts = [];
+
+async function loadSourcingPrompts() {
+  try {
+    const r = await api("/api/sourcing_prompts");
+    sourcingPrompts = r.prompts || [];
+    const sel = $("#sourcingPromptSelect");
+    if (!sel) return;
+    sel.innerHTML = `<option value="">Default (Hot Startups & Fresh Funding)</option>` +
+      sourcingPrompts.map(p => `<option value="${esc(p.id)}">${esc(p.display_name)}</option>`).join("");
+  } catch (e) {
+    console.error("Failed to load sourcing prompts", e);
+  }
+}
+
+function openSourcingPanel() {
+  const panel = $("#sourcingPanel");
+  if (panel) panel.classList.remove("hidden");
+  loadSourcingPrompts();
+}
+
+function closeSourcingPanel() {
+  const panel = $("#sourcingPanel");
+  if (panel) panel.classList.add("hidden");
+}
+
+async function runSourcing() {
+  const promptSelect = $("#sourcingPromptSelect");
+  const promptId = (promptSelect && promptSelect.value) || null;
+  const statusEl = $("#sourcingStatusText");
+  const reportEl = $("#sourcingReport");
+  if (statusEl) statusEl.textContent = "🚀 Sourcing run in progress...";
+  if (reportEl) reportEl.innerHTML = "";
+
+  try {
+    const r = await api("/api/source/research", {
+      method: "POST",
+      body: { sourcing_prompt_id: promptId }
+    });
+    const job = r.job;
+    if (statusEl) statusEl.textContent = `Completed sourcing run in ${job.stage || 'Completed'}.`;
+    renderSourcingReport(job);
+
+    const q = await api("/api/queue");
+    state.queue = q.queue;
+    renderQueue();
+  } catch (e) {
+    if (statusEl) statusEl.textContent = "Sourcing run failed: " + e.message;
+    toast(e.message, true);
+  }
+}
+
+function renderSourcingReport(job) {
+  const reportEl = $("#sourcingReport");
+  if (!reportEl || !job) return;
+
+  const counts = job.counts || {};
+  const notes = job.notes || [];
+  const candidates = job.candidates || [];
+  const addedSlugs = job.added_slugs || [];
+
+  let html = `
+    <div style="background: #ffffff; padding: 12px; border-radius: 6px; border: 1px solid #e2e8f0; font-size: 13px;">
+      <div style="display: flex; gap: 16px; font-weight: 500; color: #1e293b; margin-bottom: 8px;">
+        <span>Checked: ${counts.checked || 0}</span>
+        <span style="color: #16a34a;">Queued: ${counts.queued || 0}</span>
+        <span style="color: #d97706;">Held for review: ${counts.held || 0}</span>
+        <span style="color: #64748b;">Filtered: ${counts.rejected || 0}</span>
+      </div>
+  `;
+
+  if (notes.length) {
+    html += `<div style="font-size: 12px; color: #475569; margin-bottom: 8px;">ℹ️ ${notes.map(esc).join('<br/>')}</div>`;
+  }
+
+  if (addedSlugs.length) {
+    html += `
+      <div style="margin-top: 8px;">
+        <button class="btn ghost small" id="undoSourcingBtn" style="color: #dc2626;">Undo — remove all ${addedSlugs.length} queued targets</button>
+      </div>
+    `;
+  }
+
+  const heldCandidates = candidates.filter(c => c.verdict === "needs_review" || c.tier === "Tier 2");
+  if (heldCandidates.length) {
+    html += `
+      <div style="margin-top: 12px; padding-top: 8px; border-top: 1px solid #f1f5f9;">
+        <div style="font-weight: 500; font-size: 12px; color: #334155; margin-bottom: 4px;">Held for review (${heldCandidates.length}):</div>
+        ${heldCandidates.map(c => `
+          <div style="font-size: 12px; margin-top: 4px; display: flex; justify-content: space-between; align-items: center;">
+            <span><strong>${esc(c.name)}</strong> — ${esc(c.reject_reason || c.fit?.why_fit || 'Review required')}</span>
+            <button class="btn ghost small add-held-btn" data-slug="${esc(c.canon_slug)}">Add to queue</button>
+          </div>
+        `).join('')}
+      </div>
+    `;
+  }
+
+  html += `</div>`;
+  reportEl.innerHTML = html;
+
+  if ($("#undoSourcingBtn")) {
+    $("#undoSourcingBtn").onclick = async () => {
+      try {
+        const u = await api(`/api/source/research/${job.job_id}/undo`, { method: "POST" });
+        toast(`Removed ${u.undo.removed} targets from queue`);
+        const q = await api("/api/queue");
+        state.queue = q.queue;
+        renderQueue();
+        reportEl.innerHTML = "";
+      } catch (e) {
+        toast(e.message, true);
+      }
+    };
+  }
+
+  $$(".add-held-btn").forEach(btn => {
+    btn.onclick = async () => {
+      const slug = btn.dataset.slug;
+      try {
+        await api(`/api/source/research/${job.job_id}/add`, {
+          method: "POST",
+          body: { slugs: [slug] }
+        });
+        toast("Added to queue");
+        btn.disabled = true;
+        btn.textContent = "Added";
+        const q = await api("/api/queue");
+        state.queue = q.queue;
+        renderQueue();
+      } catch (e) {
+        toast(e.message, true);
+      }
+    };
   });
 }
 

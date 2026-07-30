@@ -1,0 +1,98 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Candidate",
+  "type": "object",
+  "required": [
+    "name",
+    "canon_slug",
+    "website",
+    "geo",
+    "size",
+    "signal",
+    "classification",
+    "gates",
+    "fit",
+    "discovery",
+    "verdict",
+    "score",
+    "tier"
+  ],
+  "properties": {
+    "name": { "type": "string" },
+    "canon_slug": { "type": "string" },
+    "website": { "type": "string" },
+    "geo": {
+      "type": "object",
+      "required": ["hq_city", "hq_country"],
+      "properties": {
+        "hq_city": { "type": "string" },
+        "hq_country": { "type": "string" },
+        "office_confirmed": { "type": "boolean" }
+      }
+    },
+    "size": {
+      "type": "object",
+      "required": ["employees_band", "company_size_proxy"],
+      "properties": {
+        "employees_band": { "type": "string" },
+        "employees_latest": { "type": ["integer", "null"] },
+        "company_size_proxy": { "type": "string", "enum": ["small", "large"] },
+        "size_trend": { "type": "string" }
+      }
+    },
+    "signal": {
+      "type": "object",
+      "required": ["funding_heat", "likely_role_exists", "role_basis_guess"],
+      "properties": {
+        "funding_heat": { "type": "string" },
+        "likely_role_exists": { "type": "boolean" },
+        "role_basis_guess": { "type": "string", "enum": ["hiring_manager", "founder", "partner", "unclear"] },
+        "role_basis_confidence": { "type": "string", "enum": ["high", "medium", "low"] },
+        "signal_basis": { "type": "string" },
+        "recency_days": { "type": "integer" }
+      }
+    },
+    "classification": {
+      "type": "object",
+      "required": ["sector_tag", "work_mode_proxy", "working_language_proxy"],
+      "properties": {
+        "sector_tag": { "type": "string" },
+        "work_mode_proxy": { "type": "string", "enum": ["paris_office", "remote_english", "disqualify"] },
+        "working_language_proxy": { "type": "string" }
+      }
+    },
+    "gates": {
+      "type": "object",
+      "required": ["location_language_gate"],
+      "properties": {
+        "location_language_gate": { "type": "string", "enum": ["pass", "disqualify"] }
+      }
+    },
+    "fit": {
+      "type": "object",
+      "required": ["why_fit", "honest_pitch_risk"],
+      "properties": {
+        "why_fit": { "type": "string" },
+        "honest_pitch_risk": { "type": "string", "enum": ["low", "medium", "high"] }
+      }
+    },
+    "discovery": {
+      "type": "object",
+      "required": ["source_id", "source_url", "retrieved_at"],
+      "properties": {
+        "source_id": { "type": "string" },
+        "source_url": { "type": "string" },
+        "retrieved_at": { "type": "string" }
+      }
+    },
+    "evidence_sources": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "verdict": { "type": "string", "enum": ["accept", "needs_review", "reject"] },
+    "reject_reason": { "type": "string" },
+    "confidence": { "type": "string", "enum": ["high", "medium", "low"] },
+    "score": { "type": "integer" },
+    "tier": { "type": "string", "enum": ["Tier 1", "Tier 2", "Needs Review"] }
+  }
+}

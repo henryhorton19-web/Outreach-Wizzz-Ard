@@ -369,3 +369,24 @@ class FollowUp(BaseModel):
     draft_slug: Optional[str] = None           # the CompanyState slug once generated
     created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     updated_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+
+
+class CustomSourcingPrompt(BaseModel):
+    """A saved sourcing criteria definition — the sourcing-stage analogue of CustomVoice.
+    Seeded once (a small starter set), then fully user-owned: editable, duplicable, deletable.
+    """
+    model_config = {"protected_namespaces": ()}
+
+    id: str
+    display_name: str
+    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    updated_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    seeded_from: str = "blank"
+
+    criteria_text: str = ""
+    sources: list[str] = Field(default_factory=lambda: ["techeu_funding_feed", "grounded_search"])
+    recency_days: int = 120
+    exclude_notes: str = ""
+
+    last_run_at: str = ""
+    total_candidates_seen: int = 0

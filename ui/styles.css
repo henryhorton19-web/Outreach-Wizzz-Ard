@@ -540,10 +540,16 @@ select:focus-visible, .redraft-select:focus-visible, a:focus-visible {
 .qrow { display: flex; align-items: center; justify-content: space-between; gap: 10px;
   padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--r);
   background: var(--panel); margin-bottom: 8px; }
-.qrow-name { font-weight: 600; font-size: 14px; display: flex; align-items: baseline; gap: 8px; }
+.qrow-info { min-width: 0; flex: 1; }
+.qrow-name { font-weight: 600; font-size: 14px; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
 .qrow-ref { font-family: var(--mono); font-size: 11px; color: var(--ink-faint);
   background: var(--panel-2); padding: 1px 6px; border-radius: 4px; font-weight: 400; }
-.qrow-act { display: flex; align-items: center; gap: 6px; }
+.qrow-chips { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 4px; }
+.qrow-chip { display: inline-block; white-space: nowrap; font-size: 11px;
+  color: var(--ink-faint); background: var(--panel-2); border: 1px solid var(--line);
+  border-radius: 100px; padding: 2px 8px; max-width: 220px; overflow: hidden;
+  text-overflow: ellipsis; font-family: var(--sans); font-weight: 400; }
+.qrow-act { display: flex; align-items: center; gap: 6px; flex: none; }
 .icon-btn.small { width: 28px; height: 28px; font-size: 13px; }
 .btn.small { padding: 5px 11px; font-size: 12.5px; }
 

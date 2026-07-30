@@ -1,0 +1,9 @@
+{
+  "id": "ai_infra_seed",
+  "display_name": "Hot AI & Infra Seed Rounds",
+  "seeded_from": "ai_infra_seed.json",
+  "criteria_text": "Early-stage AI, machine learning, software infrastructure, and developer tool startups in Paris or remote-English, backed by European VCs.",
+  "sources": ["techeu_funding_feed", "grounded_search"],
+  "recency_days": 180,
+  "exclude_notes": "Skip Series C+ mega rounds and non-tech consultancies."
+}

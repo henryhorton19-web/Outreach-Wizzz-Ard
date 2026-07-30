@@ -28,9 +28,11 @@ from . import pipeline
 from . import edit_ledger
 from . import attachments as attach_mod
 from . import followups as followups_mod
-from .models import (BatchState, CompanyState, State, DRAFT_SLOT_STATES, CustomVoice,
+from . import outbox
+from .models import (BatchState, CompanyState, State, DRAFT_SLOT_STATES, CustomVoice, CustomSourcingPrompt,
                      FACT_SCOPES, BLOCK_LENGTHS, BLOCK_MODES, FollowUpStatus,
                      SentItem, ReplyState, AddressCandidate)
+from .sourcing import research_job as sourcing_job_mod
 from . import suppression as suppression_mod
 from . import voice_stats as voice_stats_mod
 from . import voice_learning
@@ -42,6 +44,10 @@ from .providers.base import make_provider, ProviderError
 UI_DIR = Path(__file__).resolve().parent.parent / "ui"
 
 app = FastAPI(title="Paris Outreach")
+
+@app.on_event("startup")
+async def _on_startup():
+    outbox.sync_historical_outbox()
 
 # The volatile server state.
 # "voice": an optional CustomVoice ID that overrides situation-matching for all drafts this session.
@@ -309,7 +315,11 @@ async def update_settings(payload: dict = Body(...)):
               # Layer 4: continuous voice-content learning
               "voice_learning_mode", "voice_learning_min_edits", "voice_learning_max_examples",
               "voice_learning_cooldown_hours", "voice_learning_promote",
-              "voice_learning_reflection_model"):
+              "voice_learning_reflection_model",
+              # Sourcing settings ("Find new targets")
+              "sourcing_enabled", "sourcing_target_n", "sourcing_max_candidates",
+              "sourcing_max_web_per_candidate", "sourcing_budget_usd",
+              "sourcing_recency_days", "sourcing_sources", "sourcing_reject_expiry_days"):
         if k in payload and payload[k] is not None:
             setattr(st, k, payload[k])
     if st.provider not in S.VALID_PROVIDERS:
@@ -558,7 +568,7 @@ def _ingest_to_queue(rows: list[dict]) -> dict:
         if current >= store.QUEUE_CAP:
             over_cap.append(r["name"])
             continue
-        store.upsert_queue(slug, r["name"], r.get("ref"))
+        store.upsert_queue(slug, r["name"], r.get("ref"), r.get("meta"))
         existing.add(slug)
         current += 1
         added.append(r["name"])
@@ -586,6 +596,106 @@ async def ingest_file(file: UploadFile = File(...)):
     if not rows:
         raise HTTPException(status_code=400, detail="no target names found in file")
     return _ingest_to_queue(rows)
+
+
+# ---- Custom Sourcing Prompts -----------------------------------------------
+
+@app.get("/api/sourcing_prompts")
+async def get_sourcing_prompts():
+    return {"prompts": [sp.model_dump() for sp in store.list_custom_sourcing_prompts()]}
+
+
+@app.post("/api/sourcing_prompts")
+async def create_sourcing_prompt(pdef: CustomSourcingPrompt = Body(...)):
+    if not (pdef.display_name or "").strip():
+        raise HTTPException(status_code=400, detail="prompt needs a display name")
+    store.save_custom_sourcing_prompt(pdef)
+    return {"ok": True, "prompt": pdef.model_dump()}
+
+
+@app.put("/api/sourcing_prompts/{prompt_id}")
+async def update_sourcing_prompt(prompt_id: str, pdef: CustomSourcingPrompt = Body(...)):
+    if prompt_id != pdef.id:
+        raise HTTPException(status_code=400, detail="ID mismatch")
+    if not (pdef.display_name or "").strip():
+        raise HTTPException(status_code=400, detail="prompt needs a display name")
+    store.save_custom_sourcing_prompt(pdef)
+    return {"ok": True, "prompt": pdef.model_dump()}
+
+
+@app.delete("/api/sourcing_prompts/{prompt_id}")
+async def delete_sourcing_prompt(prompt_id: str):
+    store.delete_custom_sourcing_prompt(prompt_id)
+    return {"ok": True}
+
+
+# ---- Find New Targets Sourcing API -----------------------------------------
+
+@app.post("/api/source/research")
+async def start_sourcing_research(payload: dict = Body(...)):
+    st = S.load_settings()
+    target_n = payload.get("target_n", st.sourcing_target_n)
+    max_candidates = payload.get("max_candidates", st.sourcing_max_candidates)
+    recency_days = payload.get("recency_days", st.sourcing_recency_days)
+    sources = payload.get("sources") or st.sourcing_sources
+    prompt_id = payload.get("sourcing_prompt_id")
+
+    job = sourcing_job_mod.start_sourcing_job(
+        settings=st,
+        target_n=target_n,
+        max_candidates=max_candidates,
+        recency_days=recency_days,
+        sources=sources,
+        sourcing_prompt_id=prompt_id,
+    )
+    return {"ok": True, "job": job}
+
+
+@app.get("/api/source/research/last")
+async def get_last_sourcing_research():
+    last = sourcing_job_mod.get_last_run()
+    return {"last_run": last}
+
+
+@app.get("/api/source/research/{job_id}")
+async def get_sourcing_research_job(job_id: str):
+    job = sourcing_job_mod.get_active_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="sourcing job not found")
+    return {"job": job}
+
+
+@app.post("/api/source/research/{job_id}/cancel")
+async def cancel_sourcing_research_job(job_id: str):
+    ok = sourcing_job_mod.cancel_job(job_id)
+    return {"ok": ok}
+
+
+@app.post("/api/source/research/{job_id}/add")
+async def add_held_sourcing_candidates(job_id: str, payload: dict = Body(...)):
+    slugs = payload.get("slugs") or []
+    job = sourcing_job_mod.get_active_job(job_id) or sourcing_job_mod.get_last_run()
+    if not job:
+        raise HTTPException(status_code=404, detail="sourcing job not found")
+
+    to_add = [c for c in job.get("candidates", []) if c.get("canon_slug") in slugs]
+    ingest_rows = [{
+        "slug": c["canon_slug"],
+        "name": c["name"],
+        "ref": c.get("website", ""),
+        "meta": {"source_id": c.get("discovery", {}).get("source_id", "sourcing")},
+    } for c in to_add]
+
+    if ingest_rows:
+        res = _ingest_to_queue(ingest_rows)
+        return {"ok": True, "added": res.get("added", 0)}
+    return {"ok": True, "added": 0}
+
+
+@app.post("/api/source/research/{job_id}/undo")
+async def undo_sourcing_research_job(job_id: str):
+    res = sourcing_job_mod.undo_sourcing_job(job_id)
+    return {"ok": True, "undo": res}
 
 
 # ---- queue -----------------------------------------------------------------
@@ -1224,6 +1334,10 @@ def _approve_rows(rows: list[CompanyState], batch: BatchState | None) -> dict:
             "approved_at": cs.approved_at, "approver_os_user": cs.approver_os_user,
             "notes": [n.model_dump() for n in cs.notes],
         })
+        try:
+            outbox.save_to_outbox(cs, sent_id=_sent_id, message_id=mid)
+        except Exception as e:
+            print(f"[outbox] Warning: failed to save to outbox for {cs.name}: {e}", file=sys.stderr)
         store.remove_draft(cs.slug)
 
         # CRM follow-up hook (never let it break an approval):

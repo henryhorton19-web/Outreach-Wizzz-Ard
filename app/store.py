@@ -14,7 +14,7 @@ import json
 from pathlib import Path
 
 from . import settings as S
-from .models import BatchState, CompanyState, CustomVoice, FollowUp, SentItem
+from .models import BatchState, CompanyState, CustomVoice, CustomSourcingPrompt, FollowUp, SentItem
 
 
 def batch_path(batch_id: str) -> Path:
@@ -59,7 +59,7 @@ def _trim_keep_recent(items: list[dict], key: str, n: int = 15) -> list[dict]:
 # ---- queue -----------------------------------------------------------------
 
 def load_queue() -> list[dict]:
-    """Return list of lightweight queue records: {slug, name, crm_id, queued_at}."""
+    """Return list of lightweight queue records: {slug, name, crm_id, queued_at, [meta]}."""
     if not QUEUE_FILE.exists():
         return []
     try:
@@ -77,13 +77,15 @@ def queue_slugs() -> set[str]:
     return {r["slug"] for r in load_queue()}
 
 
-def upsert_queue(slug: str, name: str, crm_id: str | None) -> None:
+def upsert_queue(slug: str, name: str, crm_id: str | None, meta: dict | None = None) -> None:
     import datetime
     items = load_queue()
     items = [r for r in items if r["slug"] != slug]   # replace if already present
-    items.append({"slug": slug, "name": name, "crm_id": crm_id or "",
-                  "queued_at": datetime.datetime.now(datetime.timezone.utc).isoformat()})
-    # keep most-recently queued up to cap
+    rec = {"slug": slug, "name": name, "crm_id": crm_id or "",
+           "queued_at": datetime.datetime.now(datetime.timezone.utc).isoformat()}
+    if meta:
+        rec["meta"] = meta
+    items.append(rec)
     items = sorted(items, key=lambda x: x.get("queued_at") or "", reverse=True)[:QUEUE_CAP]
     save_queue(items)
 
@@ -414,6 +416,48 @@ def save_custom_voice(voice: CustomVoice) -> None:
 
 def delete_custom_voice(voice_id: str) -> None:
     p = S.VOICES_DIR / f"{voice_id}.json"
+    if p.exists():
+        try:
+            p.unlink()
+        except Exception:
+            pass
+
+
+# ---- Custom Sourcing Prompts -----------------------------------------------
+
+def list_custom_sourcing_prompts() -> list[CustomSourcingPrompt]:
+    """Return all custom sourcing prompts on disk, sorted by display_name."""
+    out: list[CustomSourcingPrompt] = []
+    if not S.SOURCING_PROMPTS_DIR.exists():
+        return out
+    for p in S.SOURCING_PROMPTS_DIR.glob("*.json"):
+        try:
+            sp = CustomSourcingPrompt.model_validate_json(p.read_text(encoding="utf-8"))
+            out.append(sp)
+        except Exception:
+            continue
+    return sorted(out, key=lambda x: x.display_name or x.id)
+
+
+def get_custom_sourcing_prompt(prompt_id: str) -> CustomSourcingPrompt | None:
+    p = S.SOURCING_PROMPTS_DIR / f"{prompt_id}.json"
+    if p.exists():
+        try:
+            return CustomSourcingPrompt.model_validate_json(p.read_text(encoding="utf-8"))
+        except Exception:
+            pass
+    return None
+
+
+def save_custom_sourcing_prompt(prompt: CustomSourcingPrompt) -> None:
+    import datetime
+    prompt.updated_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    p = S.SOURCING_PROMPTS_DIR / f"{prompt.id}.json"
+    safe_write_text(p, prompt.model_dump_json(indent=2))
+
+
+def delete_custom_sourcing_prompt(prompt_id: str) -> None:
+    p = S.SOURCING_PROMPTS_DIR / f"{prompt_id}.json"
     if p.exists():
         try:
             p.unlink()

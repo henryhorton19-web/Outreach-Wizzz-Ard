@@ -39,54 +39,68 @@ BATCH_DIR = DATA_DIR / "batches"
 AUDIT_DIR = DATA_DIR / "audit"
 VOICES_DIR = DATA_DIR / "voices"
 VOICE_HISTORY_DIR = DATA_DIR / "voice_history"   # per-voice snapshots for rollback (Layer 4)
+SOURCING_PROMPTS_DIR = DATA_DIR / "sourcing_prompts"
 ATTACH_DIR = DATA_DIR / "attachments"
 OUTBOX_DIR = DATA_DIR / "outbox"      # staged .eml files; cross-platform default under the data dir
 SETTINGS_FILE = DATA_DIR / "settings.json"
 
 for _d in (DATA_DIR, CACHE_DIR, BATCH_DIR, AUDIT_DIR, VOICES_DIR, VOICE_HISTORY_DIR,
-           ATTACH_DIR, OUTBOX_DIR):
+           SOURCING_PROMPTS_DIR, ATTACH_DIR, OUTBOX_DIR):
     _d.mkdir(parents=True, exist_ok=True)
 
 
 def ensure_seeded() -> None:
-    """Bootstrap-once PER KIND: if the store has ZERO voices of a given kind, insert that kind's
-    shipped starter voices. Outreach voices seed from seed_voices/; follow-up voices seed from
-    seed_followup_voices/. Each kind is independent, so a user who already has outreach voices still
-    gets follow-up voices on upgrade, deleting one voice never re-adds it, and wiping every voice of
-    a kind self-heals that kind on next launch. The user owns their edits once any of a kind exists.
+    """Bootstrap-once PER KIND: if the store has ZERO items of a given kind, insert that kind's
+    shipped starter items.
     """
     import json as _json
+    import shutil
+    pkg = Path(__file__).resolve().parent
+
+    # 1. Voices
     try:
-        existing = []
+        existing_v = []
         for p in VOICES_DIR.glob("*.json"):
             try:
-                existing.append(_json.loads(p.read_text(encoding="utf-8")))
+                existing_v.append(_json.loads(p.read_text(encoding="utf-8")))
             except Exception:
                 pass
     except Exception:
-        existing = []
+        existing_v = []
 
-    def _have(kind: str) -> bool:
-        return any((v.get("kind", "outreach") or "outreach") == kind for v in existing)
+    def _have_voice(kind: str) -> bool:
+        return any((v.get("kind", "outreach") or "outreach") == kind for v in existing_v)
 
-    import shutil
-    pkg = Path(__file__).resolve().parent
-    # seed_voices/ ships generic starter voices (committed). seed_voices_local/ is git-ignored
-    # and holds your real/private voices; if present it seeds too, so a fresh clone with your
-    # local dir present bootstraps your actual voices before the private data repo syncs them.
-    plan = [
+    v_plan = [
         ("outreach", pkg / "seed_voices"),
         ("outreach", pkg / "seed_voices_local"),
         ("followup", pkg / "seed_followup_voices"),
     ]
-    for kind, seed_dir in plan:
-        if _have(kind) or not seed_dir.exists():
+    for kind, seed_dir in v_plan:
+        if _have_voice(kind) or not seed_dir.exists():
             continue
         for src in seed_dir.glob("*.json"):
             try:
                 shutil.copyfile(src, VOICES_DIR / src.name)
             except Exception:
                 pass
+
+    # 2. Custom Sourcing Prompts
+    try:
+        existing_sp = list(SOURCING_PROMPTS_DIR.glob("*.json"))
+    except Exception:
+        existing_sp = []
+
+    if not existing_sp:
+        sp_dirs = [pkg / "seed_sourcing_prompts", pkg / "seed_sourcing_prompts_local"]
+        for sp_dir in sp_dirs:
+            if not sp_dir.exists():
+                continue
+            for src in sp_dir.glob("*.json"):
+                try:
+                    shutil.copyfile(src, SOURCING_PROMPTS_DIR / src.name)
+                except Exception:
+                    pass
 
 
 ensure_seeded()
@@ -206,6 +220,16 @@ class Settings:
     #                                               arbitrated by the reply-rate bandit before it wins
     voice_learning_reflection_model: str = ""     # empty = use helper_model (cheap; reflection is small)
 
+    # ---- Sourcing fields ("Find new targets") ----
+    sourcing_enabled: bool = True
+    sourcing_target_n: int = 10
+    sourcing_max_candidates: int = 40
+    sourcing_max_web_per_candidate: int = 2
+    sourcing_budget_usd: float = 3.00
+    sourcing_recency_days: int = 120
+    sourcing_sources: list[str] = field(default_factory=lambda: ["techeu_funding_feed", "grounded_search"])
+    sourcing_reject_expiry_days: int = 60
+
     def sanitized(self) -> dict:
         d = asdict(self)
         if d.get("provider") not in VALID_PROVIDERS:
@@ -276,6 +300,37 @@ class Settings:
         if not isinstance(cp, dict):
             d["cost_prices"] = {}
         d["eml_dir"] = str(d.get("eml_dir") or "").strip()
+
+        # ---- Sourcing fields ----
+        d["sourcing_enabled"] = bool(d.get("sourcing_enabled", True))
+        try:
+            d["sourcing_target_n"] = max(1, min(100, int(d.get("sourcing_target_n", 10))))
+        except (TypeError, ValueError):
+            d["sourcing_target_n"] = 10
+        try:
+            d["sourcing_max_candidates"] = max(1, min(200, int(d.get("sourcing_max_candidates", 40))))
+        except (TypeError, ValueError):
+            d["sourcing_max_candidates"] = 40
+        try:
+            d["sourcing_max_web_per_candidate"] = max(0, min(10, int(d.get("sourcing_max_web_per_candidate", 2))))
+        except (TypeError, ValueError):
+            d["sourcing_max_web_per_candidate"] = 2
+        try:
+            d["sourcing_budget_usd"] = max(0.1, min(50.0, float(d.get("sourcing_budget_usd", 3.00))))
+        except (TypeError, ValueError):
+            d["sourcing_budget_usd"] = 3.00
+        try:
+            d["sourcing_recency_days"] = max(1, min(365, int(d.get("sourcing_recency_days", 120))))
+        except (TypeError, ValueError):
+            d["sourcing_recency_days"] = 120
+        srcs = d.get("sourcing_sources") or ["techeu_funding_feed", "grounded_search"]
+        if not isinstance(srcs, list):
+            srcs = ["techeu_funding_feed", "grounded_search"]
+        d["sourcing_sources"] = [str(s) for s in srcs if isinstance(s, str) and s.strip()] or ["techeu_funding_feed", "grounded_search"]
+        try:
+            d["sourcing_reject_expiry_days"] = max(1, min(365, int(d.get("sourcing_reject_expiry_days", 60))))
+        except (TypeError, ValueError):
+            d["sourcing_reject_expiry_days"] = 60
         return d
 
 

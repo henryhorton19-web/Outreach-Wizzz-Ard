@@ -72,12 +72,29 @@
       <textarea id="namesInput" placeholder="Alan&#10;Acclaim AI, https://acclaim.ai&#10;Qonto"></textarea>
       <div class="ingest-actions">
         <button class="btn primary" id="draftBtn">Add to queue</button>
+        <button class="btn primary alt" id="findTargetsBtn" style="background: #2563eb; color: #fff; border: none; font-weight: 500;">Find new targets</button>
         <button class="btn ghost" id="uploadBtn">Upload CSV / XLSX / Tracker</button>
         <div class="upload-hint">CSV/XLSX first col = name, or the Outreach_Tracker workbook</div>
         <input type="file" id="fileInput" accept=".csv,.xlsx" class="hidden" />
         <span class="count" id="nameCount"></span>
       </div>
     </section>
+
+    <!-- Sourcing Run Panel -->
+    <div class="sourcing-panel hidden" id="sourcingPanel" style="margin-bottom: 20px; padding: 16px; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px;">
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <h4 style="margin: 0; font-size: 15px; color: #0f172a;">🚀 Find New Targets (Startup Heat Sourcing)</h4>
+        <button class="btn ghost small" id="closeSourcingPanelBtn" style="border: none; font-size: 18px; cursor: pointer;">&times;</button>
+      </div>
+      <div style="margin-top: 12px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+        <label style="font-size: 13px; font-weight: 500;">Sourcing Criteria:
+          <select id="sourcingPromptSelect" class="mini-select" style="margin-left: 4px; padding: 4px 8px;"></select>
+        </label>
+        <button class="btn primary small" id="runSourcingBtn">Start sourcing run</button>
+      </div>
+      <div id="sourcingStatusText" style="margin-top: 10px; font-size: 13px; color: #475569;"></div>
+      <div id="sourcingReport" style="margin-top: 12px;"></div>
+    </div>
 
     <div class="ingest-banner hidden" id="ingestBanner">
       <button class="ingest-banner-close" id="ingestBannerClose" aria-label="Dismiss">&times;</button>
