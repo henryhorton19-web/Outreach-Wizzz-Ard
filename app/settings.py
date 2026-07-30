@@ -33,6 +33,13 @@ def _data_root() -> Path:
     return Path.home() / ".paris_outreach"
 
 
+def _default_outbox_dir() -> Path:
+    proj_parent = Path(__file__).resolve().parent.parent.parent / "outbox"
+    if proj_parent.parent.exists():
+        return proj_parent
+    return DATA_DIR / "outbox"
+
+
 DATA_DIR = _data_root()
 CACHE_DIR = DATA_DIR / "caches"
 BATCH_DIR = DATA_DIR / "batches"
@@ -41,7 +48,7 @@ VOICES_DIR = DATA_DIR / "voices"
 VOICE_HISTORY_DIR = DATA_DIR / "voice_history"   # per-voice snapshots for rollback (Layer 4)
 SOURCING_PROMPTS_DIR = DATA_DIR / "sourcing_prompts"
 ATTACH_DIR = DATA_DIR / "attachments"
-OUTBOX_DIR = DATA_DIR / "outbox"      # staged .eml files; cross-platform default under the data dir
+OUTBOX_DIR = _default_outbox_dir()      # staged .eml files; defaults to 09 Personal Projects/outbox
 SETTINGS_FILE = DATA_DIR / "settings.json"
 
 for _d in (DATA_DIR, CACHE_DIR, BATCH_DIR, AUDIT_DIR, VOICES_DIR, VOICE_HISTORY_DIR,
