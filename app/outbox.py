@@ -28,8 +28,17 @@ def build_eml(to: str, subject: str, body_text: str,
     """Construct an X-Unsent .eml payload. Returns (eml_bytes, message_id)."""
     msg = EmailMessage(policy=SMTP)
     msg["To"] = to
+    import os, config as C
     st = S.load_settings()
-    from_addr = getattr(st, "from_email", "") or getattr(st, "imap_username", "") or "me@example.com"
+    cand_email = C.ProfileStore.load().get("email", "") if hasattr(C, "ProfileStore") else ""
+    from_addr = (
+        getattr(st, "from_email", "")
+        or getattr(st, "imap_username", "")
+        or os.environ.get("WIZZARD_SENDER_EMAIL")
+        or os.environ.get("PARIS_SENDER_EMAIL")
+        or cand_email
+        or "me@example.com"
+    )
     msg["From"] = from_addr
     msg["Subject"] = subject or "(No Subject)"
     msg["Date"] = formatdate(localtime=True)
