@@ -1,7 +1,7 @@
 """Dev launcher: run the server and open it in your browser (no pywebview required).
 
     python run_local.py                 # gemini/anthropic per your saved settings
-    PARIS_PROVIDER=stub python run_local.py   # offline demo, no API calls
+    WIZZARD_PROVIDER=stub python run_local.py   # offline demo, no API calls
 
 This is the easiest way to try the app without building the desktop bundle. For the packaged
 double-clickable app, use main.py (pywebview) or `pyinstaller build.spec`.
@@ -17,7 +17,7 @@ import faulthandler
 
 if sys.version_info >= (3, 14):
     raise SystemExit(
-        "Paris Outreach needs Python 3.11-3.13; detected %d.%d "
+        "Outreach Wizz-ard needs Python 3.11-3.13; detected %d.%d "
         "(3.14 breaks a dependency). Recreate .venv with python3.12 or 3.13." % sys.version_info[:2])
 
 _fault = open(os.path.join(os.path.dirname(__file__), "faults.log"), "a")
@@ -32,7 +32,7 @@ def main() -> int:
     from app import settings as S
 
     host = "127.0.0.1"
-    port = int(os.environ.get("PARIS_PORT", S.load_settings().port))
+    port = int(os.environ.get("WIZZARD_PORT") or os.environ.get("PARIS_PORT", S.load_settings().port))
     url = f"http://{host}:{port}/"
 
     # Cross-device git sync (no-op unless the data dir is a git repo with a remote).
@@ -54,9 +54,9 @@ def main() -> int:
                     return
 
     print("=" * 60)
-    print("  Paris Outreach is starting.")
+    print("  Outreach Wizz-ard is starting.")
     print(f"  Open:  {url}")
-    if os.environ.get("PARIS_PROVIDER") == "stub":
+    if os.environ.get("WIZZARD_PROVIDER") == "stub" or os.environ.get("PARIS_PROVIDER") == "stub":
         print("  (offline demo mode — no API calls)")
     print("  Press Ctrl+C to stop.")
     print("=" * 60)

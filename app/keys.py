@@ -10,7 +10,8 @@ startup depending on the selected provider.
 """
 from __future__ import annotations
 
-SERVICE = "ParisOutreach"
+SERVICE = "OutreachWizzard"
+_LEGACY_SERVICES = ("ParisOutreach",)
 
 # providers we store keys for
 KNOWN = ("gemini", "anthropic", "apollo", "imap")
@@ -20,7 +21,7 @@ _backend_ok = True
 
 import os as _os
 
-if _os.environ.get("PARIS_NO_KEYRING") == "1":
+if _os.environ.get("WIZZARD_NO_KEYRING") == "1" or _os.environ.get("PARIS_NO_KEYRING") == "1":
     # Explicit opt-out: skip the OS keychain entirely (e.g. to avoid a rare macOS
     # keychain-prompt hang). Keys then live only for the current process.
     keyring = None                 # type: ignore
@@ -36,6 +37,24 @@ else:
     except Exception:
         keyring = None                 # type: ignore
         _backend_ok = False
+
+
+def _migrate_legacy(account: str) -> str | None:
+    """One-time: if a key exists only under an old service name, copy it forward and return it."""
+    if not _backend_ok or keyring is None:
+        return None
+    for legacy in _LEGACY_SERVICES:
+        try:
+            v = keyring.get_password(legacy, account)
+        except Exception:
+            continue
+        if v:
+            try:
+                keyring.set_password(SERVICE, account, v)
+            except Exception:
+                pass
+            return v
+    return None
 
 
 def _valid(provider: str) -> str:
@@ -68,7 +87,10 @@ def get_key(provider: str) -> str | None:
         return _mem[p]
     if _backend_ok and keyring is not None:
         try:
-            return keyring.get_password(SERVICE, p)
+            v = keyring.get_password(SERVICE, p)
+            if v:
+                return v
+            return _migrate_legacy(p)
         except Exception:
             return None
     return None

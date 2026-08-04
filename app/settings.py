@@ -19,18 +19,46 @@ from dataclasses import dataclass, asdict, field
 from pathlib import Path
 
 
+# ---- env fallback helper ---------------------------------------------------
+
+_LEGACY_PREFIX = "PARIS_"
+_legacy_warned = set()
+
+def _env(name: str) -> str | None:
+    """WIZZARD_<name>, falling back to the deprecated PARIS_<name>."""
+    v = os.environ.get("WIZZARD_" + name)
+    if v:
+        return v
+    v = os.environ.get(_LEGACY_PREFIX + name)
+    if v and name not in _legacy_warned:
+        _legacy_warned.add(name)
+        import sys
+        print(f"  [settings] {_LEGACY_PREFIX}{name} is deprecated; use WIZZARD_{name}",
+              file=sys.stderr)
+    return v or None
+
+
 # ---- paths -----------------------------------------------------------------
 
 def _data_root() -> Path:
     """Per-user writable dir for batch JSON, caches, audit records, settings.
-    Windows: %APPDATA%\\ParisOutreach ; else ~/.paris_outreach . Overridable via PARIS_DATA_DIR."""
-    override = os.environ.get("PARIS_DATA_DIR")
+    Windows: %APPDATA%\\OutreachWizzard ; else ~/.outreach_wizzard . Overridable via WIZZARD_DATA_DIR / PARIS_DATA_DIR."""
+    override = _env("DATA_DIR")
     if override:
         return Path(override)
     if os.name == "nt":
         base = os.environ.get("APPDATA") or str(Path.home())
-        return Path(base) / "ParisOutreach"
-    return Path.home() / ".paris_outreach"
+        target = Path(base) / "OutreachWizzard"
+        legacy = Path(base) / "ParisOutreach"
+    else:
+        target = Path.home() / ".outreach_wizzard"
+        legacy = Path.home() / ".paris_outreach"
+    if not target.exists() and legacy.exists():
+        import sys
+        print(f"  [settings] Notice: Legacy data directory found at {legacy}. "
+              f"If you wish to migrate your data, copy its contents to {target}.",
+              file=sys.stderr)
+    return target
 
 
 def _default_outbox_dir() -> Path:
@@ -365,29 +393,19 @@ def load_settings() -> Settings:
         except Exception:
             pass  # a corrupt settings file falls back to defaults, never crashes launch
     # env overrides (highest precedence)
-    if os.environ.get("PARIS_PROVIDER"):
-        s.provider = os.environ["PARIS_PROVIDER"]
-    if os.environ.get("PARIS_DEFAULT_VOICE"):
-        s.default_voice = os.environ["PARIS_DEFAULT_VOICE"]
-    if os.environ.get("PARIS_EML_DIR"):
-        s.eml_dir = os.environ["PARIS_EML_DIR"]
-    if os.environ.get("PARIS_GEMINI_MODEL"):
-        s.gemini_model = os.environ["PARIS_GEMINI_MODEL"]
-    if os.environ.get("PARIS_COMPOSE_MODEL"):
-        s.compose_model = os.environ["PARIS_COMPOSE_MODEL"]
-    if os.environ.get("PARIS_HELPER_MODEL"):
-        s.helper_model = os.environ["PARIS_HELPER_MODEL"]
-    if os.environ.get("PARIS_RESEARCH_THINKING_LEVEL"):
-        s.research_thinking_level = os.environ["PARIS_RESEARCH_THINKING_LEVEL"]
-    if os.environ.get("PARIS_COMPOSE_THINKING_LEVEL"):
-        s.compose_thinking_level = os.environ["PARIS_COMPOSE_THINKING_LEVEL"]
-    if os.environ.get("PARIS_FALLBACK_MODEL"):
-        s.fallback_model = os.environ["PARIS_FALLBACK_MODEL"]
-    if os.environ.get("PARIS_ANTHROPIC_MODEL"):
-        s.anthropic_model = os.environ["PARIS_ANTHROPIC_MODEL"]
-    if os.environ.get("PARIS_PORT"):
+    if (v := _env("PROVIDER")): s.provider = v
+    if (v := _env("DEFAULT_VOICE")): s.default_voice = v
+    if (v := _env("EML_DIR")): s.eml_dir = v
+    if (v := _env("GEMINI_MODEL")): s.gemini_model = v
+    if (v := _env("COMPOSE_MODEL")): s.compose_model = v
+    if (v := _env("HELPER_MODEL")): s.helper_model = v
+    if (v := _env("RESEARCH_THINKING_LEVEL")): s.research_thinking_level = v
+    if (v := _env("COMPOSE_THINKING_LEVEL")): s.compose_thinking_level = v
+    if (v := _env("FALLBACK_MODEL")): s.fallback_model = v
+    if (v := _env("ANTHROPIC_MODEL")): s.anthropic_model = v
+    if (v := _env("PORT")):
         try:
-            s.port = int(os.environ["PARIS_PORT"])
+            s.port = int(v)
         except ValueError:
             pass
     if s.provider not in VALID_PROVIDERS:
@@ -429,7 +447,7 @@ def save_settings(s: Settings) -> None:
         atomic_write_text(SETTINGS_FILE, json.dumps(s.sanitized(), indent=2))
     except OSError as e:
         raise RuntimeError(f"Permission or disk error writing to {SETTINGS_FILE}: {e}. "
-                           "If on macOS, check ownership via 'sudo chown -R $(whoami) ~/.paris_outreach'") from e
+                           "If on macOS, check ownership via 'sudo chown -R $(whoami) ~/.outreach_wizzard'") from e
 
 
 # ---- per-launch security token ---------------------------------------------

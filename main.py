@@ -17,7 +17,7 @@ import faulthandler
 
 if sys.version_info >= (3, 14):
     raise SystemExit(
-        "Paris Outreach needs Python 3.11-3.13; detected %d.%d "
+        "Outreach Wizz-ard needs Python 3.11-3.13; detected %d.%d "
         "(3.14 breaks a dependency). Recreate .venv with python3.12 or 3.13." % sys.version_info[:2])
 
 _fault = open(os.path.join(os.path.dirname(__file__), "faults.log"), "a")
@@ -100,8 +100,8 @@ def main() -> int:
     print(f"DEBUG: Server started successfully on {url}. Starting native window...")
     try:
         import webview                          # pywebview
-        webview.create_window("Paris · Outreach", url,
-                              width=1240, height=880, min_size=(940, 640))
+        webview.create_window("Outreach Wizz-ard", url,
+                               width=1240, height=880, min_size=(940, 640))
         import os
         icon_path = os.path.join(os.path.dirname(__file__), "ui", "favicon.ico")
         if os.path.exists(icon_path):
@@ -113,7 +113,8 @@ def main() -> int:
     except Exception as e:
         # headless / pywebview unavailable -> browser fallback
         print("\n" + "=" * 60)
-        print("  Paris Outreach is running.")
+        print("  Outreach Wizz-ard is running.")
+        print(f"  Open this in your browser:  {url}")
         print(f"  Open this in your browser:  {url}")
         print("  (native window unavailable: %s)" % e)
         print("  Press Ctrl+C to stop.")

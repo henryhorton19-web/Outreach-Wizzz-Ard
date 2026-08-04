@@ -1,4 +1,4 @@
-/* Paris Outreach — front-end controller (vanilla JS, no build step).
+/* Outreach Wizz-ard — front-end controller (vanilla JS, no build step).
    Talks to the local FastAPI server. Every /api/* request carries the per-launch session token
    the server injected into the page. Drafts are reviewed and edited here; the reviewer's edit is
    the final word, sent to the server verbatim. */
@@ -6,8 +6,8 @@
 "use strict";
 
 // Read the injected token once, then remove it from the global so injected scripts can't read it.
-const TOKEN = window.__PARIS_TOKEN__;
-try { delete window.__PARIS_TOKEN__; } catch (_) { window.__PARIS_TOKEN__ = undefined; }
+const TOKEN = window.__WIZZARD_TOKEN__ || window.__PARIS_TOKEN__;
+try { delete window.__WIZZARD_TOKEN__; delete window.__PARIS_TOKEN__; } catch (_) { window.__WIZZARD_TOKEN__ = undefined; }
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
@@ -58,7 +58,7 @@ function getEffectiveAttachments(cs) {
 
 /* ---------- API ---------- */
 async function api(path, { method = "GET", body = null, raw = false, form = null } = {}) {
-  const opts = { method, headers: { "X-Paris-Token": TOKEN } };
+  const opts = { method, headers: { "x-wizzard-token": TOKEN } };
   if (form != null) { opts.body = form; }
   else if (body != null) { opts.headers["Content-Type"] = "application/json"; opts.body = JSON.stringify(body); }
   const res = await fetch(path, opts);
@@ -976,12 +976,12 @@ async function clearFollowups() {
 async function doExport() {
   // stream the CSV straight from the endpoint via a token-carrying fetch, then trigger a download
   try {
-    const res = await fetch(`/api/export?fmt=csv&scope=drafts`, { headers: { "x-paris-token": TOKEN } });
+    const res = await fetch(`/api/export?fmt=csv&scope=drafts`, { headers: { "x-wizzard-token": TOKEN } });
     if (!res.ok) throw new Error(`export failed (${res.status})`);
     const blob = await res.blob();
     const cd = res.headers.get("content-disposition") || "";
     const m = cd.match(/filename="([^"]+)"/);
-    const name = m ? m[1] : "paris_outreach.csv";
+    const name = m ? m[1] : "outreach_wizzard.csv";
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a"); a.href = url; a.download = name; a.click();
     URL.revokeObjectURL(url);

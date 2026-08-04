@@ -1,6 +1,6 @@
 # PyInstaller spec — build a single desktop bundle.
-#   Windows:  pyinstaller build.spec      -> dist/ParisOutreach.exe
-#   macOS  :  pyinstaller build.spec      -> dist/ParisOutreach.app (add a .icns for a real icon)
+#   Windows:  pyinstaller build.spec      -> dist/OutreachWizzard.exe
+#   macOS  :  pyinstaller build.spec      -> dist/OutreachWizzard.app (add a .icns for a real icon)
 #
 # Bundles the UI (ui/), the engine files + briefs + voice shells (engine/), the shipped seed
 # voices (app/seed_voices/), and forces in provider/runtime imports PyInstaller's static analysis
@@ -57,7 +57,7 @@ pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 
 exe = EXE(
     pyz, a.scripts, a.binaries, a.zipfiles, a.datas, [],
-    name="ParisOutreach",
+    name="OutreachWizzard",
     icon=None,               # drop a ui/favicon.ico (win) or .icns (mac) here for a custom icon
     debug=False,
     bootloader_ignore_signals=False,

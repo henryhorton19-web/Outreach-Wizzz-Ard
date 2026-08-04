@@ -41,6 +41,12 @@ from . import pipeline_view
 from . import outcomes as outcomes_mod
 from .providers.base import make_provider, ProviderError
 
+import sys
+
+_FROZEN_BASE = Path(getattr(sys, "_MEIPASS", "")) if getattr(sys, "frozen", False) else None
+ROOT_DIR = _FROZEN_BASE or Path(__file__).resolve().parent.parent
+UI_DIR = ROOT_DIR / "ui"
+
 from contextlib import asynccontextmanager
 
 @asynccontextmanager
@@ -48,7 +54,7 @@ async def lifespan(app: FastAPI):
     outbox.sync_historical_outbox()
     yield
 
-app = FastAPI(title="Paris Outreach", lifespan=lifespan)
+app = FastAPI(title="Outreach Wizz-ard", lifespan=lifespan)
 
 # The volatile server state.
 # "voice": an optional CustomVoice ID that overrides situation-matching for all drafts this session.
@@ -70,7 +76,7 @@ async def security(request: Request, call_next):
     if host and host not in allowed:
         return JSONResponse({"detail": "bad host"}, status_code=400)
     if request.url.path.startswith("/api/"):
-        token = request.headers.get("x-paris-token")
+        token = request.headers.get("x-wizzard-token") or request.headers.get("x-paris-token")
         if token != S.SESSION_TOKEN:
             return JSONResponse({"detail": "unauthorized"}, status_code=401)
     return await call_next(request)
@@ -213,6 +219,8 @@ def _persist():
 @app.get("/", response_class=HTMLResponse)
 async def index():
     html = (UI_DIR / "index.html").read_text(encoding="utf-8")
+    html = html.replace('window.__WIZZARD_TOKEN__ = "__WIZZARD_TOKEN__";',
+                        f'window.__WIZZARD_TOKEN__ = "{S.SESSION_TOKEN}";')
     html = html.replace('window.__PARIS_TOKEN__ = "__PARIS_TOKEN__";',
                         f'window.__PARIS_TOKEN__ = "{S.SESSION_TOKEN}";')
     return HTMLResponse(html)

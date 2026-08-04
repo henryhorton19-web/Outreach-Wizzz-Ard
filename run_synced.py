@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Cross-platform launcher for Paris Outreach (Desktop App + Auto Git Sync).
+"""Cross-platform launcher for Outreach Wizz-ard (Desktop App + Auto Git Sync).
 
 Performs:
 1. Public Code Repo Sync: `git pull` before launching, and auto-commit/push on exit if code changed.
@@ -85,7 +85,7 @@ def main() -> int:
         pass
 
     print("=" * 60)
-    print(" 🚀 Launching Paris Outreach (Desktop App + Auto Git Sync)")
+    print(" 🚀 Launching Outreach Wizz-ard (Desktop App + Auto Git Sync)")
     print("=" * 60)
 
     if git_exe:
@@ -122,7 +122,7 @@ def main() -> int:
     else:
         print("\n[sync] Git executable not found in PATH. Skipping pre-launch sync.")
 
-    print("\n[app] Starting Paris Outreach Desktop Application...")
+    print("\n[app] Starting Outreach Wizz-ard Desktop Application...")
     print("-" * 60)
 
     # 3. Launch Desktop App (main.py)
@@ -153,7 +153,7 @@ def main() -> int:
             # .gitignore -- not the allowlist -- is what keeps engine/config_local.py and
             # app/seed_voices_local/ out of this repo, and it still does.
             run_git(git_exe, ["add", "-A"], project_dir)
-            commit_res = run_git(git_exe, ["commit", "-m", "Auto-commit: Paris Outreach session updates"], project_dir)
+            commit_res = run_git(git_exe, ["commit", "-m", "Auto-commit: Outreach Wizz-ard session updates"], project_dir)
             if commit_res.returncode != 0:
                 print("[sync] Warning: nothing was committed (see git output above).")
 

@@ -30,7 +30,7 @@ from pathlib import Path
 from . import settings as S
 
 DATA_DIR: Path = S.DATA_DIR
-LOCK_FILE = DATA_DIR / ".paris.lock"
+LOCK_FILE = DATA_DIR / ".wizzard.lock"
 CONFLICT_FILE = DATA_DIR / "SYNC_CONFLICT.md"
 
 # Never let git block on an interactive credential prompt -- fail fast instead.
@@ -41,44 +41,43 @@ _stop = threading.Event()
 _state = {"enabled": False, "conflict": False, "have_lock": False, "last_push": 0.0}
 
 _GITIGNORE = """\
-# Paris Outreach synced data dir -- track durable state, skip regenerable / device-local files.
+# Outreach Wizz-ard synced data dir -- track durable state, skip regenerable / device-local files.
 caches/
 outbox/
 attachments/
 session_stats.json
 faults.log
-.paris.lock
+.wizzard.lock
 SYNC_CONFLICT.md
 __pycache__/
 *.pyc
 """
 
 _GITATTRIBUTES = """\
-# Normalise line endings so Windows and macOS don't churn spurious diffs.
-* text=auto eol=lf
-*.json text
+*.json merge=union
 """
 
 
 # ---- low-level git ---------------------------------------------------------
 
 def _git(*args: str, timeout: float = 30.0) -> tuple[int, str, str]:
-    """Run a git command in DATA_DIR. Never raises; returns (code, stdout, stderr)."""
     try:
-        p = subprocess.run(["git", "-C", str(DATA_DIR), *args],
-                           capture_output=True, text=True, env=_GIT_ENV, timeout=timeout)
-        return p.returncode, p.stdout.strip(), p.stderr.strip()
-    except FileNotFoundError:
-        return 127, "", "git not found on PATH"
-    except subprocess.TimeoutExpired:
-        return 124, "", "git timed out"
-    except Exception as e:  # pragma: no cover - defensive; must never reach the app
+        res = subprocess.run(
+            ["git", "-C", os.fspath(DATA_DIR)] + list(args),
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            env=_GIT_ENV,
+            check=False,
+        )
+        return res.returncode, res.stdout.strip(), res.stderr.strip()
+    except (subprocess.SubprocessError, OSError) as e:
         return 1, "", str(e)
 
 
 def _is_repo() -> bool:
-    code, out, _ = _git("rev-parse", "--is-inside-work-tree")
-    return code == 0 and out == "true"
+    code, _, _ = _git("rev-parse", "--git-dir")
+    return code == 0
 
 
 def _has_remote() -> bool:
@@ -87,7 +86,7 @@ def _has_remote() -> bool:
 
 
 def enabled() -> bool:
-    if os.environ.get("PARIS_SYNC") == "0":
+    if os.environ.get("WIZZARD_SYNC") == "0" or os.environ.get("PARIS_SYNC") == "0":
         return False
     return _is_repo() and _has_remote()
 
@@ -242,7 +241,7 @@ def _do_push(reason: str) -> None:
         if porcelain:
             host = socket.gethostname()
             stamp = time.strftime("%Y-%m-%d %H:%M:%S")
-            _git("commit", "-m", f"paris: {host} {stamp} ({reason})")
+            _git("commit", "-m", f"wizzard: {host} {stamp} ({reason})")
         _git("push", timeout=60)  # offline -> fails quietly; the commit waits for next time
         _state["last_push"] = time.time()
 
@@ -275,7 +274,7 @@ def on_start(interval_minutes: float = 10.0) -> None:
             return
         if not acquire_lock():
             _state["enabled"] = False
-            print("  [sync] another Paris instance is running on this machine; "
+            print("  [sync] another Outreach Wizzard instance is running on this machine; "
                   "sync disabled for this window.")
             return
         # Pull BEFORE writing .gitignore/.gitattributes: on a device's first launch the

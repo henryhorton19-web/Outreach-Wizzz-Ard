@@ -6,6 +6,8 @@ numeric/name guards in draft_engine reject anything not traceable to the profile
 target's sourced research points.
 """
 
+import os
+
 # ---- global knobs ----------------------------------------------------------
 DEFAULT_VOICE = "role_small"
 TIMING_RECENT_MONTHS = 6          # a "recent point" should be within ~6 months
@@ -42,13 +44,20 @@ _PLACEHOLDER_PROFILE = {
     "allowed_numbers": ["10", "100"],
 }
 
-try:
-    from config_local import CANDIDATE_PROFILE  # type: ignore  # noqa: F401
-except Exception:
+if os.environ.get("WIZZARD_PROFILE_SOURCE") == "fixture":
     try:
-        from .config_local import CANDIDATE_PROFILE  # type: ignore  # noqa: F401
+        from tests.fixtures.profile import FIXTURE_PROFILE
+        CANDIDATE_PROFILE = FIXTURE_PROFILE
     except Exception:
         CANDIDATE_PROFILE = _PLACEHOLDER_PROFILE
+else:
+    try:
+        from config_local import CANDIDATE_PROFILE  # type: ignore  # noqa: F401
+    except Exception:
+        try:
+            from .config_local import CANDIDATE_PROFILE  # type: ignore  # noqa: F401
+        except Exception:
+            CANDIDATE_PROFILE = _PLACEHOLDER_PROFILE
 
 
 # ---- voices ----------------------------------------------------------------

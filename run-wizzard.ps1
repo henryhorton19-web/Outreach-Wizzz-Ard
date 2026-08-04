@@ -1,4 +1,4 @@
-# Windows PowerShell launcher for Paris Outreach (Desktop App + Auto Git Sync)
+# Windows PowerShell launcher for Outreach Wizz-ard (Desktop App + Auto Git Sync)
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 Set-Location $scriptDir
 

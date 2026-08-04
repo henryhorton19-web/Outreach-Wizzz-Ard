@@ -1,6 +1,6 @@
 """Outbox storage and historical email sync.
 
-Manages saving approved emails into standard .eml format in S.OUTBOX_DIR (default: %APPDATA%/ParisOutreach/outbox),
+Manages saving approved emails into standard .eml format in S.OUTBOX_DIR (default: %APPDATA%/OutreachWizzard/outbox),
 and syncing historical approved emails from store.load_archive() / store.load_sent_items().
 """
 from __future__ import annotations
@@ -35,7 +35,7 @@ def build_eml(to: str, subject: str, body_text: str,
     msg["Date"] = formatdate(localtime=True)
     msg["X-Unsent"] = "1"  # tells Outlook / Mail.app to open in draft/compose mode
 
-    mid = message_id or make_msgid(domain="paris-outreach.local")
+    mid = message_id or make_msgid(domain="outreach-wizzard.local")
     msg["Message-ID"] = mid
     msg.set_content(body_text or "")
 

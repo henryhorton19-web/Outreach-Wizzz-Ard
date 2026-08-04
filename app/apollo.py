@@ -33,7 +33,7 @@ SLEEP_SECONDS = 1.0
 # of the verify step); it may consume Apollo credits, so it can be disabled via env.
 # NB: reveal_phone_number is intentionally NOT set — Apollo makes it mandatory to also supply a
 # webhook_url when phones are requested, which this desktop app has no endpoint for.
-REVEAL_PERSONAL_EMAILS = os.environ.get("PARIS_APOLLO_REVEAL_EMAILS", "1").strip().lower() not in {"0", "false", "no", ""}
+REVEAL_PERSONAL_EMAILS = (os.environ.get("WIZZARD_APOLLO_REVEAL_EMAILS") or os.environ.get("PARIS_APOLLO_REVEAL_EMAILS", "1")).strip().lower() not in {"0", "false", "no", ""}
 
 KEEP_STATUSES = {"verified"}
 HONORIFICS = {"dr", "mr", "ms", "mrs", "prof"}
@@ -238,8 +238,8 @@ def _eml_dir():
     """Where staged .eml drafts are written before the OS mail app opens them.
 
     Cross-platform and portable: the default is OUTBOX_DIR under the per-user data dir
-    (~/.paris_outreach/outbox on macOS/Linux, %APPDATA%/ParisOutreach/outbox on Windows). A user can
-    override it (Settings > eml_dir, or PARIS_EML_DIR) to route drafts to a findable/synced folder.
+    (~/.outreach_wizzard/outbox on macOS/Linux, %APPDATA%/OutreachWizzard/outbox on Windows). A user can
+    override it (Settings > eml_dir, or WIZZARD_EML_DIR) to route drafts to a findable/synced folder.
     Defensive: an unwritable override falls back to OUTBOX_DIR, then to a temp dir, so staging a
     draft never fails just because a configured path is missing on this machine."""
     candidates = []
@@ -258,7 +258,7 @@ def _eml_dir():
             continue
     # last resort: a temp dir (keeps the app working on a locked-down machine)
     import tempfile
-    d = Path(tempfile.gettempdir()) / "ParisOutreach"
+    d = Path(tempfile.gettempdir()) / "OutreachWizzard"
     d.mkdir(parents=True, exist_ok=True)
     return d
 

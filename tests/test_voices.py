@@ -213,17 +213,17 @@ def test_experience_token_resolves_and_grounds(isolated):
         id="tok", display_name="Tok", situations=["role_small"],
         blocks=[
             {"id": "greeting", "mode": "fixed", "text": "Hi {contact_first},"},
-            {"id": "context", "mode": "fixed", "length": "short", "text": "For context: {hpe}"},
+            {"id": "context", "mode": "fixed", "length": "short", "text": "For context: {anchor_co}"},
             {"id": "positioning", "mode": "fixed", "owns_sci_po": True,
              "text": "On the Sciences Po exchange this year."},
         ]))
     store.save_cache("tok", _cache())
     cs = CompanyState(slug="tok", name="Tok", website="https://t.example", state=State.input)
     P.draft_one(STUB, cs, voice_override="tok", reuse_cache=True)
-    hpe_anchor = EC.CANDIDATE_PROFILE["experiences"]["hpe"]["anchor"]
-    assert hpe_anchor in cs.machine_email                         # {hpe} substituted verbatim
+    anchor_co_anchor = EC.CANDIDATE_PROFILE["experiences"]["anchor_co"]["anchor"]
+    assert anchor_co_anchor in cs.machine_email                         # {anchor_co} substituted verbatim
     af = [a["text"] for a in cs.spec["allowed_facts"]]
-    assert hpe_anchor in af                                       # and grounded in allowed_facts
+    assert anchor_co_anchor in af                                       # and grounded in allowed_facts
 
 
 def test_relevant_token_resolves_offline_to_top_of_shortlist(isolated):
@@ -244,39 +244,39 @@ def test_relevant_token_resolves_offline_to_top_of_shortlist(isolated):
 
 
 def test_relevant_never_resolves_to_excluded(isolated):
-    cache = _cache(proof=[{"fact": "raised a growth round", "source": "x"}])   # HPE would top
-    ranked = de.rank_evidence(cache, exclude=["hpe"])
-    assert "hpe" not in [e["_key"] for e in ranked]
+    cache = _cache(proof=[{"fact": "raised a growth round", "source": "x"}])   # anchor_co would top
+    ranked = de.rank_evidence(cache, exclude=["anchor_co"])
+    assert "anchor_co" not in [e["_key"] for e in ranked]
     shortlist = [e for e in ranked if e.get("_score", 0) > 0 or e.get("_pinned")][:5] or ranked[:3]
-    assert "hpe" not in [e["_key"] for e in shortlist]
+    assert "anchor_co" not in [e["_key"] for e in shortlist]
 
 
 def test_explicit_token_overrides_exclude_in_allowed_facts(isolated):
     store.save_custom_voice(_voice(
         id="ovr", display_name="Ovr", situations=["role_small"],
-        evidence={"exclude": ["innova"], "count": 1},
+        evidence={"exclude": ["side_co"], "count": 1},
         blocks=[
             {"id": "greeting", "mode": "fixed", "text": "Hi {contact_first},"},
-            {"id": "ino", "mode": "fixed", "length": "short", "text": "{innova}"},
+            {"id": "ino", "mode": "fixed", "length": "short", "text": "{side_co}"},
             {"id": "positioning", "mode": "fixed", "owns_sci_po": True,
              "text": "On the Sciences Po exchange this year."},
         ]))
     store.save_cache("ovr", _cache())
     cs = CompanyState(slug="ovr", name="Ovr", website="https://o.example", state=State.input)
     P.draft_one(STUB, cs, voice_override="ovr", reuse_cache=True)
-    innova_anchor = EC.CANDIDATE_PROFILE["experiences"]["innova"]["anchor"]
+    side_co_anchor = EC.CANDIDATE_PROFILE["experiences"]["side_co"]["anchor"]
     af = [a["text"] for a in cs.spec["allowed_facts"]]
-    assert innova_anchor in af          # placed by {innova} despite exclude -> still grounded
+    assert side_co_anchor in af          # placed by {side_co} despite exclude -> still grounded
 
 
 # ---- voice-parameterised evidence -------------------------------------------
 
 def test_evidence_exclude_pin_count(isolated):
     cache = _cache(proof=[{"fact": "an LLM agent platform for analysts", "source": "x"}])
-    ex = de.select_evidence(cache, exclude=["hpe"], count=2)
-    assert "hpe" not in [e["_key"] for e in ex]
-    pinned = de.rank_evidence(cache, pin=["innova"])
-    assert pinned[0]["_key"] == "innova"
+    ex = de.select_evidence(cache, exclude=["anchor_co"], count=2)
+    assert "anchor_co" not in [e["_key"] for e in ex]
+    pinned = de.rank_evidence(cache, pin=["side_co"])
+    assert pinned[0]["_key"] == "side_co"
     one = de.select_evidence(cache, count=1)
     assert len(one) == 1
 

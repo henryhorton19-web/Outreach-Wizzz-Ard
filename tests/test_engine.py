@@ -94,19 +94,19 @@ def test_word_count_soft_note_out_of_range():
 
 
 def test_tie_selects_by_signal():
-    # fundraising target -> HPE/Solano; AI target -> BlueFire
+    # fundraising target -> fund_co; AI target -> tech_co
     fund = de._select_evidence(_cache(proof=[{"fact": "raised a Series A led by a growth fund"}]), "role_small")
-    ai = de._select_evidence(_cache(proof=[{"fact": "an LLM agent platform for analysts"}]), "role_small")
+    ai = de._select_evidence(_cache(proof=[{"fact": "an LLM agent platform for AI research"}]), "role_small")
     fund_keys = {e["_key"] for e in fund}
     ai_keys = {e["_key"] for e in ai}
-    assert "hpe" in fund_keys
-    assert "bluefire" in ai_keys
+    assert "fund_co" in fund_keys
+    assert "tech_co" in ai_keys
 
 
 def test_innova_gated_off_by_default():
-    # a generic target with no ownership/ops/zero-to-one signal must NOT surface Innova
+    # a generic target with no ownership/ops/zero-to-one signal must NOT surface side_co
     ev = de._select_evidence(_cache(proof=[{"fact": "a payments API for banks"}]), "role_large")
-    assert "innova" not in {e["_key"] for e in ev}
+    assert "side_co" not in {e["_key"] for e in ev}
 
 
 def test_first_name_strips_honorifics():

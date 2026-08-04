@@ -2,7 +2,7 @@ import zipfile
 import os
 
 src_dir = os.path.dirname(os.path.abspath(__file__))
-out_zip = os.path.join(os.path.dirname(os.path.dirname(src_dir)), "paris_app_outcome_aware.zip")
+out_zip = os.path.join(os.path.dirname(os.path.dirname(src_dir)), "outreach_wizzard.zip")
 
 def should_exclude(path):
     parts = path.split(os.sep)
@@ -16,7 +16,7 @@ with zipfile.ZipFile(out_zip, 'w', zipfile.ZIP_DEFLATED) as zipf:
             file_path = os.path.join(root, file)
             if should_exclude(file_path):
                 continue
-            arcname = os.path.join("paris", os.path.relpath(file_path, src_dir))
+            arcname = os.path.join("wizzard", os.path.relpath(file_path, src_dir))
             zipf.write(file_path, arcname)
 
 print("Zip created successfully at", out_zip)
