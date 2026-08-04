@@ -1,33 +1,24 @@
-# Paris Outreach
+# Outreach Wizz-ard
 
-A self-contained desktop app that drafts cold outreach emails for a **part-time operating or
-analyst seat** during the Sciences Po Paris exchange year (September to June). It is a domain
-re-aim of the Example Capital outreach app: same architecture, UX, tooling and security, pointed at a
-job search instead of deal sourcing.
-
-You paste target companies/funds (or upload your Outreach_Tracker), and for each one the app
-researches two proof points and one recent trigger, ties them back to your CV-grounded profile,
-and writes a first-draft email in a voice you control. You review and edit every draft; nothing sends
-automatically. Approving stages a `.eml` file for your mail client and writes the send to your
-tracker.
+A self-contained desktop app that drafts cold outreach emails for any target role, company, industry, or candidate profile. It generalizes job search outreach with customizable candidate profiles, editable voices, grounded research, and automated follow-ups.
 
 ## Quick Start & AI Agent Rules (System-Agnostic Launchers)
 
-When opening, modifying, or launching Paris Outreach in a fresh chat or workspace, **always use the system-agnostic synced launcher command** for your operating system. These launchers automatically perform pre-launch git pulling (both public code and private data), start the native desktop GUI app (`pywebview`), and automatically commit & push any modified code on exit.
+When opening, modifying, or launching Outreach Wizz-ard in a fresh chat or workspace, **always use the system-agnostic synced launcher command** for your operating system. These launchers automatically perform pre-launch git pulling (both public code and private data), start the native desktop GUI app (`pywebview`), and automatically commit & push any modified code on exit.
 
 ### Windows (PowerShell)
 ```powershell
-cd "<ABSOLUTE_PATH_TO_PARIS_OUTREACH>"
-.\run-paris.ps1
+cd "C:\Users\HenryHorton\OneDrive\Documents\Internship\09 Personal Projects\paris-outreach"
+.\run-wizzard.ps1
 ```
 
 ### macOS / Linux (Bash/Zsh)
 ```bash
-cd "<ABSOLUTE_PATH_TO_PARIS_OUTREACH>"
-./run-paris.sh
+cd "C:\Users\HenryHorton\OneDrive\Documents\Internship\09 Personal Projects\paris-outreach"
+./run-wizzard.sh
 ```
 
-**AI Assistants & Collaborator Note**: Always launch the full desktop app GUI (`run-paris.ps1` / `run-paris.sh` -> `main.py`). Do not start only the headless web backend (`server.py` / `uvicorn`) unless explicitly asked. The launcher scripts handle the **Two-Repo Model**: public source code in `paris-outreach`, and private runtime data/voices in `%APPDATA%\ParisOutreach` (or `~/.paris_outreach`). Secrets and personal profiles (`engine/config_local.py`, `app/seed_voices_local/`) are git-ignored and never pushed.
+**AI Assistants & Collaborator Note**: Always launch the full desktop app GUI (`run-wizzard.ps1` / `run-wizzard.sh` -> `main.py`). Do not start only the headless web backend (`server.py` / `uvicorn`) unless explicitly asked. The launcher scripts handle the **Two-Repo Model**: public source code in `paris-outreach`, and private runtime data/voices in `%APPDATA%\OutreachWizzard` (or `~/.outreach_wizzard`). Environment variables use the `WIZZARD_*` prefix (with backward-compatible `PARIS_*` fallbacks).
 
 ## How it works
 
