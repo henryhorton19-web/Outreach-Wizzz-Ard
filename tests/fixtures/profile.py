@@ -37,7 +37,7 @@ FIXTURE_PROFILE = {
             "tense": "past",
             "anchor": "I built a credit model at Tech Co.",
             "facts": ["Shipped a scoring pipeline."],
-            "bridges": ["ai_native", "fintech_ai", "technical", "builds"],
+            "bridges": ["ai_native", "fintech_ai", "technical", "builds", "research"],
         },
         "side_co": {
             "name": "Side Co", "title": "Co-founder", "when": "2023 - 2025",

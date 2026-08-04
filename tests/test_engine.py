@@ -95,8 +95,9 @@ def test_word_count_soft_note_out_of_range():
 
 def test_tie_selects_by_signal():
     # fundraising target -> fund_co; AI target -> tech_co
-    fund = de._select_evidence(_cache(proof=[{"fact": "raised a Series A led by a growth fund"}]), "role_small")
-    ai = de._select_evidence(_cache(proof=[{"fact": "an LLM agent platform for AI research"}]), "role_small")
+    cache_ai = _cache(proof=[{"fact": "an LLM agent platform for AI research"}], recent=False)
+    fund = de._select_evidence(_cache(proof=[{"fact": "raised a Series A led by a growth fund"}], recent=False), "role_small")
+    ai = de._select_evidence(cache_ai, "role_small")
     fund_keys = {e["_key"] for e in fund}
     ai_keys = {e["_key"] for e in ai}
     assert "fund_co" in fund_keys

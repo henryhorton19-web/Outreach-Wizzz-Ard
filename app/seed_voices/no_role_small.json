@@ -8,7 +8,7 @@
     "no_role_small"
   ],
   "subject": "an idea for {company}",
-  "mention_sci_po": true,
+  "mention_sci_po": false,
   "length_min": 70,
   "length_max": 120,
   "blocks": [
@@ -46,9 +46,9 @@
       "id": "positioning",
       "label": "Positioning",
       "mode": "fixed",
-      "owns_sci_po": true,
+      "owns_sci_po": false,
       "length": "short",
-      "text": "I am on exchange at Sciences Po in Paris this year (September to June) and looking for a part-time operating seat around classes."
+      "text": "I am looking for an opportunity to contribute directly to key priorities."
     },
     {
       "id": "close",

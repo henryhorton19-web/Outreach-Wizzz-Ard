@@ -16,7 +16,7 @@ Regardless of the voice, every draft must obey:
 - **No invented facts.** Every number, name, or company must trace to `allowed_facts` (the target's
   proof points and recent "why now", the selected candidate evidence, the `{relevant}` shortlist,
   any experience dropped in by a `{key}` token, and the voice's custom facts).
-- **Example Capital is present tense** — it is ongoing this summer; never "worked at" or "last summer".
+- **Standing experience reflects active status** — state current role in present tense if ongoing; never misrepresent standing.
 - **No sign-off** — the mail client appends the signature.
 
 Two further rules are *voice knobs*, not floor: dashes (off by default, `allow_dashes` opts in) and

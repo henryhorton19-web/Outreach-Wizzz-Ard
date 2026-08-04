@@ -7,8 +7,8 @@
   "situations": [
     "role_small"
   ],
-  "subject": "{role_or_company}, part-time from September",
-  "mention_sci_po": true,
+  "subject": "{role_or_company} | candidate intro",
+  "mention_sci_po": false,
   "length_min": 70,
   "length_max": 120,
   "blocks": [
@@ -46,16 +46,16 @@
       "id": "positioning",
       "label": "Positioning",
       "mode": "fixed",
-      "owns_sci_po": true,
+      "owns_sci_po": false,
       "length": "short",
-      "text": "I am on exchange at Sciences Po in Paris this year, so I am after a part-time seat (around 2 days a week) rather than a full-time role."
+      "text": "I am interested in supporting your team in {role_or_company}."
     },
     {
       "id": "close",
       "label": "Close",
       "mode": "fixed",
       "length": "one_line",
-      "text": "~2 days a week, September to June. Open to a short call?"
+      "text": "Open to a short call to discuss options?"
     }
   ],
   "style": {

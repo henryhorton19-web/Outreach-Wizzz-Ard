@@ -46,16 +46,16 @@
       "id": "positioning",
       "label": "Positioning",
       "mode": "fixed",
-      "owns_sci_po": true,
+      "owns_sci_po": false,
       "length": "short",
-      "text": "I'm at Sciences Po in Paris this year (September to June) and looking for a part-time operating seat around classes."
+      "text": "I am looking for an operating seat to support your key strategic initiatives."
     },
     {
       "id": "close",
       "label": "Close",
       "mode": "fixed",
       "length": "one_line",
-      "text": "I'd happily start by owning a real problem for you. Open to a short informational interview?"
+      "text": "I'd happily start by owning a real problem for you. Open to a short informational conversation?"
     }
   ],
   "style": {
@@ -67,7 +67,7 @@
     "humor": "none",
     "person_focus": "recipient_first",
     "proof_density": "single",
-    "notes": "Warm, deferential, and collaborative. Avoid presumptuous or 'know-it-all' tone. Frame the ask as being an 'extra pair of hands' to help them scale. When referencing the Example Capital experience, use the past/perfect tense (e.g. 'have built', 'diligenced').",
+    "notes": "Warm, deferential, and collaborative. Avoid presumptuous or 'know-it-all' tone. Frame the ask as being an 'extra pair of hands' to help them scale.",
     "examples": []
   },
   "evidence": {

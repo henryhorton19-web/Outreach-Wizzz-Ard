@@ -71,15 +71,25 @@ def _join_names(n: list[str]) -> str:
 # Map loose research signals to profile bridge tags.
 def _target_bridge_tags(cache: dict) -> list[str]:
     tags: list[str] = []
+    c_prof = cache.get("company_profile") or {}
+    r_prof = cache.get("role_profile") or {}
+    t_prof = cache.get("target_profile") or {}
+    recent_pt = cache.get("recent_point") or {}
+    recent_detail = recent_pt.get("detail", "") if recent_pt.get("present", True) else ""
     text = " ".join([
         (cache.get("company") or {}).get("what_they_do", ""),
+        c_prof.get("description", ""),
+        c_prof.get("industry", ""),
+        r_prof.get("title", ""),
+        r_prof.get("department", ""),
+        t_prof.get("role_title", ""),
         " ".join(p.get("fact", "") for p in (cache.get("proof_points") or []) if isinstance(p, dict)),
-        (cache.get("recent_point") or {}).get("detail", ""),
+        recent_detail,
         (cache.get("situation_read") or ""),
     ]).lower()
 
     def has(*words):
-        return any(w in text for w in words)
+        return any(re.search(r"\b" + re.escape(w) + r"\b", text) for w in words)
 
     if has("raise", "raised", "funding", "seed", "series", "round", "investor", "fundrais"):
         tags += ["fundraising", "investor_adjacent"]
@@ -126,7 +136,8 @@ def rank_evidence(cache: dict, prefer=(), pin=(), exclude=(), weights=None) -> l
             if not (tags & {"ownership", "zero_to_one", "ops"}):
                 continue
         score = len(tags & bridges)
-        if key == "hpe":
+        standing = C.CANDIDATE_PROFILE.get("standing_key", "hpe")
+        if key == standing:
             score += 1
         if key in prefer:
             score += 2

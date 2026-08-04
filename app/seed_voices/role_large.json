@@ -41,9 +41,9 @@
       "id": "positioning",
       "label": "Positioning",
       "mode": "fixed",
-      "owns_sci_po": true,
+      "owns_sci_po": false,
       "length": "short",
-      "text": "I am on the Sciences Po Paris exchange this year (September to June) and seeking a part-time arrangement around my classes."
+      "text": "I am looking for an opportunity to contribute to your team in this role."
     },
     {
       "id": "close",

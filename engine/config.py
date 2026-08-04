@@ -15,34 +15,87 @@ WORD_MIN = 70                     # phone-readable target range (soft)
 WORD_MAX = 120
 
 
+from pathlib import Path
+
 # ---- candidate profile (from CV; guarded facts) ----------------------------
-# The candidate profile is the ONLY source of real personal facts that may enter an email.
-# To keep this a shareable public repo, the REAL profile lives in engine/config.local.py
-# (git-ignored). If that file is present it wins; otherwise this placeholder keeps the app
-# runnable for anyone who clones the repo. Copy config.local.example.py -> config.local.py
-# and fill it in (see that file for the full schema).
-_PLACEHOLDER_PROFILE = {
+DEFAULT_PROFILE_TEMPLATE = {
     "name": "Your Name",
+    "candidate_name": "Your Name",
     "email": "you@example.com",
     "phone": "+00 0000000000",
     "linkedin": "Your Name",
     "education": {"primary": "Your university, degree, dates, standing."},
     "one_line": "One speakable sentence describing who you are and what you want.",
     "spine": "The core claim reused across every voice.",
+    "standing_key": "anchor_co",
+    "standing_experience": "I led operations at Anchor Co.",
+    "target_roles": ["Chief of Staff", "Operations Lead", "Growth Manager"],
+    "target_firm_types": ["Growth / Tech / Venture"],
+    "target_locations": ["Remote", "New York", "London", "Paris"],
     "experiences": {
-        "example_role": {
-            "name": "Company Name",
-            "title": "Your Title",
-            "when": "Mon YYYY - Mon YYYY",
-            "tense": "past",
-            "anchor": "One speakable sentence summarising this role.",
-            "facts": ["A guarded, CV-sourced claim.", "Another verifiable fact."],
-            "bridges": ["signal_a", "signal_b"],
+        "anchor_co": {
+            "name": "Anchor Co",
+            "title": "Lead Operator",
+            "when": "2024 - Present",
+            "tense": "present",
+            "anchor": "I led operations and strategy at Anchor Co.",
+            "facts": ["Scales operations across teams."],
+            "bridges": ["analytical", "builds", "ops"],
         },
     },
     "signals": ["A credibility signal."],
     "allowed_numbers": ["10", "100"],
+    "proof_points": [
+        {
+            "fact": "Shipped core product features and scaled operational workflows.",
+            "metrics": ["100"],
+            "tags": ["builds", "analytical"]
+        }
+    ]
 }
+
+_PLACEHOLDER_PROFILE = DEFAULT_PROFILE_TEMPLATE
+
+
+class ProfileStore:
+    """Manages reading and persisting candidate profiles."""
+    @staticmethod
+    def profile_path() -> Path:
+        try:
+            from app import settings as S
+            return S.DATA_DIR / "candidate_profile.json"
+        except Exception:
+            return Path.home() / ".outreach_wizzard" / "candidate_profile.json"
+
+    @classmethod
+    def load(cls) -> dict:
+        if os.environ.get("WIZZARD_PROFILE_SOURCE") == "fixture":
+            from tests.fixtures.profile import FIXTURE_PROFILE
+            return dict(FIXTURE_PROFILE)
+        p = cls.profile_path()
+        if p.exists():
+            try:
+                import json
+                return json.loads(p.read_text(encoding="utf-8"))
+            except Exception:
+                pass
+        return dict(CANDIDATE_PROFILE)
+
+    @classmethod
+    def save(cls, profile: dict) -> None:
+        p = cls.profile_path()
+        p.parent.mkdir(parents=True, exist_ok=True)
+        import json
+        p.write_text(json.dumps(profile, indent=2), encoding="utf-8")
+        if os.environ.get("WIZZARD_PROFILE_SOURCE") != "fixture":
+            global CANDIDATE_PROFILE
+            CANDIDATE_PROFILE = profile
+
+    @classmethod
+    def reset_to_default(cls) -> dict:
+        cls.save(DEFAULT_PROFILE_TEMPLATE)
+        return DEFAULT_PROFILE_TEMPLATE
+
 
 if os.environ.get("WIZZARD_PROFILE_SOURCE") == "fixture":
     try:
