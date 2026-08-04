@@ -2239,7 +2239,92 @@ function renderSourcingReport(job) {
   });
 }
 
+/* ================= CANDIDATE PROFILE MODAL (Phase 4) ================= */
+
+async function openProfileModal() {
+  const backdrop = $("#profileModal");
+  if (!backdrop) return;
+  try {
+    const p = await api("/api/profile");
+    state.profile = p;
+    $("#profName").value = p.name || "";
+    $("#profEmail").value = p.email || "";
+    $("#profPhone").value = p.phone || "";
+    $("#profLinkedin").value = p.linkedin || "";
+    $("#profTargetRoles").value = (p.target_roles || []).join(", ");
+    $("#profTargetFirms").value = (p.target_firm_types || []).join(", ");
+    $("#profTargetLocations").value = (p.target_locations || []).join(", ");
+    $("#profOneLine").value = p.one_line || "";
+    $("#profSpine").value = p.spine || "";
+    $("#profAllowedNumbers").value = (p.allowed_numbers || []).join(", ");
+    const exps = p.experiences || {};
+    const standingKey = p.standing_key || "anchor_co";
+    const standingExp = exps[standingKey] || {};
+    $("#profStandingExp").value = standingExp.anchor || "";
+    backdrop.classList.remove("hidden");
+  } catch (e) {
+    toast("Failed to load profile: " + e.message, true);
+  }
+}
+
+function closeProfileModal() {
+  const backdrop = $("#profileModal");
+  if (backdrop) backdrop.classList.add("hidden");
+}
+
+async function saveProfile() {
+  const cur = state.profile || {};
+  const splitComma = (val) => (val || "").split(",").map(s => s.trim()).filter(Boolean);
+  const updated = {
+    ...cur,
+    name: $("#profName").value.trim(),
+    email: $("#profEmail").value.trim(),
+    phone: $("#profPhone").value.trim(),
+    linkedin: $("#profLinkedin").value.trim(),
+    target_roles: splitComma($("#profTargetRoles").value),
+    target_firm_types: splitComma($("#profTargetFirms").value),
+    target_locations: splitComma($("#profTargetLocations").value),
+    one_line: $("#profOneLine").value.trim(),
+    spine: $("#profSpine").value.trim(),
+    allowed_numbers: splitComma($("#profAllowedNumbers").value),
+  };
+  const standingKey = updated.standing_key || "anchor_co";
+  if (updated.experiences && updated.experiences[standingKey]) {
+    updated.experiences[standingKey].anchor = $("#profStandingExp").value.trim();
+  }
+  try {
+    const res = await api("/api/profile", { method: "POST", body: updated });
+    state.profile = res.profile;
+    toast("Profile saved successfully");
+    closeProfileModal();
+  } catch (e) {
+    toast("Failed to save profile: " + e.message, true);
+  }
+}
+
+async function resetProfile() {
+  const ok = await dialog({
+    title: "Reset Candidate Profile?",
+    message: "This will revert your candidate profile template to default values. Continue?",
+    options: [{ label: "Reset", value: "reset", danger: true }, { label: "Cancel", value: false, primary: true }],
+  });
+  if (ok === "reset") {
+    try {
+      const res = await api("/api/profile/reset", { method: "POST" });
+      state.profile = res.profile;
+      toast("Profile reset to defaults");
+      closeProfileModal();
+    } catch (e) {
+      toast(e.message, true);
+    }
+  }
+}
+
 async function boot() {
+  if ($("#profileBtn")) $("#profileBtn").onclick = openProfileModal;
+  if ($("#closeProfileModal")) $("#closeProfileModal").onclick = closeProfileModal;
+  if ($("#profileForm")) $("#profileForm").onsubmit = async (e) => { e.preventDefault(); await saveProfile(); };
+  if ($("#resetProfileBtn")) $("#resetProfileBtn").onclick = async () => { await resetProfile(); };
   wire();
   try {
     await refreshStatus();

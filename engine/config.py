@@ -62,6 +62,9 @@ class ProfileStore:
     @staticmethod
     def profile_path() -> Path:
         try:
+            custom_dir = os.environ.get("WIZZARD_DATA_DIR") or os.environ.get("PARIS_DATA_DIR")
+            if custom_dir:
+                return Path(custom_dir) / "candidate_profile.json"
             from app import settings as S
             return S.DATA_DIR / "candidate_profile.json"
         except Exception:
@@ -83,13 +86,16 @@ class ProfileStore:
 
     @classmethod
     def save(cls, profile: dict) -> None:
+        if os.environ.get("WIZZARD_PROFILE_SOURCE") == "fixture":
+            return
         p = cls.profile_path()
         p.parent.mkdir(parents=True, exist_ok=True)
         import json
         p.write_text(json.dumps(profile, indent=2), encoding="utf-8")
-        if os.environ.get("WIZZARD_PROFILE_SOURCE") != "fixture":
-            global CANDIDATE_PROFILE
-            CANDIDATE_PROFILE = profile
+        import sys
+        for mod_name in ("config", "engine.config"):
+            if mod_name in sys.modules:
+                setattr(sys.modules[mod_name], "CANDIDATE_PROFILE", profile)
 
     @classmethod
     def reset_to_default(cls) -> dict:

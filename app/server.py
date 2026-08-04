@@ -39,6 +39,7 @@ from . import voice_learning
 from . import voice_optimize
 from . import pipeline_view
 from . import outcomes as outcomes_mod
+import config as C
 from .providers.base import make_provider, ProviderError
 
 import sys
@@ -518,6 +519,28 @@ async def reject_voice_proposal(voice_id: str, proposal_id: str):
 @app.get("/api/voices/{voice_id}/history")
 async def get_voice_history(voice_id: str):
     return {"voice_id": voice_id, "versions": store.list_voice_versions(voice_id)}
+
+
+# ---- candidate profile endpoints -------------------------------------------
+
+@app.get("/api/profile")
+async def get_candidate_profile():
+    return C.ProfileStore.load()
+
+
+@app.post("/api/profile")
+async def save_candidate_profile(request: Request):
+    data = await request.json()
+    if not isinstance(data, dict):
+        raise HTTPException(status_code=400, detail="invalid profile payload")
+    C.ProfileStore.save(data)
+    return {"ok": True, "profile": C.ProfileStore.load()}
+
+
+@app.post("/api/profile/reset")
+async def reset_candidate_profile():
+    prof = C.ProfileStore.reset_to_default()
+    return {"ok": True, "profile": prof}
 
 
 @app.post("/api/voices/{voice_id}/rollback")

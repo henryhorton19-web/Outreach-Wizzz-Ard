@@ -56,6 +56,9 @@
       <button class="icon-btn" id="voicesBtn" title="Voices" aria-label="Voices">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg>
       </button>
+      <button class="icon-btn" id="profileBtn" title="Candidate Profile" aria-label="Candidate Profile">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+      </button>
       <button class="icon-btn" id="settingsBtn" title="Settings" aria-label="Settings">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
       </button>
@@ -670,6 +673,71 @@
           <div class="note-line" style="margin-top:14px;">Tokens show sample values; experience tokens like
             {hpe} expand to their line. AI blocks and {relevant} appear as labelled placeholders.</div>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Candidate Profile Modal -->
+  <div class="modal-backdrop hidden" id="profileModal" role="dialog" aria-modal="true" aria-labelledby="profileModalTitle">
+    <div class="modal-card" style="width:720px; max-height:85vh; display:flex; flex-direction:column;">
+      <div class="modal-head">
+        <div>
+          <span class="eyebrow">Candidate Profile</span>
+          <h2 id="profileModalTitle">Edit your profile & credentials</h2>
+        </div>
+        <button class="icon-btn" id="closeProfileModal" aria-label="Close modal">&times;</button>
+      </div>
+      <div class="modal-body" style="flex:1; overflow-y:auto; padding:20px 24px;">
+        <form id="profileForm" style="display:flex; flex-direction:column; gap:16px;">
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
+            <div>
+              <label class="lbl">Full Name</label>
+              <input type="text" id="profName" class="inp" placeholder="e.g. Jane Doe" required />
+            </div>
+            <div>
+              <label class="lbl">Email</label>
+              <input type="email" id="profEmail" class="inp" placeholder="e.g. jane@example.com" required />
+            </div>
+          </div>
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
+            <div>
+              <label class="lbl">Phone</label>
+              <input type="text" id="profPhone" class="inp" placeholder="e.g. +1 555 0199" />
+            </div>
+            <div>
+              <label class="lbl">LinkedIn</label>
+              <input type="text" id="profLinkedin" class="inp" placeholder="e.g. https://linkedin.com/in/janedoe" />
+            </div>
+          </div>
+          <div>
+            <label class="lbl">Target Roles (comma-separated)</label>
+            <input type="text" id="profTargetRoles" class="inp" placeholder="e.g. Chief of Staff, Operations Lead, Growth Lead" />
+          </div>
+          <div>
+            <label class="lbl">Target Firm Types / Industries (comma-separated)</label>
+            <input type="text" id="profTargetFirms" class="inp" placeholder="e.g. Growth Tech, Venture, AI Infrastructure" />
+          </div>
+          <div>
+            <label class="lbl">Target Locations (comma-separated)</label>
+            <input type="text" id="profTargetLocations" class="inp" placeholder="e.g. Remote, New York, London, Paris" />
+          </div>
+          <div>
+            <label class="lbl">One-Line Bio / Summary</label>
+            <input type="text" id="profOneLine" class="inp" placeholder="Versatile operator focused on scaling tech and growth companies." />
+          </div>
+          <div>
+            <label class="lbl">Core Spine Claim</label>
+            <input type="text" id="profSpine" class="inp" placeholder="Proven track record of driving cross-functional outcomes." />
+          </div>
+          <div>
+            <label class="lbl">Allowed Numbers Whitelist (comma-separated)</label>
+            <input type="text" id="profAllowedNumbers" class="inp" placeholder="10, 50, 100, 160m" />
+          </div>
+          <div style="display:flex; justify-content:space-between; margin-top:12px;">
+            <button type="button" class="btn ghost" id="resetProfileBtn" style="color:#ef4444;">Reset to Defaults</button>
+            <button type="submit" class="btn primary">Save Profile</button>
+          </div>
+        </form>
       </div>
     </div>
   </div>

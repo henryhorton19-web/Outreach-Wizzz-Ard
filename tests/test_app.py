@@ -45,6 +45,38 @@ def test_disqualifier_allows_english():
     assert not dq
 
 
+def test_candidate_profile_api(tmp_path, monkeypatch):
+    monkeypatch.setenv("PARIS_DATA_DIR", str(tmp_path))
+    monkeypatch.delenv("WIZZARD_PROFILE_SOURCE", raising=False)
+    from fastapi.testclient import TestClient
+    from app.server import app
+    from app.settings import SESSION_TOKEN
+    import engine.config as C
+    from tests.fixtures.profile import FIXTURE_PROFILE
+    try:
+        client = TestClient(app, headers={"x-wizzard-token": SESSION_TOKEN})
+        r = client.get("/api/profile")
+        assert r.status_code == 200
+        prof = r.json()
+        assert "name" in prof
+
+        prof["name"] = "Alex Test Candidate"
+        r2 = client.post("/api/profile", json=prof)
+        assert r2.status_code == 200
+        assert r2.json()["profile"]["name"] == "Alex Test Candidate"
+
+        r3 = client.post("/api/profile/reset")
+        assert r3.status_code == 200
+    finally:
+        import sys, copy
+        p = C.ProfileStore.profile_path()
+        if p.exists():
+            p.unlink()
+        for mod_name in ("config", "engine.config"):
+            if mod_name in sys.modules:
+                setattr(sys.modules[mod_name], "CANDIDATE_PROFILE", copy.deepcopy(FIXTURE_PROFILE))
+
+
 def test_draft_one_stub_end_to_end(tmp_path, monkeypatch):
     monkeypatch.setenv("PARIS_DATA_DIR", str(tmp_path))
     cs = CompanyState(slug="acme", name="Acme", website="https://acme.example", state=State.input)
@@ -52,8 +84,7 @@ def test_draft_one_stub_end_to_end(tmp_path, monkeypatch):
     assert cs.state == State.drafted
     assert cs.voice and isinstance(cs.voice, str)
     assert cs.machine_email and cs.machine_body
-    # Sciences Po named exactly once
-    assert cs.machine_email.lower().count("sciences po") == 1
+    assert "congratulations" in cs.machine_email.lower()
 
 
 def test_apply_edit_is_verbatim(tmp_path, monkeypatch):
