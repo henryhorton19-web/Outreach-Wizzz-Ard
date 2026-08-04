@@ -1,8 +1,8 @@
 # Stage 1 — Enrichment brief (research)
 
 You are researching one target company/fund so that a cold outreach email can be drafted for a
-candidate seeking a **part-time operating or analyst seat** during a Sciences Po Paris exchange
-year (September to June, roughly two days a week, remote or Paris-hybrid).
+candidate seeking a target role (e.g. Chief of Staff, Operations Lead, Growth, Technical, or Advisory seat)
+matching their profile and target preferences.
 
 Your entire job is to return one JSON object that validates against the schema. You gather only
 **facts about the target** (the candidate's own background is fixed and lives elsewhere). Every
