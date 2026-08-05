@@ -166,10 +166,14 @@ def _execute_job(job: dict, settings: Any, recency_days: int, max_candidates: in
     sourcing_enabled = getattr(settings, "sourcing_enabled", True)
     if sourcing_enabled and ingest_rows:
         from app.server import _ingest_to_queue
-        res = _ingest_to_queue(ingest_rows)
+        list_id = store.active_list_id()
+        res = _ingest_to_queue(ingest_rows, list_id=list_id)
         added_count = res.get("added") or 0
         job["counts"]["queued"] = added_count
         job["added_slugs"] = [r["slug"] for r in ingest_rows]
+        # Undo must reverse the list the rows actually went into, not whichever
+        # list happens to be active when the user clicks undo.
+        job["added_list_id"] = list_id
 
     # Novelty note
     chk = job["counts"]["checked"]
@@ -201,6 +205,7 @@ def undo_sourcing_job(job_id: str) -> dict:
         return {"removed": 0, "skipped_drafted": 0}
 
     slugs = job.get("added_slugs", [])
+    undo_list_id = job.get("added_list_id") or "default"
     draft_slugs = {cs.slug for cs in store.load_drafts()}
     removed = 0
     skipped_drafted = 0
@@ -209,7 +214,8 @@ def undo_sourcing_job(job_id: str) -> dict:
         if s in draft_slugs:
             skipped_drafted += 1
             continue
-        if store.remove_from_queue(s):
+        if store.remove_from_queue(s, list_id=undo_list_id):
             removed += 1
 
-    return {"removed": removed, "skipped_drafted": skipped_drafted}
+    return {"removed": removed, "skipped_drafted": skipped_drafted,
+            "list_id": undo_list_id}

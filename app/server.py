@@ -83,6 +83,16 @@ async def security(request: Request, call_next):
     return await call_next(request)
 
 
+@app.exception_handler(store.StorageError)
+async def _storage_error_handler(request: Request, exc: store.StorageError):
+    """A rejected list id is a bad request, not a server fault.
+
+    store._queue_file validates list_id (it arrives from a query parameter), and
+    without this handler that validation surfaced as an unhandled 500 traceback.
+    """
+    return JSONResponse({"detail": str(exc)}, status_code=400)
+
+
 def _provider():
     st = S.load_settings()
     if st.provider == "stub":
@@ -282,6 +292,8 @@ async def status():
         "keyring_backend": keys.backend_available(),
         "voice": _STATE["voice"],
         "has_batch": _batch() is not None,
+        "active_list": store.active_list_id(),
+        "degraded": getattr(store, "DEGRADED", None),
         "tracker_path": _STATE["tracker_path"],
         "settings": st.sanitized(),
         "models": {"gemini": st.gemini_model, "anthropic": st.anthropic_model},
@@ -723,7 +735,7 @@ async def ingest(payload: dict = Body(...)):
 
 
 @app.post("/api/ingest_file")
-async def ingest_file(file: UploadFile = File(...)):
+async def ingest_file(file: UploadFile = File(...), list_id: str = ""):
     data = await file.read()
     fn = (file.filename or "").lower()
     if fn.endswith(".xlsx"):
@@ -732,7 +744,7 @@ async def ingest_file(file: UploadFile = File(...)):
         rows = ingest_mod.parse_csv_bytes(data)
     if not rows:
         raise HTTPException(status_code=400, detail="no target names found in file")
-    return _ingest_to_queue(rows)
+    return _ingest_to_queue(rows, list_id=list_id or store.active_list_id())
 
 
 # ---- Custom Sourcing Prompts -----------------------------------------------
@@ -824,8 +836,12 @@ async def add_held_sourcing_candidates(job_id: str, payload: dict = Body(...)):
     } for c in to_add]
 
     if ingest_rows:
-        res = _ingest_to_queue(ingest_rows)
-        return {"ok": True, "added": res.get("added", 0)}
+        list_id = store.active_list_id()
+        res = _ingest_to_queue(ingest_rows, list_id=list_id)
+        # Record WHERE the rows went so undo reverses the right list even after a switch.
+        job.setdefault("added_list_id", list_id)
+        job["added_slugs"] = sorted(set(job.get("added_slugs") or []) | {r["slug"] for r in ingest_rows})
+        return {"ok": True, "added": res.get("added", 0), "list_id": list_id}
     return {"ok": True, "added": 0}
 
 
@@ -871,12 +887,16 @@ async def delete_list(list_id: str):
 
 
 @app.get("/api/queue")
-async def get_queue(list_id: str = "default"):
+async def get_queue(list_id: str = ""):
+    # An omitted list_id must degrade to the ACTIVE list, not the literal "default".
+    list_id = list_id or store.active_list_id()
     return {"queue": store.load_queue(list_id=list_id)}
 
 
 @app.post("/api/queue/{slug}/draft")
-async def queue_to_draft(slug: str, list_id: str = "default"):
+async def queue_to_draft(slug: str, list_id: str = ""):
+    # An omitted list_id must degrade to the ACTIVE list, not the literal "default".
+    list_id = list_id or store.active_list_id()
     items = store.load_queue(list_id=list_id)
     record = next((r for r in items if r["slug"] == slug), None)
     if not record:
@@ -898,14 +918,18 @@ async def queue_to_draft(slug: str, list_id: str = "default"):
 
 
 @app.delete("/api/queue/{slug}")
-async def remove_from_queue(slug: str, list_id: str = "default"):
+async def remove_from_queue(slug: str, list_id: str = ""):
+    # An omitted list_id must degrade to the ACTIVE list, not the literal "default".
+    list_id = list_id or store.active_list_id()
     if not store.remove_from_queue(slug, list_id=list_id):
         raise HTTPException(status_code=404, detail="not in queue")
     return {"ok": True, "queue": store.load_queue(list_id=list_id)}
 
 
 @app.post("/api/queue/clear")
-async def clear_queue(list_id: str = "default"):
+async def clear_queue(list_id: str = ""):
+    # An omitted list_id must degrade to the ACTIVE list, not the literal "default".
+    list_id = list_id or store.active_list_id()
     return {"ok": True, "cleared": store.clear_queue(list_id=list_id)}
 
 

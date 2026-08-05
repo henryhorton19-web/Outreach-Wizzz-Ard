@@ -4,7 +4,7 @@ re-runs/edits never re-search. CSV/XLSX are EXPORT-ONLY (flattened, read-only): 
 contain newlines and commas that would corrupt a CSV store.
 
 Queue vs Drafts — completely separate stores:
-  queue.json   : lightweight {slug, name, crm_id, queued_at} records, cap 100, engine never touches.
+  queue.json   : lightweight {slug, name, crm_id, queued_at} records, cap QUEUE_CAP, engine never touches.
   drafts.json  : full CompanyState pipeline artefacts, cap 15, engine owns these.
 """
 from __future__ import annotations
@@ -57,6 +57,35 @@ def _trim_keep_recent(items: list[dict], key: str, n: int = 15) -> list[dict]:
     return sorted(items, key=lambda x: x.get(key) or "", reverse=True)[:n]
 
 
+# Set to a human-readable reason the first time any store file fails to parse.
+# app/sync.py refuses to auto-commit while this is set, so a corrupt local state
+# cannot be pushed to the data repo and pulled onto another machine.
+DEGRADED: str | None = None
+
+
+def _read_json_or_degrade(path: Path, key: str, default):
+    """Absent file -> default (normal). Unparseable file -> set DEGRADED, return default.
+
+    "The file is not there" and "the file is corrupt" were previously the same
+    observable outcome, which is how silent data loss stayed silent.
+    """
+    global DEGRADED
+    if not path.exists():
+        return default
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except Exception as e:
+        DEGRADED = (f"{path.name} is unreadable ({type(e).__name__}); showing empty. "
+                    "The file on disk was NOT overwritten.")
+        import sys
+        print(f"  [store] DEGRADED: {DEGRADED}", file=sys.stderr)
+        return default
+    if not isinstance(data, dict):
+        DEGRADED = f"{path.name} has an unexpected shape; showing empty."
+        return default
+    return data.get(key, default)
+
+
 # ---- queue -----------------------------------------------------------------
 
 LISTS_FILE = S.DATA_DIR / "lists.json"
@@ -82,27 +111,65 @@ def sanitize_list_id(name: str) -> str:
     return cleaned
 
 
+_LIST_ID_RE = re.compile(r"^[a-z0-9][a-z0-9_-]{0,39}$")
+
+
 def _queue_file(list_id: str = "default") -> Path:
+    """Resolve a list's queue file.
+
+    Validation lives here, not at the call sites: four routes pass this value
+    straight from a query parameter, so an unvalidated id was an arbitrary
+    file write outside DATA_DIR.
+    """
     if list_id == "default":
         return QUEUE_FILE
+    if not isinstance(list_id, str) or not _LIST_ID_RE.match(list_id):
+        raise StorageError(f"invalid list id: {list_id!r}")
+    if list_id in WINDOWS_RESERVED:
+        raise StorageError(f"reserved list id: {list_id!r}")
     QUEUES_DIR.mkdir(parents=True, exist_ok=True)
     return QUEUES_DIR / f"{list_id}.json"
 
 
+def _default_list_record() -> dict:
+    return {"id": "default", "name": "Default List",
+            "created_at": "2026-01-01T00:00:00Z", "count": len(load_queue("default"))}
+
+
 def load_lists() -> list[dict]:
+    """Enumerate the lists. A malformed entry degrades ITSELF, never the whole set.
+
+    This previously wrapped the per-list count loop in a blanket except that
+    returned only the default list, so one bad id hid every user list. That
+    became reachable the moment _queue_file started validating.
+    """
+    global DEGRADED
     if not LISTS_FILE.exists():
-        default_count = len(load_queue("default"))
-        return [{"id": "default", "name": "Default List", "created_at": "2026-01-01T00:00:00Z", "count": default_count}]
+        return [_default_list_record()]
     try:
         data = json.loads(LISTS_FILE.read_text(encoding="utf-8"))
-        lists = data.get("lists", [])
-        if not any(l.get("id") == "default" for l in lists):
-            lists.insert(0, {"id": "default", "name": "Default List", "created_at": "2026-01-01T00:00:00Z", "count": len(load_queue("default"))})
-        for l in lists:
+        raw = data.get("lists", []) or []
+    except Exception as e:
+        DEGRADED = f"lists.json is unreadable ({type(e).__name__}); showing the default list only."
+        return [_default_list_record()]
+
+    lists: list[dict] = []
+    for l in raw:
+        if not isinstance(l, dict) or not l.get("id"):
+            continue
+        try:
             l["count"] = len(load_queue(l["id"]))
-        return lists
-    except Exception:
-        return [{"id": "default", "name": "Default List", "created_at": "2026-01-01T00:00:00Z", "count": len(load_queue("default"))}]
+            l["unavailable"] = False
+        except Exception as e:
+            # keep the entry visible and say why, rather than dropping it silently
+            l["count"] = 0
+            l["unavailable"] = True
+            l["reason"] = f"{type(e).__name__}: {e}"
+        lists.append(l)
+
+    if not any(l.get("id") == "default" for l in lists):
+        lists.insert(0, _default_list_record())
+    return lists
 
 
 def active_list_id() -> str:
@@ -166,7 +233,10 @@ def delete_list(list_id: str) -> bool:
     new_active = "default" if current_active == list_id else current_active
     save_lists(filtered, active_id=new_active)
 
-    q_file = _queue_file(list_id)
+    try:
+        q_file = _queue_file(list_id)
+    except StorageError:
+        return True          # record removed; there is no valid file to unlink
     if q_file.exists():
         try:
             q_file.unlink()
@@ -179,14 +249,7 @@ def delete_list(list_id: str) -> bool:
 
 def load_queue(list_id: str = "default") -> list[dict]:
     """Return list of lightweight queue records: {slug, name, crm_id, queued_at, [meta]}."""
-    q_file = _queue_file(list_id)
-    if not q_file.exists():
-        return []
-    try:
-        data = json.loads(q_file.read_text(encoding="utf-8"))
-        return data.get("items", [])
-    except Exception:
-        return []
+    return _read_json_or_degrade(_queue_file(list_id), "items", [])
 
 
 def save_queue(items: list[dict], list_id: str = "default") -> None:

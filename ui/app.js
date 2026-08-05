@@ -355,7 +355,7 @@ async function doIngest() {
 async function doUpload(file) {
   const form = new FormData(); form.append("file", file);
   try {
-    const r = await api("/api/ingest_file", { method: "POST", form });
+    const r = await api(`/api/ingest_file?list_id=${encodeURIComponent(state.activeListId || "default")}`, { method: "POST", form });
     state.queue = r.queue; showIngestBanner(r); renderQueue(); fetchLists();
     toast(`${r.added} added from ${file.name}`);
   } catch (e) { toast(e.message, true); }
@@ -499,16 +499,43 @@ async function clearQueue() {
 }
 async function draft5() {
   if (state.status && needsKey(state.status)) { openStartup(); return; }
+  // The queue shown is the ACTIVE list's. Omitting list_id made the server look in
+  // "default", so every slug 404'd as "target not in queue".
+  const list_id = state.activeListId || "default";
   const slugs = state.queue.slice(0, 5).map(r => r.slug);
   if (!slugs.length) { toast("Queue is empty", true); return; }
+
+  const btn = $("#draft5Btn");
+  const label = btn ? btn.textContent : "";
+  if (btn) { btn.disabled = true; btn.textContent = `Drafting ${slugs.length}\u2026`; }
+
+  const promoted = [];
+  const failures = [];
   for (const slug of slugs) {
     try {
-      const r = await api(`/api/queue/${slug}/draft`, { method: "POST" });
-      state.queue = r.queue; ingestCompany(r.company);
-    } catch (e) { toast(e.message, true); }
+      const r = await api(`/api/queue/${slug}/draft?list_id=${encodeURIComponent(list_id)}`,
+                          { method: "POST" });
+      state.queue = r.queue;
+      ingestCompany(r.company);
+      promoted.push(slug);
+    } catch (e) {
+      failures.push(`${slug}: ${e.message}`);
+    }
   }
   renderQueue(); renderDrafts();
-  await Promise.all(slugs.map(runDraft));
+  if (btn) { btn.disabled = false; btn.textContent = label; }
+
+  // One summary, not one toast per failure: toasts overwrite each other inside
+  // 2.8s, so a loop of five errors was invisible.
+  if (failures.length) {
+    console.warn("draft5 could not stage:", failures);
+    toast(`${failures.length} of ${slugs.length} could not be staged \u2014 ${failures[0]}`, true);
+  }
+  // Only run the pipeline for rows that actually reached the drafts store.
+  // Previously every slug was passed to runDraft regardless, so a failed
+  // promotion produced a second 404 ("unknown target") for the same row.
+  if (!promoted.length) return;
+  await Promise.all(promoted.map(runDraft));
 }
 
 /* ================= DRAFTS ================= */
@@ -2241,7 +2268,7 @@ async function runSourcing() {
     if (statusEl) statusEl.textContent = `Completed sourcing run in ${job.stage || 'Completed'}.`;
     renderSourcingReport(job);
 
-    const q = await api("/api/queue");
+    const q = await api(`/api/queue?list_id=${encodeURIComponent(state.activeListId || "default")}`);
     state.queue = q.queue;
     renderQueue();
   } catch (e) {
@@ -2304,7 +2331,7 @@ function renderSourcingReport(job) {
       try {
         const u = await api(`/api/source/research/${job.job_id}/undo`, { method: "POST" });
         toast(`Removed ${u.undo.removed} targets from queue`);
-        const q = await api("/api/queue");
+        const q = await api(`/api/queue?list_id=${encodeURIComponent(state.activeListId || "default")}`);
         state.queue = q.queue;
         renderQueue();
         reportEl.innerHTML = "";
@@ -2325,7 +2352,7 @@ function renderSourcingReport(job) {
         toast("Added to queue");
         btn.disabled = true;
         btn.textContent = "Added";
-        const q = await api("/api/queue");
+        const q = await api(`/api/queue?list_id=${encodeURIComponent(state.activeListId || "default")}`);
         state.queue = q.queue;
         renderQueue();
       } catch (e) {
@@ -2645,7 +2672,8 @@ async function boot() {
     await fetchLists();
     await fetchMeta();
     await refreshAttachmentsPanel();
-    await api("/api/queue").then(r => { state.queue = r.queue; renderQueue(); });
+    await api(`/api/queue?list_id=${encodeURIComponent(state.activeListId || "default")}`)
+      .then(r => { state.queue = r.queue; renderQueue(); });
     await refreshDrafts();
     await updateFollowupsBadge();
     await refreshCost();

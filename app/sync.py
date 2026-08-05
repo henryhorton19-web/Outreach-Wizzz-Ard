@@ -22,6 +22,7 @@ from __future__ import annotations
 import json
 import os
 import socket
+import sys
 import subprocess
 import threading
 import time
@@ -230,6 +231,13 @@ def pull() -> str:
 
 def _do_push(reason: str) -> None:
     if not _state["enabled"] or _state["conflict"]:
+        return
+    # A corrupt local store presents as EMPTY data (store._read_json_or_degrade).
+    # Committing that state would replicate the loss to every other machine on
+    # the next pull, so refuse while degraded.
+    from . import store as _store
+    if getattr(_store, "DEGRADED", None):
+        print(f"  [sync] REFUSING to commit: {_store.DEGRADED}", file=sys.stderr)
         return
     with _push_lock:
         _git("add", "-A")

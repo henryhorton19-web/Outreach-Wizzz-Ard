@@ -50,8 +50,45 @@ def check_selectors() -> tuple[list[tuple[str, int, str]], list[tuple[str, int, 
     return fails, warns
 
 
+
+# ---------------------------------------------------------------------------
+# list scoping
+# ---------------------------------------------------------------------------
+# The bare form api("/api/queue") must be caught too: four of the six offending
+# call sites used it with no query string at all, so a narrower pattern requiring
+# "/api/queue/" or "/api/queue?" would have missed exactly the cases that
+# motivated this check.
+LIST_SCOPED = (r"/api/queue\b", r"/api/ingest_file\b")
+
+
+def check_list_scoping() -> list[tuple[int, str]]:
+    """Every queue/ingest call from the UI must carry list_id.
+
+    Routes now default to store.active_list_id() rather than the literal
+    "default", so an omission is no longer silently wrong, but it is still
+    ambiguous. Ten nodes on this path were mis-scoped at one time or another.
+    """
+    js_lines = JS_PATH.read_text(encoding="utf-8").splitlines()
+    bad = []
+    for line_num, line in enumerate(js_lines, start=1):
+        if "api(" not in line:
+            continue
+        if not any(re.search(p, line) for p in LIST_SCOPED):
+            continue
+        if "list_id" in line:
+            continue
+        bad.append((line_num, line.strip()[:110]))
+    return bad
+
+
 def main():
     fails, warns = check_selectors()
+    scoping = check_list_scoping()
+
+    if scoping:
+        print(f"=== FAIL ({len(scoping)} queue/ingest calls missing list_id) ===")
+        for line_num, snippet in scoping:
+            print(f"  [FAIL] Line {line_num}: {snippet}")
 
     if warns:
         print(f"=== WARN ({len(warns)} guarded references to missing IDs) ===")
@@ -63,8 +100,10 @@ def main():
         for elem_id, line_num, snippet in fails:
             print(f"  [FAIL] Line {line_num}: #{elem_id} -> {snippet}")
         sys.exit(1)
+    elif scoping:
+        sys.exit(1)
     else:
-        print("=== PASS (0 unguarded references to missing IDs) ===")
+        print("=== PASS (0 unguarded references to missing IDs, all queue calls scoped) ===")
         sys.exit(0)
 
 
