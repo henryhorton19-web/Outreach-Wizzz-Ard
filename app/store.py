@@ -58,28 +58,101 @@ def _trim_keep_recent(items: list[dict], key: str, n: int = 15) -> list[dict]:
 
 # ---- queue -----------------------------------------------------------------
 
-def load_queue() -> list[dict]:
+LISTS_FILE = S.DATA_DIR / "lists.json"
+QUEUES_DIR = S.DATA_DIR / "queues"
+
+
+def _queue_file(list_id: str = "default") -> Path:
+    if list_id == "default":
+        return QUEUE_FILE
+    QUEUES_DIR.mkdir(parents=True, exist_ok=True)
+    return QUEUES_DIR / f"{list_id}.json"
+
+
+def load_lists() -> list[dict]:
+    if not LISTS_FILE.exists():
+        default_count = len(load_queue("default"))
+        return [{"id": "default", "name": "Default List", "created_at": "2026-01-01T00:00:00Z", "count": default_count}]
+    try:
+        data = json.loads(LISTS_FILE.read_text(encoding="utf-8"))
+        lists = data.get("lists", [])
+        if not any(l.get("id") == "default" for l in lists):
+            lists.insert(0, {"id": "default", "name": "Default List", "created_at": "2026-01-01T00:00:00Z", "count": len(load_queue("default"))})
+        for l in lists:
+            l["count"] = len(load_queue(l["id"]))
+        return lists
+    except Exception:
+        return [{"id": "default", "name": "Default List", "created_at": "2026-01-01T00:00:00Z", "count": len(load_queue("default"))}]
+
+
+def save_lists(lists: list[dict]) -> None:
+    safe_write_text(LISTS_FILE, json.dumps({"lists": lists}, indent=2, ensure_ascii=False))
+
+
+def create_list(name: str) -> dict:
+    import datetime, re
+    lists = load_lists()
+    list_id = re.sub(r"[^a-z0-9]", "_", name.lower().strip())
+    if not list_id:
+        list_id = f"list_{int(datetime.datetime.now().timestamp())}"
+    if any(l["id"] == list_id for l in lists):
+        list_id = f"{list_id}_{int(datetime.datetime.now().timestamp())}"
+
+    rec = {
+        "id": list_id,
+        "name": name,
+        "created_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        "count": 0
+    }
+    lists.append(rec)
+    save_lists(lists)
+    save_queue([], list_id=list_id)
+    return rec
+
+
+def delete_list(list_id: str) -> bool:
+    if list_id == "default":
+        return False
+    lists = load_lists()
+    filtered = [l for l in lists if l["id"] != list_id]
+    if len(filtered) == len(lists):
+        return False
+    save_lists(filtered)
+    q_file = _queue_file(list_id)
+    if q_file.exists():
+        try:
+            q_file.unlink()
+        except OSError:
+            pass
+    return True
+
+
+# ---- queue -----------------------------------------------------------------
+
+def load_queue(list_id: str = "default") -> list[dict]:
     """Return list of lightweight queue records: {slug, name, crm_id, queued_at, [meta]}."""
-    if not QUEUE_FILE.exists():
+    q_file = _queue_file(list_id)
+    if not q_file.exists():
         return []
     try:
-        data = json.loads(QUEUE_FILE.read_text(encoding="utf-8"))
+        data = json.loads(q_file.read_text(encoding="utf-8"))
         return data.get("items", [])
     except Exception:
         return []
 
 
-def save_queue(items: list[dict]) -> None:
-    safe_write_text(QUEUE_FILE, json.dumps({"items": items}, indent=2, ensure_ascii=False))
+def save_queue(items: list[dict], list_id: str = "default") -> None:
+    q_file = _queue_file(list_id)
+    safe_write_text(q_file, json.dumps({"items": items}, indent=2, ensure_ascii=False))
 
 
-def queue_slugs() -> set[str]:
-    return {r["slug"] for r in load_queue()}
+def queue_slugs(list_id: str = "default") -> set[str]:
+    return {r["slug"] for r in load_queue(list_id=list_id)}
 
 
-def upsert_queue(slug: str, name: str, crm_id: str | None, meta: dict | None = None) -> None:
+def upsert_queue(slug: str, name: str, crm_id: str | None, meta: dict | None = None, list_id: str = "default") -> None:
     import datetime
-    items = load_queue()
+    items = load_queue(list_id=list_id)
     items = [r for r in items if r["slug"] != slug]   # replace if already present
     rec = {"slug": slug, "name": name, "crm_id": crm_id or "",
            "queued_at": datetime.datetime.now(datetime.timezone.utc).isoformat()}
@@ -87,26 +160,26 @@ def upsert_queue(slug: str, name: str, crm_id: str | None, meta: dict | None = N
         rec["meta"] = meta
     items.append(rec)
     items = sorted(items, key=lambda x: x.get("queued_at") or "", reverse=True)[:QUEUE_CAP]
-    save_queue(items)
+    save_queue(items, list_id=list_id)
 
 
-def remove_from_queue(slug: str) -> bool:
-    items = load_queue()
+def remove_from_queue(slug: str, list_id: str = "default") -> bool:
+    items = load_queue(list_id=list_id)
     filtered = [r for r in items if r["slug"] != slug]
     if len(filtered) == len(items):
         return False
-    save_queue(filtered)
+    save_queue(filtered, list_id=list_id)
     return True
 
 
-def clear_queue() -> int:
-    items = load_queue()
-    save_queue([])
+def clear_queue(list_id: str = "default") -> int:
+    items = load_queue(list_id=list_id)
+    save_queue([], list_id=list_id)
     return len(items)
 
 
-def queue_count() -> int:
-    return len(load_queue())
+def queue_count(list_id: str = "default") -> int:
+    return len(load_queue(list_id=list_id))
 
 
 def load_drafts() -> list[CompanyState]:

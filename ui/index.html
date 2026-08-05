@@ -110,7 +110,11 @@
       <!-- LEFT: target queue -->
       <div class="queue-col" id="queueCol">
         <div class="col-header">
-          <h3>Targets <span class="col-count" id="queueCount"></span></h3>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <h3>Targets <span class="col-count" id="queueCount"></span></h3>
+            <select id="listSelect" class="mini-select" title="Active Company List" style="font-size:12px; padding:2px 6px;"></select>
+            <button class="btn ghost small" id="createListBtn" title="Create named list" style="padding:2px 6px; font-size:12px;">+ List</button>
+          </div>
           <div class="col-actions">
             <button class="btn primary small" id="draft5Btn">Draft 5</button>
             <button class="btn ghost small" id="clearQueueBtn">Clear queue</button>

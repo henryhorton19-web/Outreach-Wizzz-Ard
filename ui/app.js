@@ -341,12 +341,14 @@ function showIngestBanner(result) {
 async function doIngest() {
   const text = $("#namesInput").value;
   if (!text.trim()) { toast("Paste at least one name", true); return; }
+  const list_id = state.activeListId || "default";
   try {
-    const r = await api("/api/ingest", { method: "POST", body: { text } });
+    const r = await api("/api/ingest", { method: "POST", body: { text, list_id } });
     state.queue = r.queue;
     $("#namesInput").value = ""; updateNameCount();
     showIngestBanner(r);
     renderQueue();
+    fetchLists();
     toast(`${r.added} added to queue`);
   } catch (e) { toast(e.message, true); }
 }
@@ -354,9 +356,55 @@ async function doUpload(file) {
   const form = new FormData(); form.append("file", file);
   try {
     const r = await api("/api/ingest_file", { method: "POST", form });
-    state.queue = r.queue; showIngestBanner(r); renderQueue();
+    state.queue = r.queue; showIngestBanner(r); renderQueue(); fetchLists();
     toast(`${r.added} added from ${file.name}`);
   } catch (e) { toast(e.message, true); }
+}
+
+/* ================= NAMED LISTS ================= */
+async function fetchLists() {
+  try {
+    const res = await api("/api/lists");
+    const lists = res.lists || [];
+    state.lists = lists;
+    renderListSelect();
+  } catch (e) {
+    console.error("Failed to fetch lists:", e);
+  }
+}
+
+function renderListSelect() {
+  const sel = $("#listSelect");
+  if (!sel) return;
+  const lists = state.lists || [{ id: "default", name: "Default List", count: (state.queue || []).length }];
+  sel.innerHTML = lists.map(l => `<option value="${esc(l.id)}"${l.id === (state.activeListId || "default") ? " selected" : ""}>${esc(l.name)} (${l.count || 0})</option>`).join("");
+}
+
+async function switchList(listId) {
+  state.activeListId = listId;
+  try {
+    const r = await api(`/api/queue?list_id=${encodeURIComponent(listId)}`);
+    state.queue = r.queue;
+    renderQueue();
+    fetchLists();
+  } catch (e) {
+    toast("Failed to switch list: " + e.message, true);
+  }
+}
+
+async function createNamedList() {
+  const name = prompt("Enter a name for the new company list (e.g. Growth Funds Paris):");
+  if (!name || !name.trim()) return;
+  try {
+    const res = await api("/api/lists", { method: "POST", body: { name: name.trim() } });
+    state.lists = res.lists;
+    state.activeListId = res.list.id;
+    renderListSelect();
+    await switchList(res.list.id);
+    toast(`Created list "${res.list.name}"`);
+  } catch (e) {
+    toast("Failed to create list: " + e.message, true);
+  }
 }
 
 /* ================= QUEUE ================= */
@@ -395,9 +443,10 @@ function renderQueue() {
 }
 async function draftFromQueue(slug) {
   if (state.status && needsKey(state.status)) { openStartup(); return; }
+  const list_id = state.activeListId || "default";
   try {
-    const r = await api(`/api/queue/${slug}/draft`, { method: "POST" });
-    state.queue = r.queue; renderQueue();
+    const r = await api(`/api/queue/${slug}/draft?list_id=${encodeURIComponent(list_id)}`, { method: "POST" });
+    state.queue = r.queue; renderQueue(); fetchLists();
     ingestCompany(r.company);
     renderDrafts();
     // now actually run the pipeline for this row
@@ -405,15 +454,17 @@ async function draftFromQueue(slug) {
   } catch (e) { toast(e.message, true); }
 }
 async function removeFromQueue(slug) {
-  try { const r = await api(`/api/queue/${slug}`, { method: "DELETE" }); state.queue = r.queue; renderQueue(); }
+  const list_id = state.activeListId || "default";
+  try { const r = await api(`/api/queue/${slug}?list_id=${encodeURIComponent(list_id)}`, { method: "DELETE" }); state.queue = r.queue; renderQueue(); fetchLists(); }
   catch (e) { toast(e.message, true); }
 }
 async function clearQueue() {
   if (!state.queue.length) return;
   const ok = await dialog({ title: "Clear queue?", message: "Remove all queued targets? Drafts are unaffected.", options: [{ label: "Cancel", value: false }, { label: "Clear", value: true, danger: true }] });
   if (!ok) return;
-  await api("/api/queue/clear", { method: "POST" });
-  state.queue = []; renderQueue(); toast("Queue cleared");
+  const list_id = state.activeListId || "default";
+  await api(`/api/queue/clear?list_id=${encodeURIComponent(list_id)}`, { method: "POST" });
+  state.queue = []; renderQueue(); fetchLists(); toast("Queue cleared");
 }
 async function draft5() {
   if (state.status && needsKey(state.status)) { openStartup(); return; }
@@ -2017,6 +2068,9 @@ function wire() {
   $("#exportBtn").onclick = doExport;
   $("#costMeter").onclick = openCostPopover;
 
+  if ($("#listSelect")) $("#listSelect").onchange = (e) => switchList(e.target.value);
+  if ($("#createListBtn")) $("#createListBtn").onclick = createNamedList;
+
   if ($("#saveProfileTabBtn")) $("#saveProfileTabBtn").onclick = saveProfileTab;
   if ($("#exportResumeBtn")) $("#exportResumeBtn").onclick = doExportResume;
   if ($("#importResumeBtn")) $("#importResumeBtn").onclick = () => $("#importResumeInput").click();
@@ -2489,6 +2543,7 @@ async function boot() {
   try {
     await refreshStatus();
     await fetchVoices();
+    await fetchLists();
     await fetchMeta();
     await refreshAttachmentsPanel();
     await api("/api/queue").then(r => { state.queue = r.queue; renderQueue(); });

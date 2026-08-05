@@ -677,12 +677,12 @@ async def arbitrate_voices():
 
 # ---- ingest ----------------------------------------------------------------
 
-def _ingest_to_queue(rows: list[dict]) -> dict:
-    existing = store.queue_slugs() | {cs.slug for cs in store.load_drafts()}
+def _ingest_to_queue(rows: list[dict], list_id: str = "default") -> dict:
+    existing = store.queue_slugs(list_id=list_id) | {cs.slug for cs in store.load_drafts()}
     contacted_domains = suppression_mod.already_contacted_domains()
     already, added, over_cap = [], [], []
     suppressed, contacted = [], []          # error-prevention surfacing (Phase 4a)
-    current = store.queue_count()
+    current = store.queue_count(list_id=list_id)
     for r in rows:
         slug = r["slug"]
         if slug in existing:
@@ -704,11 +704,11 @@ def _ingest_to_queue(rows: list[dict]) -> dict:
         if current >= store.QUEUE_CAP:
             over_cap.append(r["name"])
             continue
-        store.upsert_queue(slug, r["name"], r.get("ref"), r.get("meta"))
+        store.upsert_queue(slug, r["name"], r.get("ref"), r.get("meta"), list_id=list_id)
         existing.add(slug)
         current += 1
         added.append(r["name"])
-    return {"queue": store.load_queue(), "added": len(added),
+    return {"queue": store.load_queue(list_id=list_id), "added": len(added),
             "skipped_duplicates": already, "over_cap": over_cap,
             "suppressed": suppressed, "already_contacted": contacted}
 
@@ -716,9 +716,10 @@ def _ingest_to_queue(rows: list[dict]) -> dict:
 @app.post("/api/ingest")
 async def ingest(payload: dict = Body(...)):
     rows = ingest_mod.parse_names(payload.get("text", ""))
+    list_id = payload.get("list_id", "default")
     if not rows:
         raise HTTPException(status_code=400, detail="no target names found")
-    return _ingest_to_queue(rows)
+    return _ingest_to_queue(rows, list_id=list_id)
 
 
 @app.post("/api/ingest_file")
@@ -834,16 +835,39 @@ async def undo_sourcing_research_job(job_id: str):
     return {"ok": True, "undo": res}
 
 
-# ---- queue -----------------------------------------------------------------
+# ---- lists & queue ---------------------------------------------------------
+
+@app.get("/api/lists")
+async def get_lists():
+    return {"lists": store.load_lists()}
+
+
+@app.post("/api/lists")
+async def create_list(payload: dict = Body(...)):
+    name = (payload.get("name") or "").strip()
+    if not name:
+        raise HTTPException(status_code=422, detail="List name is required")
+    lst = store.create_list(name)
+    return {"ok": True, "list": lst, "lists": store.load_lists()}
+
+
+@app.delete("/api/lists/{list_id}")
+async def delete_list(list_id: str):
+    if list_id == "default":
+        raise HTTPException(status_code=400, detail="Cannot delete default list")
+    if not store.delete_list(list_id):
+        raise HTTPException(status_code=404, detail="List not found")
+    return {"ok": True, "lists": store.load_lists()}
+
 
 @app.get("/api/queue")
-async def get_queue():
-    return {"queue": store.load_queue()}
+async def get_queue(list_id: str = "default"):
+    return {"queue": store.load_queue(list_id=list_id)}
 
 
 @app.post("/api/queue/{slug}/draft")
-async def queue_to_draft(slug: str):
-    items = store.load_queue()
+async def queue_to_draft(slug: str, list_id: str = "default"):
+    items = store.load_queue(list_id=list_id)
     record = next((r for r in items if r["slug"] == slug), None)
     if not record:
         raise HTTPException(status_code=404, detail="target not in queue")
@@ -852,7 +876,7 @@ async def queue_to_draft(slug: str):
     if active_count >= store.DRAFTS_CAP:
         raise HTTPException(status_code=409,
                             detail=f"Drafts full ({store.DRAFTS_CAP} active). Approve or clear one first.")
-    store.remove_from_queue(slug)
+    store.remove_from_queue(slug, list_id=list_id)
     cs = CompanyState(slug=record["slug"], name=record["name"],
                       ref=record.get("crm_id") or record.get("ref") or None, state=State.input)
     store.upsert_draft(cs)
@@ -860,19 +884,19 @@ async def queue_to_draft(slug: str):
         _STATE["batch"] = BatchState(batch_id=uuid.uuid4().hex[:12], voice=_STATE.get("voice"))
     _batch().companies[slug] = cs
     _persist()
-    return {"ok": True, "company": _cs_public(cs), "queue": store.load_queue()}
+    return {"ok": True, "company": _cs_public(cs), "queue": store.load_queue(list_id=list_id)}
 
 
 @app.delete("/api/queue/{slug}")
-async def remove_from_queue(slug: str):
-    if not store.remove_from_queue(slug):
+async def remove_from_queue(slug: str, list_id: str = "default"):
+    if not store.remove_from_queue(slug, list_id=list_id):
         raise HTTPException(status_code=404, detail="not in queue")
-    return {"ok": True, "queue": store.load_queue()}
+    return {"ok": True, "queue": store.load_queue(list_id=list_id)}
 
 
 @app.post("/api/queue/clear")
-async def clear_queue():
-    return {"ok": True, "cleared": store.clear_queue()}
+async def clear_queue(list_id: str = "default"):
+    return {"ok": True, "cleared": store.clear_queue(list_id=list_id)}
 
 
 # ---- drafts + archive ------------------------------------------------------
