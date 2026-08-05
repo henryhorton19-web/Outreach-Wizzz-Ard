@@ -70,16 +70,16 @@
     </div>
   </header>
 
-  <main class="app-main">
+  <main class="wrap">
     <!-- Workspace View (Split: Queue + Active Drafts) -->
     <section class="workspace-view" id="workspaceView">
-      <div class="ingest-box" id="ingestPanel">
+      <div class="ingest" id="ingestPanel">
         <h2>Paste target names</h2>
         <p class="hint">One target per line. Add a category, source, or URL after a comma if you like (e.g. Acclaim AI, https://acclaim.ai). These are drafts to review, not sends &mdash; you are the final check on every one.</p>
         <textarea id="namesInput" placeholder="Alan&#10;Acclaim AI, https://acclaim.ai&#10;Qonto"></textarea>
         <div class="ingest-actions">
           <button class="btn primary" id="draftBtn">Add to queue</button>
-          <button class="btn primary alt" id="findTargetsBtn" style="background: #2563eb; color: #fff; border: none; font-weight: 500;">Find new targets</button>
+          <button class="btn ghost" id="findTargetsBtn">Find new targets</button>
           <button class="btn ghost" id="uploadBtn">Upload CSV / XLSX / Tracker</button>
           <div class="upload-hint">CSV/XLSX first col = name, or the Outreach_Tracker workbook</div>
           <input type="file" id="fileInput" accept=".csv,.xlsx" class="hidden" />
@@ -88,19 +88,19 @@
       </div>
 
       <!-- Sourcing Run Panel -->
-      <div class="sourcing-panel hidden" id="sourcingPanel" style="margin-bottom: 20px; padding: 16px; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px;">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-          <h4 style="margin: 0; font-size: 15px; color: #0f172a;">🚀 Find New Targets (Startup Heat Sourcing)</h4>
-          <button class="btn ghost small" id="closeSourcingPanelBtn" style="border: none; font-size: 18px; cursor: pointer;">&times;</button>
+      <div class="sourcing-panel hidden" id="sourcingPanel">
+        <div class="sourcing-head">
+          <h4>Find New Targets (Startup Heat Sourcing)</h4>
+          <button class="btn ghost small" id="closeSourcingPanelBtn">&times;</button>
         </div>
-        <div style="margin-top: 12px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
-          <label style="font-size: 13px; font-weight: 500;">Sourcing Criteria:
-            <select id="sourcingPromptSelect" class="mini-select" style="margin-left: 4px; padding: 4px 8px;"></select>
+        <div class="sourcing-controls">
+          <label>Sourcing Criteria:
+            <select id="sourcingPromptSelect" class="mini-select"></select>
           </label>
           <button class="btn primary small" id="runSourcingBtn">Start sourcing run</button>
         </div>
-        <div id="sourcingStatusText" style="margin-top: 10px; font-size: 13px; color: #475569;"></div>
-        <div id="sourcingReport" style="margin-top: 12px;"></div>
+        <div class="sourcing-status" id="sourcingStatusText"></div>
+        <div class="sourcing-report" id="sourcingReport"></div>
       </div>
 
       <div class="ingest-banner hidden" id="ingestBanner">
@@ -111,20 +111,20 @@
       <div class="split-layout" id="splitLayout">
         <!-- LEFT: target queue -->
         <div class="queue-col" id="queueCol">
-          <div class="col-header">
+          <div class="col-header stacked">
             <div class="col-header-title">
               <h3>Targets <span class="pill neutral" id="queueCount"></span></h3>
               <span class="pill neutral" id="activeListNameDisplay" title="Active Company List">Default List</span>
             </div>
-            <div class="list-select-row" style="display:flex; gap:6px; margin-top:6px; align-items:center;">
+            <div class="list-select-row">
               <label for="listSelect" class="sr-only">Active Company List</label>
               <select id="listSelect" class="btn small" title="Active Company List" style="min-width:120px; flex-shrink:0;"></select>
-              <button class="btn ghost small" id="createListBtn" title="Create named list" style="white-space:nowrap;">+ List</button>
+              <button class="btn ghost small" id="createListBtn" title="Create named list">+ List</button>
             </div>
-            <div class="col-actions" style="margin-top:6px;">
-              <button class="btn primary small" id="draft5Btn" style="white-space:nowrap;">Draft 5</button>
-              <button class="btn ghost small" id="exportBtn" title="Export queue to CSV" style="white-space:nowrap;">Export CSV</button>
-              <button class="btn ghost small" id="clearQueueBtn" style="white-space:nowrap;">Clear queue</button>
+            <div class="col-actions">
+              <button class="btn primary small" id="draft5Btn">Draft 5</button>
+              <button class="btn ghost small" id="exportBtn" title="Export queue to CSV">Export CSV</button>
+              <button class="btn ghost small" id="clearQueueBtn">Clear queue</button>
             </div>
           </div>
           <div id="queueList"></div>
@@ -730,9 +730,9 @@
         </div>
 
         <!-- live preview -->
-        <div style="flex:1; padding:24px 26px; overflow-y:auto; background:#fafafa;">
+        <div class="ve-preview-pane">
           <h3 class="ve-h" style="margin-top:0;">Live preview</h3>
-          <div class="letter" style="background:#fff;">
+          <div class="letter">
             <div class="letter-head" style="padding:12px 14px;">
               <div class="letter-subject">Subject: <b id="pvSubject"></b></div>
             </div>
@@ -805,7 +805,7 @@
             <input type="text" id="profStandingExp" class="inp" placeholder="Standing experience anchor text" />
           </div>
           <div style="display:flex; justify-content:space-between; margin-top:12px;">
-            <button type="button" class="btn ghost" id="resetProfileBtn" style="color:#ef4444;">Reset to Defaults</button>
+            <button type="button" class="btn ghost btn-danger-text" id="resetProfileBtn">Reset to Defaults</button>
             <button type="submit" class="btn primary">Save Profile</button>
           </div>
         </form>
