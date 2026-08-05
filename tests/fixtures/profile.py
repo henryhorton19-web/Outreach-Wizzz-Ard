@@ -48,5 +48,4 @@ FIXTURE_PROFILE = {
         },
     },
     "signals": ["A credibility signal."],
-    "allowed_numbers": ["40", "160", "100"],
 }

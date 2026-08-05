@@ -55,24 +55,7 @@ def test_no_dashes_normalized():
     assert "--" not in de.normalize("a--b")
 
 
-def test_numeric_guard_blocks_untraceable_number():
-    spec = de.prepare(_cache(), "role_small")
-    # 999 is neither in the profile whitelist nor any allowed fact
-    rep = de.critique("We serve 999 enterprise logos already.", spec["ask"], spec)
-    assert any("number not from facts" in h for h in rep.hard)
 
-
-def test_numeric_guard_allows_profile_number():
-    spec = de.prepare(_cache(), "role_small")
-    # 160 (the Xelix $160m) is whitelisted in the profile
-    rep = de.critique("I supported a $160m fundraise at Solano.", spec["ask"], spec)
-    assert not any("number not from facts" in h for h in rep.hard)
-
-
-def test_timeline_guard_flags_completed_hpe():
-    spec = de.prepare(_cache(), "role_small")
-    rep = de.critique("I worked at HPE last summer.", spec["ask"], spec)
-    assert any("timeline" in h for h in rep.hard)
 
 
 def test_finalize_assembles_body_with_empty_frame():

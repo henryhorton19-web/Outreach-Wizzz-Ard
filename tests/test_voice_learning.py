@@ -121,10 +121,9 @@ def test_clamp_bounds_sliders_and_categoricals():
 
 
 def test_example_lint_rejects_floor_violations():
-    v = _voice()                                            # allow_dashes False, mention_sci_po True
+    v = _voice()                                            # allow_dashes False
     assert VL.example_is_clean("A clean, dashless approved body that is plenty long enough.", v)
     assert not VL.example_is_clean("Body with an em dash \u2014 which the voice forbids here.", v)
-    assert not VL.example_is_clean("At Sciences Po this year, and again Sciences Po later on.", v)
     assert not VL.example_is_clean("A short body that ends like a letter.\n\nBest regards", v)
 
 

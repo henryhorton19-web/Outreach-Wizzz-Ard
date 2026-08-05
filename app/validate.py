@@ -14,9 +14,7 @@ _MAP: list[tuple[str, str]] = [
     ("en dash", "Contains a dash. House style uses commas or full stops."),
     ("forbidden: ", "Contains a phrase we avoid ({v}). Consider rephrasing."),
     ("sign-off in body/ask: ", "Looks like a sign-off ({v}). The mail client adds the signature, so remove it."),
-    ("number not from facts: ", "Mentions a figure ({v}) we couldn't trace to research or your profile. Check or remove it."),
     ("presumptuous opener: ", "Opens by telling them their problem ({v}). Lead with their move or a plain read."),
-    ("timeline: ", "{v}. State Example Capital in the present tense."),
     ("ask echoes the body", "The closing line repeats a point already made in the body."),
     ("word count", "Draft is longer or shorter than the 70-120 word target."),
 ]
@@ -120,11 +118,9 @@ def status_pill(report, cache: dict) -> str:
 
 def lint_frame_blocks(blocks: dict, spec: dict) -> list[Note]:
     """`blocks` maps a human label -> the block text (pass only model-written blocks; fixed text is
-    trusted). Returns advisory Notes for dashes, avoided phrases, sign-offs, and untraceable
-    numbers found in those blocks."""
+    trusted). Returns advisory Notes for dashes, avoided phrases, and sign-offs found in those blocks."""
     from .engine_bridge import de, engine_config as C
     out: list[Note] = []
-    allowed_nums = de._allowed_number_strings(spec)
     for label, text in (blocks or {}).items():
         t = (text or "").strip()
         if not t:
@@ -141,28 +137,11 @@ def lint_frame_blocks(blocks: dict, spec: dict) -> list[Note]:
             if mk in low:
                 out.append(Note(severity="hard",
                                 text=f'The AI-written {label} looks like it has a sign-off ("{mk.strip()}"). Remove it.'))
-        for m in de._NUM_RE.findall(t):
-            base = m.lower().rstrip("m")
-            if m.lower() not in allowed_nums and base not in allowed_nums:
-                out.append(Note(severity="hard",
-                                text=f"The AI-written {label} mentions a figure ({m}) we couldn't trace to research or your profile. Check or remove it."))
     return out
 
 
-def sciences_po_once(email: str) -> list[Note]:
-    """Sciences Po should be named exactly once across the whole email."""
-    n = (email or "").lower().count("sciences po")
-    if n == 0:
-        return [Note(severity="soft",
-                     text="Sciences Po is not mentioned. Add it to the positioning or close block.")]
-    if n > 1:
-        return [Note(severity="soft",
-                     text=f"Sciences Po is mentioned {n} times; it should appear once.")]
-    return []
-
-
 # ---------------------------------------------------------------------------
-# The honesty floor as a single voice-aware guard (unifies critique + frame lint + Sciences-Po,
+# The honesty floor as a single voice-aware guard (unifies critique + frame lint,
 # with word count measured against the voice's own length target, and dashes honoured per voice).
 # ---------------------------------------------------------------------------
 
@@ -200,16 +179,4 @@ def floor_notes(spec: dict, email: str, parts: dict, voice) -> list[Note]:
             notes.append(Note(severity="soft",
                               text=f"Body is {wc} words; this voice targets {voice.length_min}-{voice.length_max}."))
 
-    # 4. Sciences Po presence against the voice's opt-in
-    n_sp = (email or "").lower().count("sciences po")
-    if voice.mention_sci_po:
-        if n_sp == 0:
-            notes.append(Note(severity="soft",
-                              text="Sciences Po is not mentioned; add it to the block that owns it."))
-        elif n_sp > 1:
-            notes.append(Note(severity="soft",
-                              text=f"Sciences Po is mentioned {n_sp} times; it should appear once."))
-    elif n_sp >= 1:
-        notes.append(Note(severity="soft",
-                          text="This voice is set not to mention Sciences Po, but it appears in the draft."))
     return notes

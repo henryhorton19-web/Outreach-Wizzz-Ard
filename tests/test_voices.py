@@ -29,18 +29,17 @@ def isolated(tmp_path, monkeypatch):
 
 
 def _voice(**kw):
-    """A fixed-frame-equivalent voice in the block schema: greeting + AI body + Sciences-Po
-    positioning + close. Override any scalar field, or pass blocks/style/evidence wholesale."""
+    """A fixed-frame-equivalent voice in the block schema: greeting + AI body + positioning + close."""
     base = dict(
-        id="v1", display_name="V1", subject="{company}", situations=[], mention_sci_po=True,
+        id="v1", display_name="V1", subject="{company}", situations=[],
         length_min=70, length_max=120,
         blocks=[
             {"id": "greeting", "mode": "fixed", "text": "Hi {contact_first},"},
             {"id": "body", "mode": "ai", "length": "body",
              "fact_scope": ["target_proofs", "candidate_evidence", "candidate_spine", "situation_read"],
              "guidance": "Tie one fact to their need."},
-            {"id": "positioning", "mode": "fixed", "owns_sci_po": True, "length": "short",
-             "text": "I am on the Sciences Po exchange this year."},
+            {"id": "positioning", "mode": "fixed", "length": "short",
+             "text": "I am seeking a part-time role."},
             {"id": "close", "mode": "fixed", "length": "one_line", "text": "Open to a call?"},
         ],
         style={"formality": 2, "warmth": 2, "directness": 3, "notes": "direct"},
@@ -88,8 +87,8 @@ def test_legacy_voice_json_migrates_on_load(isolated):
     legacy = {"id": "old", "display_name": "Old", "situations": ["role_small"],
               "greeting": "Hi {name},", "subject": "{company}", "opening_mode": "fixed",
               "opening": "Op.", "opening_use_recent": False, "boilerplate_mode": "llm",
-              "boilerplate": "At Sciences Po.", "boilerplate_guidance": "who I am",
-              "boilerplate_owns_sci_po": True, "close_mode": "fixed", "close": "Call?",
+              "boilerplate": "Role positioning.", "boilerplate_guidance": "who I am",
+              "close_mode": "fixed", "close": "Call?",
               "register": "direct", "body_guidance": "tie a fact"}
     import json
     (isolated / "voices" / "old.json").write_text(json.dumps(legacy), encoding="utf-8")
@@ -97,7 +96,7 @@ def test_legacy_voice_json_migrates_on_load(isolated):
     assert got and [b.id for b in got.blocks] == ["greeting", "opening", "body", "positioning", "close"]
     assert got.style.notes == "direct"
     pos = next(b for b in got.blocks if b.id == "positioning")
-    assert pos.mode == "ai" and pos.owns_sci_po
+    assert pos.mode == "ai"
 
 
 # ---- bootstrap-once seeding --------------------------------------------------
@@ -159,35 +158,6 @@ def test_resolve_reseeds_empty_store(isolated):
 
 # ---- the one voice-driven draft path (stub) ---------------------------------
 
-def test_draft_fixed_voice_sciences_po_once(isolated):
-    store.save_custom_voice(_voice(id="fx", display_name="Fixed", situations=["role_small"]))
-    store.save_cache("acme", _cache())
-    cs = CompanyState(slug="acme", name="Acme", website="https://acme.example", state=State.input)
-    P.draft_one(STUB, cs, voice_override="fx", reuse_cache=True)
-    assert cs.state == State.drafted and cs.voice == "fx"
-    assert cs.machine_email.lower().count("sciences po") == 1
-    assert cs.machine_email.startswith("Hi Alex")
-    assert cs.machine_email.rstrip().endswith("Open to a call?")
-
-
-def test_draft_ai_positioning_names_sci_po_offline(isolated):
-    store.save_custom_voice(_voice(
-        id="ai", display_name="AI", situations=["role_small"],
-        blocks=[
-            {"id": "greeting", "mode": "fixed", "text": "Hi {contact_first},"},
-            {"id": "body", "mode": "ai", "length": "body",
-             "fact_scope": ["candidate_evidence", "situation_read"], "guidance": "tie a fact"},
-            {"id": "positioning", "mode": "ai", "owns_sci_po": True, "length": "short",
-             "fact_scope": ["candidate_spine"],
-             "guidance": "Say who I am and that I want a part-time seat during Sciences Po."},
-        ]))
-    store.save_cache("beta", _cache())
-    cs = CompanyState(slug="beta", name="Beta", website="https://b.example", state=State.input)
-    P.draft_one(STUB, cs, voice_override="ai", reuse_cache=True)
-    assert cs.state == State.drafted
-    assert cs.machine_email.lower().count("sciences po") == 1
-
-
 def test_optional_recent_block_skipped_without_recent(isolated):
     store.save_custom_voice(_voice(
         id="op", display_name="Opt", situations=["role_small"],
@@ -195,15 +165,14 @@ def test_optional_recent_block_skipped_without_recent(isolated):
             {"id": "greeting", "mode": "fixed", "text": "Hi {contact_first},"},
             {"id": "opening", "mode": "ai", "length": "one_line", "optional": True,
              "fact_scope": ["recent"], "guidance": "acknowledge the recent event"},
-            {"id": "positioning", "mode": "fixed", "owns_sci_po": True,
-             "text": "On the Sciences Po exchange this year."},
+            {"id": "positioning", "mode": "fixed",
+             "text": "Seeking a part-time role."},
         ]))
     store.save_cache("norec", _cache(recent=False))
     cs = CompanyState(slug="norec", name="NoRec", website="https://n.example", state=State.input)
     P.draft_one(STUB, cs, voice_override="op", reuse_cache=True)
     assert cs.state == State.drafted
-    # opening had only a recent scope and no recent -> skipped; email jumps to positioning
-    assert "sciences po" in cs.machine_email.lower()
+    assert "seeking a part-time role" in cs.machine_email.lower()
 
 
 # ---- per-experience {key} tokens and {relevant} -----------------------------
@@ -214,8 +183,8 @@ def test_experience_token_resolves_and_grounds(isolated):
         blocks=[
             {"id": "greeting", "mode": "fixed", "text": "Hi {contact_first},"},
             {"id": "context", "mode": "fixed", "length": "short", "text": "For context: {anchor_co}"},
-            {"id": "positioning", "mode": "fixed", "owns_sci_po": True,
-             "text": "On the Sciences Po exchange this year."},
+            {"id": "positioning", "mode": "fixed",
+             "text": "Seeking a part-time role."},
         ]))
     store.save_cache("tok", _cache())
     cs = CompanyState(slug="tok", name="Tok", website="https://t.example", state=State.input)
@@ -232,8 +201,8 @@ def test_relevant_token_resolves_offline_to_top_of_shortlist(isolated):
         blocks=[
             {"id": "greeting", "mode": "fixed", "text": "Hi {contact_first},"},
             {"id": "rel", "mode": "fixed", "length": "short", "text": "Most relevant: {relevant}"},
-            {"id": "positioning", "mode": "fixed", "owns_sci_po": True,
-             "text": "On the Sciences Po exchange this year."},
+            {"id": "positioning", "mode": "fixed",
+             "text": "Seeking a part-time role."},
         ]))
     store.save_cache("rel", _cache(proof=[{"fact": "an LLM investment platform", "source": "x"}]))
     cs = CompanyState(slug="rel", name="Rel", website="https://r.example", state=State.input)
@@ -258,8 +227,8 @@ def test_explicit_token_overrides_exclude_in_allowed_facts(isolated):
         blocks=[
             {"id": "greeting", "mode": "fixed", "text": "Hi {contact_first},"},
             {"id": "ino", "mode": "fixed", "length": "short", "text": "{side_co}"},
-            {"id": "positioning", "mode": "fixed", "owns_sci_po": True,
-             "text": "On the Sciences Po exchange this year."},
+            {"id": "positioning", "mode": "fixed",
+             "text": "Seeking a part-time role."},
         ]))
     store.save_cache("ovr", _cache())
     cs = CompanyState(slug="ovr", name="Ovr", website="https://o.example", state=State.input)
@@ -283,39 +252,27 @@ def test_evidence_exclude_pin_count(isolated):
 
 # ---- the honesty floor -------------------------------------------------------
 
-def test_floor_flags_unsourced_number_and_dash(isolated):
+def test_floor_flags_dash(isolated):
     spec = de.prepare(_cache()); spec["allowed_facts"] = []
-    voice = _voice(id="fl", mention_sci_po=False,
-                   blocks=[{"id": "body", "mode": "ai", "length": "body", "guidance": "x"}])
-    body = "We already serve 5000 enterprise logos \u2014 a lot, and growing fast every quarter."
+    voice = _voice(id="fl", blocks=[{"id": "body", "mode": "ai", "length": "body", "guidance": "x"}])
+    body = "We already serve enterprise logos \u2014 a lot, and growing fast every quarter."
     notes = V.floor_notes(spec, body, {"body": body}, voice)
-    assert any("5000" in n.text for n in notes)
     assert any("dash" in n.text.lower() for n in notes)
 
 
 def test_floor_word_count_is_voice_aware(isolated):
     spec = de.prepare(_cache())
-    voice = _voice(id="wc", mention_sci_po=False, length_min=70, length_max=120,
+    voice = _voice(id="wc", length_min=70, length_max=120,
                    blocks=[{"id": "body", "mode": "ai", "length": "body", "guidance": "x"}])
     notes = V.floor_notes(spec, "Too short.", {"body": "Too short."}, voice)
     wc = [n for n in notes if "word" in n.text.lower()]
     assert len(wc) == 1 and "70-120" in wc[0].text
 
 
-def test_floor_respects_allow_dashes_and_no_sci_po(isolated):
+def test_floor_respects_allow_dashes(isolated):
     spec = de.prepare(_cache())
-    voice = _voice(id="dash", allow_dashes=True, mention_sci_po=False, length_min=1, length_max=200,
+    voice = _voice(id="dash", allow_dashes=True, length_min=1, length_max=200,
                    blocks=[{"id": "body", "mode": "ai", "length": "body", "guidance": "x"}])
-    body = "A clean line \u2014 with a dash, and no Sciences Po."
+    body = "A clean line \u2014 with a dash."
     notes = V.floor_notes(spec, body, {"body": body}, voice)
     assert not any("dash" in n.text.lower() for n in notes)      # dashes allowed -> no flag
-    # mention_sci_po False but Sciences Po present -> flagged
-    assert any("sciences po" in n.text.lower() for n in notes)
-
-
-def test_sciences_po_once_counts(isolated):
-    zero = V.sciences_po_once("no mention here")
-    assert zero and zero[0].severity == "soft"
-    assert V.sciences_po_once("I am on the Sciences Po exchange.") == []
-    twice = V.sciences_po_once("Sciences Po and again Sciences Po")
-    assert twice and "2 times" in twice[0].text

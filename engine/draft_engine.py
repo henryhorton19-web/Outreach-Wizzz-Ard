@@ -170,8 +170,7 @@ def _select_evidence(cache: dict, voice_name: str = None) -> list[dict]:
 # prepare: cache -> spec
 # ---------------------------------------------------------------------------
 
-_EMPTY_VOICE = {"greeting": "", "opening_fallback": "", "subject": "", "ask": "",
-                "sciences_po_line": "", "lead": ""}
+_EMPTY_VOICE = {"greeting": "", "opening_fallback": "", "subject": "", "ask": "", "lead": ""}
 
 
 def _resolve_voice(voice_name: str) -> tuple[str, dict]:
@@ -224,7 +223,6 @@ def prepare(cache: dict, voice_name: str = None) -> dict:
             "{role_or_company}", role_or_company),
         "subject": v["subject"].replace("{company}", name).replace("{role_or_company}", role_or_company),
         "ask": v["ask"],
-        "sciences_po_line": v["sciences_po_line"],
         "lead": v["lead"],
         "send_to": (cache.get("contact") or {}).get("email", ""),
         "contact_name": contact.get("name", ""),
@@ -261,16 +259,12 @@ def writer_brief(spec: dict) -> dict:
         "candidate_evidence_to_tie_in": [e["anchor"] for e in spec.get("evidence", [])],
         "candidate_spine": spec["spine"],
         "ask_line": spec["ask"],
-        "sciences_po_line": spec["sciences_po_line"],
         "allowed_facts": [f["text"] for f in spec.get("allowed_facts", [])],
         "hard_rules": [
             "70-120 words, phone-readable.",
             "No dashes of any kind; commas or full stops only.",
             "Lead with the deliverable/read, not a CV recital.",
             "Do NOT recite what the company does back to the founder.",
-            "State Example Capital in the present tense (it is ongoing, not completed).",
-            "Sciences Po is named exactly once, in the ask region.",
-            "Every number or name must come from allowed_facts.",
             "No sign-off (the mail client appends the signature).",
         ],
     }
@@ -292,19 +286,28 @@ def _opening_line(spec: dict) -> str:
 
 
 def finalize(spec: dict, parts: dict) -> dict:
-    """Assemble greeting + opening + body + ask (with Sciences Po line) into the email, normalise
+    """Assemble greeting + opening + body + ask into the email, normalise
     dashes on the machine text, and run critique. The body is the composed text; the ask/close is
-    the voice's fixed ask preceded by the Sciences Po line (named once)."""
+    the voice's fixed ask."""
     body = normalize((parts.get("body") or "").strip())
     greeting = spec["greeting"].strip()
     opening = normalize(_opening_line(spec))
-    ask_block = normalize(f'{spec["sciences_po_line"]} {spec["ask"]}')
+    ask_block = normalize(spec["ask"])
 
     blocks = [greeting, opening, body, ask_block]
     email = "\n\n".join(b for b in blocks if b.strip())
 
-    report = critique(parts.get("body", ""), spec["ask"], spec)
-    return {"email": email, "report": report, "machine_body": body}
+    rep = critique(body, ask_block, spec)
+    return {
+        "email": email,
+        "body": body,
+        "machine_body": body,
+        "ask": ask_block,
+        "opening": opening,
+        "greeting": greeting,
+        "report": rep.to_dict(),
+        "spec": spec,
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -316,17 +319,8 @@ class Report:
     hard: list[str] = field(default_factory=list)
     soft: list[str] = field(default_factory=list)
 
-
-_NUM_RE = re.compile(r"\b\d[\d,\.]*\b")
-
-
-def _allowed_number_strings(spec: dict) -> set[str]:
-    allowed = set(s.lower() for s in C.CANDIDATE_PROFILE.get("allowed_numbers", []))
-    # plus any number that appears in an allowed fact (target proof, recent, candidate anchors)
-    for f in spec.get("allowed_facts", []):
-        for m in _NUM_RE.findall(f.get("text", "")):
-            allowed.add(m.lower())
-    return allowed
+    def to_dict(self):
+        return {"hard": self.hard, "soft": self.soft}
 
 
 def critique(body: str, ask: str, spec: dict) -> Report:
@@ -353,19 +347,6 @@ def critique(body: str, ask: str, spec: dict) -> Report:
     for op in C.PRESUMPTUOUS_OPENERS:
         if op in first_sentence:
             r.hard.append(f"presumptuous opener: {op}")
-
-    # numeric guard: any number not traceable to allowed facts. Scan the BODY only — the ask/
-    # sciences-po lines are engine-fixed and their small numbers ("2 days a week") are trusted.
-    allowed_nums = _allowed_number_strings(spec)
-    for m in _NUM_RE.findall(body):
-        base = m.lower().rstrip("m")  # tolerate 160/160m
-        if m.lower() not in allowed_nums and base not in allowed_nums:
-            r.hard.append(f"number not from facts: {m}")
-
-    # timeline guard: HPE must not be framed as completed/past
-    if re.search(r"(worked at|was at|during my time at|internship at)\s+hpe", low) or \
-       re.search(r"hpe growth[^.]*(last summer|previously|used to)", low):
-        r.hard.append("timeline: HPE stated as completed (it is ongoing)")
 
     # soft: word count out of range
     wc = len(re.findall(r"\b\w+\b", body))

@@ -34,16 +34,12 @@ class ComposeError(RuntimeError):
 
 def floor_preamble(*, allow_dashes: bool, has_candidate_evidence: bool) -> str:
     lines = [
-        "You are writing parts of a short cold outreach email from a candidate seeking a part-time "
-        "seat during a Sciences Po Paris exchange year.",
+        "You are writing parts of a short cold outreach email from a candidate.",
         "Use ONLY the facts provided for each block. Invent no numbers, names, companies, or claims.",
         "No sign-off; the mail client appends the signature.",
     ]
     if not allow_dashes:
         lines.append("No dashes of any kind. Use commas or full stops.")
-    if has_candidate_evidence:
-        lines.append("Example Capital is present tense (ongoing this summer); never 'worked at' or "
-                     "'last summer'.")
     lines.append("Format longer blocks into short, readable paragraphs separated by blank lines (\\n\\n). Do not write a single massive wall of text.")
     return " ".join(lines)
 
@@ -237,7 +233,6 @@ def _blockspecs(voice, ai_blocks, spec, tokens, shortlist):
             "id": b.id, "label": b.label or b.id,
             "instruction": render(b.guidance, tokens) or f"Write the {b.label or b.id}.",
             "length": hint,
-            "may_name_sciences_po": bool(b.owns_sci_po and voice.mention_sci_po),
             "facts": _scoped_facts(b.fact_scope, spec, shortlist),
         }
         if "{relevant}" in (b.guidance or "") or "{relevant}" in (b.text or ""):
@@ -265,13 +260,11 @@ def compose_voice(provider: Provider, voice, ai_blocks, spec: dict, tokens: dict
     if followup:
         system = followup_floor_preamble() + "\n\n" + system
     specs, _ = _blockspecs(voice, ai_blocks, spec, tokens, shortlist)
-    sci = (" Name Sciences Po exactly once, only in a block whose may_name_sciences_po is true."
-           if voice.mention_sci_po else " Do not mention Sciences Po anywhere.")
     task = ("Write each block of one cold outreach email. Return ONLY a JSON object mapping "
             "each block id to its text. Use only the facts listed for that block, and do not "
             "repeat the same fact across blocks. Where a block lists choose_from_experiences, "
             "weave in the ONE that best fits its point, named naturally, and nothing outside "
-            "that list." + sci)
+            "that list.")
     instruction: dict = {"task": task, "blocks": specs}
     if followup:
         instruction["task"] = ("Write each block of one short FOLLOW-UP email (follow-up #%d). "
@@ -378,9 +371,6 @@ def mock_voice(voice, ai_blocks, spec: dict, tokens: dict, shortlist: list,
             out[b.id] = de.normalize(facts[0]).strip()
         else:
             out[b.id] = de.normalize(render(b.text, tokens) or f"About {spec.get('company', 'you')}.").strip()
-        if b.owns_sci_po and voice.mention_sci_po and "sciences po" not in out[b.id].lower():
-            out[b.id] = (out[b.id] + " I am on the Sciences Po Paris exchange this year and after a "
-                                     "part-time seat.").strip()
     return out
 
 

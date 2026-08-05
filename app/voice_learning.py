@@ -135,7 +135,7 @@ def _reflection_user(voice: CustomVoice, triples: list[dict]) -> str:
         "style": voice.style.model_dump(),
         "block_ids": [b.id for b in voice.blocks if b.mode == "ai"],
         "length_min": voice.length_min, "length_max": voice.length_max,
-        "allow_dashes": voice.allow_dashes, "mention_sci_po": voice.mention_sci_po,
+        "allow_dashes": voice.allow_dashes,
     }
     revs = [{"before": t["before"], "after": t["after"],
              "replied": t["outcome"] == "replied", "edit_effort": round(t["effort"], 2)}
@@ -222,11 +222,6 @@ def example_is_clean(text: str, voice: CustomVoice) -> bool:
             return False
         low = t.lower()
         if not voice.allow_dashes and ("\u2014" in t or "\u2013" in t or " - " in t):
-            return False
-        sp = low.count("sciences po")
-        if voice.mention_sci_po and sp > 1:
-            return False
-        if not voice.mention_sci_po and sp > 0:
             return False
         if _SIGNOFF_RE.search(t):
             return False

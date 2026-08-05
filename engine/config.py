@@ -44,7 +44,6 @@ DEFAULT_PROFILE_TEMPLATE = {
         },
     },
     "signals": ["A credibility signal."],
-    "allowed_numbers": ["10", "100"],
     "proof_points": [
         {
             "fact": "Shipped core product features and scaled operational workflows.",

@@ -57,7 +57,6 @@ class Block(BaseModel):
     guidance: str = ""                         # AI instructions (mode=ai)
     fact_scope: list[str] = Field(default_factory=list)   # subset of FACT_SCOPES; [] = no facts
     length: str = "short"                      # one_line | short | medium | body
-    owns_sci_po: bool = False                  # this block is where Sciences Po is named (if at all)
     optional: bool = False                     # skip when its scoped facts are absent (e.g. no recent)
 
 
@@ -114,10 +113,10 @@ def _canonical_blocks_from_legacy(d: dict) -> list[dict]:
                    "mode": mode(d.get("boilerplate_mode", "fixed")),
                    "text": d.get("boilerplate", ""), "guidance": d.get("boilerplate_guidance", ""),
                    "fact_scope": (["candidate_spine"] if d.get("boilerplate_mode") == "llm" else []),
-                   "owns_sci_po": bool(d.get("boilerplate_owns_sci_po", True)), "length": "short"})
+                   "length": "short"})
     blocks.append({"id": "close", "label": "Close", "mode": mode(d.get("close_mode", "fixed")),
                    "text": d.get("close", ""), "guidance": d.get("close_guidance", ""),
-                   "owns_sci_po": bool(d.get("close_owns_sci_po", False)), "length": "one_line"})
+                   "length": "one_line"})
     if (d.get("signoff") or "").strip():
         blocks.append({"id": "signoff", "label": "Sign-off", "mode": "fixed", "text": d["signoff"]})
     return blocks
@@ -129,7 +128,7 @@ class CustomVoice(BaseModel):
 
     A voice owns an ordered list of `blocks` (structure + per-block fixed/AI mode), a structured
     `style`, `evidence` preferences that steer which candidate experiences are selected, its own
-    word-count `length`, custom `variables`, and floor opt-ins (`mention_sci_po`, `allow_dashes`).
+    word-count `length`, custom `variables`, and floor opt-ins (`allow_dashes`).
     Everything above the honesty floor is the voice's to set. Old-schema JSON is migrated on load.
     """
     model_config = {"populate_by_name": True, "protected_namespaces": ()}
@@ -151,7 +150,6 @@ class CustomVoice(BaseModel):
     length_min: int = 70                                  # word target for the narrative
     length_max: int = 120
     variables: dict[str, str] = Field(default_factory=dict)   # voice-defined custom tokens
-    mention_sci_po: bool = True                           # opt in/out of naming Sciences Po at all
     allow_dashes: bool = False                            # floor knob (default keeps the no-dash rule)
 
     # ---- continuous voice learning (Layer 4) — all additive, defaults = today's behaviour ----

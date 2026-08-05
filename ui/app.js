@@ -1604,10 +1604,10 @@ const LEN_LABEL = { one_line:"one line", short:"short", medium:"medium", body:"b
 
 function starterBlocks() {
   return [
-    { id:"greeting", label:"Greeting", mode:"fixed", text:"Hi {contact_first},", guidance:"", fact_scope:[], length:"short", owns_sci_po:false, optional:false },
-    { id:"body", label:"Body", mode:"ai", text:"", guidance:"Tie one piece of my evidence to what they need. Lead with wanting to build inside a company rather than evaluate it from outside.", fact_scope:["target_proofs","candidate_evidence","candidate_spine","situation_read"], length:"body", owns_sci_po:false, optional:false },
-    { id:"positioning", label:"Positioning", mode:"fixed", text:"I am on the Sciences Po Paris exchange this year, so I am after a part-time seat around classes.", guidance:"", fact_scope:[], length:"short", owns_sci_po:true, optional:false },
-    { id:"close", label:"Close", mode:"fixed", text:"Open to a short call?", guidance:"", fact_scope:[], length:"one_line", owns_sci_po:false, optional:false },
+    { id:"greeting", label:"Greeting", mode:"fixed", text:"Hi {contact_first},", guidance:"", fact_scope:[], length:"short", optional:false },
+    { id:"body", label:"Body", mode:"ai", text:"", guidance:"Tie one piece of my evidence to what they need. Lead with wanting to build inside a company rather than evaluate it from outside.", fact_scope:["target_proofs","candidate_evidence","candidate_spine","situation_read"], length:"body", optional:false },
+    { id:"positioning", label:"Positioning", mode:"fixed", text:"I am seeking a part-time role alongside my studies.", guidance:"", fact_scope:[], length:"short", optional:false },
+    { id:"close", label:"Close", mode:"fixed", text:"Open to a short call?", guidance:"", fact_scope:[], length:"one_line", optional:false },
   ];
 }
 
@@ -1628,7 +1628,6 @@ function blockCardHTML(b, i, n) {
     <div class="ve-block-row">
       <select class="bk-mode">${modeSel}</select>
       <select class="bk-len">${lenSel}</select>
-      <label class="chip-check"><input type="checkbox" class="bk-owns"${b.owns_sci_po?" checked":""}/> names Sciences Po</label>
       <label class="chip-check"><input type="checkbox" class="bk-opt"${b.optional?" checked":""}/> optional</label>
     </div>
     <div class="bk-fixed" style="${isAI?"display:none;":""}">
@@ -1653,7 +1652,6 @@ function readBlocksFromDOM() {
       guidance: q(".bk-guidance") ? q(".bk-guidance").value : "",
       fact_scope: $$(".bk-scopes input:checked", card).map(x => x.dataset.scope),
       length: q(".bk-len").value,
-      owns_sci_po: q(".bk-owns").checked,
       optional: q(".bk-opt").checked,
     };
   });
@@ -1682,7 +1680,7 @@ function moveBlock(i, dir) {
 function removeBlock(i) { VE.blocks = readBlocksFromDOM(); VE.blocks.splice(i, 1); renderBlocks(); updateLivePreview(); }
 function addBlock() {
   VE.blocks = readBlocksFromDOM();
-  VE.blocks.push({ id:"b_"+Date.now().toString(36), label:"New block", mode:"fixed", text:"", guidance:"", fact_scope:[], length:"short", owns_sci_po:false, optional:false });
+  VE.blocks.push({ id:"b_"+Date.now().toString(36), label:"New block", mode:"fixed", text:"", guidance:"", fact_scope:[], length:"short", optional:false });
   renderBlocks(); updateLivePreview();
 }
 
@@ -1794,7 +1792,6 @@ function fillFromVoice(v) {
   veSet("veSit_role_large", sit.includes("role_large"));
   veSet("veLenMin", v.length_min || 70);
   veSet("veLenMax", v.length_max || 120);
-  veSet("veMentionSci", v.mention_sci_po !== false);
   veSet("veAllowDashes", !!v.allow_dashes);
   veSet("veIdentityNote", (v.evidence || {}).identity_note || "");
   VE.blocks = (v.blocks && v.blocks.length) ? v.blocks.map(b => Object.assign({}, b)) : starterBlocks();
@@ -1932,7 +1929,6 @@ function collectVoice() {
     evidence: collectEvidence(),
     length_min: lo, length_max: hi,
     variables: collectVars(),
-    mention_sci_po: veGet("veMentionSci"),
     allow_dashes: veGet("veAllowDashes"),
   };
 }
@@ -2258,7 +2254,6 @@ async function openProfileModal() {
     $("#profTargetLocations").value = (p.target_locations || []).join(", ");
     $("#profOneLine").value = p.one_line || "";
     $("#profSpine").value = p.spine || "";
-    $("#profAllowedNumbers").value = (p.allowed_numbers || []).join(", ");
     const exps = p.experiences || {};
     const standingKey = p.standing_key || "anchor_co";
     const standingExp = exps[standingKey] || {};
@@ -2295,7 +2290,6 @@ async function saveProfile() {
     target_locations: splitComma($("#profTargetLocations").value),
     one_line: $("#profOneLine").value.trim(),
     spine: $("#profSpine").value.trim(),
-    allowed_numbers: splitComma($("#profAllowedNumbers").value),
   };
   const standingKey = updated.standing_key || "anchor_co";
   if (updated.experiences && updated.experiences[standingKey]) {

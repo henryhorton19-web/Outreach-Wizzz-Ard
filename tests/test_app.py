@@ -130,7 +130,7 @@ def test_ingest_dedupes():
     assert len(set(slugs)) == len(slugs)  # unique slugs even for repeats
 
 
-def test_profile_post_validation_rejects_empty_allowed_numbers(tmp_path, monkeypatch):
+def test_profile_post_validation_rejects_empty_name(tmp_path, monkeypatch):
     monkeypatch.setenv("PARIS_DATA_DIR", str(tmp_path))
     monkeypatch.delenv("WIZZARD_PROFILE_SOURCE", raising=False)
     
@@ -145,11 +145,10 @@ def test_profile_post_validation_rejects_empty_allowed_numbers(tmp_path, monkeyp
     before_bytes = prof_file.read_bytes()
     
     bad_payload = {
-        "name": "Jane Doe",
+        "name": "",
         "one_line": "Operator",
         "spine": "Proven track record",
         "experiences": {"anchor_co": {"anchor": "Test"}},
-        "allowed_numbers": []
     }
     
     res = client.post("/api/profile", json=bad_payload, headers={"x-wizzard-token": S.SESSION_TOKEN})
