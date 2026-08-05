@@ -678,8 +678,8 @@
   </div>
 
   <!-- Candidate Profile Modal -->
-  <div class="modal-backdrop hidden" id="profileModal" role="dialog" aria-modal="true" aria-labelledby="profileModalTitle">
-    <div class="modal-card" style="width:720px; max-height:85vh; display:flex; flex-direction:column;">
+  <div class="modal-scrim hidden" id="profileModal" role="dialog" aria-modal="true" aria-labelledby="profileModalTitle">
+    <div class="modal" style="max-width:720px; max-height:85vh; display:flex; flex-direction:column;">
       <div class="modal-head">
         <div>
           <span class="eyebrow">Candidate Profile</span>
@@ -732,6 +732,10 @@
           <div>
             <label class="lbl">Allowed Numbers Whitelist (comma-separated)</label>
             <input type="text" id="profAllowedNumbers" class="inp" placeholder="10, 50, 100, 160m" />
+          </div>
+          <div>
+            <label class="lbl">Standing Experience Anchor Text</label>
+            <input type="text" id="profStandingExp" class="inp" placeholder="Standing experience anchor text" />
           </div>
           <div style="display:flex; justify-content:space-between; margin-top:12px;">
             <button type="button" class="btn ghost" id="resetProfileBtn" style="color:#ef4444;">Reset to Defaults</button>

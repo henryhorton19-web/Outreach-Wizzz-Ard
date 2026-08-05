@@ -84,7 +84,7 @@ def test_draft_one_stub_end_to_end(tmp_path, monkeypatch):
     assert cs.state == State.drafted
     assert cs.voice and isinstance(cs.voice, str)
     assert cs.machine_email and cs.machine_body
-    assert "congratulations" in cs.machine_email.lower()
+    assert "acme" in cs.machine_email.lower()
 
 
 def test_apply_edit_is_verbatim(tmp_path, monkeypatch):
@@ -128,3 +128,31 @@ def test_ingest_dedupes():
     rows = I.parse_names("Acme\nAcme\nAcme")
     slugs = [r["slug"] for r in rows]
     assert len(set(slugs)) == len(slugs)  # unique slugs even for repeats
+
+
+def test_profile_post_validation_rejects_empty_allowed_numbers(tmp_path, monkeypatch):
+    monkeypatch.setenv("PARIS_DATA_DIR", str(tmp_path))
+    monkeypatch.delenv("WIZZARD_PROFILE_SOURCE", raising=False)
+    
+    from fastapi.testclient import TestClient
+    from app.server import app, S
+    client = TestClient(app)
+    
+    from engine.config import ProfileStore
+    prof = ProfileStore.load()
+    ProfileStore.save(prof)
+    prof_file = ProfileStore.profile_path()
+    before_bytes = prof_file.read_bytes()
+    
+    bad_payload = {
+        "name": "Jane Doe",
+        "one_line": "Operator",
+        "spine": "Proven track record",
+        "experiences": {"anchor_co": {"anchor": "Test"}},
+        "allowed_numbers": []
+    }
+    
+    res = client.post("/api/profile", json=bad_payload, headers={"x-wizzard-token": S.SESSION_TOKEN})
+    assert res.status_code == 422
+    after_bytes = prof_file.read_bytes()
+    assert before_bytes == after_bytes

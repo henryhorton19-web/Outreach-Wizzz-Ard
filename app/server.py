@@ -533,6 +533,26 @@ async def save_candidate_profile(request: Request):
     data = await request.json()
     if not isinstance(data, dict):
         raise HTTPException(status_code=400, detail="invalid profile payload")
+
+    name = (data.get("name") or "").strip()
+    one_line = (data.get("one_line") or "").strip()
+    spine = (data.get("spine") or "").strip()
+    experiences = data.get("experiences")
+    allowed_numbers = data.get("allowed_numbers")
+
+    missing = []
+    if not name: missing.append("name")
+    if not one_line: missing.append("one_line")
+    if not spine: missing.append("spine")
+    if not experiences or not isinstance(experiences, dict): missing.append("experiences")
+    if not allowed_numbers or not isinstance(allowed_numbers, list) or len(allowed_numbers) == 0: missing.append("allowed_numbers")
+
+    if missing:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Profile validation failed. Required non-empty fields: {', '.join(missing)}"
+        )
+
     C.ProfileStore.save(data)
     return {"ok": True, "profile": C.ProfileStore.load()}
 

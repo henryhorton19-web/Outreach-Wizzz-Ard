@@ -2242,8 +2242,10 @@ function renderSourcingReport(job) {
 /* ================= CANDIDATE PROFILE MODAL (Phase 4) ================= */
 
 async function openProfileModal() {
-  const backdrop = $("#profileModal");
-  if (!backdrop) return;
+  state.profileLoaded = false;
+  const saveBtn = $("#profileForm") ? $("#profileForm").querySelector("button[type='submit']") : null;
+  if (saveBtn) saveBtn.disabled = true;
+  showModal("profileModal");
   try {
     const p = await api("/api/profile");
     state.profile = p;
@@ -2260,9 +2262,12 @@ async function openProfileModal() {
     const exps = p.experiences || {};
     const standingKey = p.standing_key || "anchor_co";
     const standingExp = exps[standingKey] || {};
-    $("#profStandingExp").value = standingExp.anchor || "";
-    backdrop.classList.remove("hidden");
+    if ($("#profStandingExp")) $("#profStandingExp").value = standingExp.anchor || "";
+    state.profileLoaded = true;
+    if (saveBtn) saveBtn.disabled = false;
   } catch (e) {
+    state.profileLoaded = false;
+    if (saveBtn) saveBtn.disabled = true;
     toast("Failed to load profile: " + e.message, true);
   }
 }
@@ -2273,6 +2278,10 @@ function closeProfileModal() {
 }
 
 async function saveProfile() {
+  if (!state.profileLoaded) {
+    toast("Cannot save: Candidate profile is not loaded", true);
+    return;
+  }
   const cur = state.profile || {};
   const splitComma = (val) => (val || "").split(",").map(s => s.trim()).filter(Boolean);
   const updated = {
@@ -2290,7 +2299,7 @@ async function saveProfile() {
   };
   const standingKey = updated.standing_key || "anchor_co";
   if (updated.experiences && updated.experiences[standingKey]) {
-    updated.experiences[standingKey].anchor = $("#profStandingExp").value.trim();
+    if ($("#profStandingExp")) updated.experiences[standingKey].anchor = $("#profStandingExp").value.trim();
   }
   try {
     const res = await api("/api/profile", { method: "POST", body: updated });
