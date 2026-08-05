@@ -52,13 +52,14 @@
 
     <!-- RIGHT: tools + status (open a thing) -->
     <button class="cost-meter hidden" id="costMeter" title="Session model cost — click for a breakdown" aria-label="Session cost">~$0.00 · 0 drafts</button>
+    <span id="activeListPill" class="pill-provider" title="Active Company List">list: Default List</span>
     <span id="providerPill" class="pill-provider">provider: —</span>
     <div class="topbar-utils">
       <button class="icon-btn" id="archiveBtn" title="Sent" aria-label="Sent">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="21 8 21 21 3 21 3 8"></polyline><rect x="1" y="3" width="22" height="5"></rect><line x1="10" y1="12" x2="14" y2="12"></line></svg>
       </button>
       <button class="icon-btn" id="voicesBtn" title="Voices" aria-label="Voices">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
       </button>
       <button class="icon-btn" id="settingsBtn" title="Settings" aria-label="Settings">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
@@ -69,62 +70,68 @@
     </div>
   </header>
 
-  <main class="wrap">
-    <section class="ingest" id="ingestPanel">
-      <span class="eyebrow">New batch</span>
-      <h2>Paste target names</h2>
-      <p class="hint">One target per line. Add a category, source, or URL after a comma if you like (e.g. Acclaim AI, https://acclaim.ai). These are drafts to review, not sends &mdash; you are the final check on every one.</p>
-      <textarea id="namesInput" placeholder="Alan&#10;Acclaim AI, https://acclaim.ai&#10;Qonto"></textarea>
-      <div class="ingest-actions">
-        <button class="btn primary" id="draftBtn">Add to queue</button>
-        <button class="btn primary alt" id="findTargetsBtn" style="background: #2563eb; color: #fff; border: none; font-weight: 500;">Find new targets</button>
-        <button class="btn ghost" id="uploadBtn">Upload CSV / XLSX / Tracker</button>
-        <div class="upload-hint">CSV/XLSX first col = name, or the Outreach_Tracker workbook</div>
-        <input type="file" id="fileInput" accept=".csv,.xlsx" class="hidden" />
-        <span class="count" id="nameCount"></span>
-      </div>
-    </section>
-
-    <!-- Sourcing Run Panel -->
-    <div class="sourcing-panel hidden" id="sourcingPanel" style="margin-bottom: 20px; padding: 16px; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px;">
-      <div style="display: flex; justify-content: space-between; align-items: center;">
-        <h4 style="margin: 0; font-size: 15px; color: #0f172a;">🚀 Find New Targets (Startup Heat Sourcing)</h4>
-        <button class="btn ghost small" id="closeSourcingPanelBtn" style="border: none; font-size: 18px; cursor: pointer;">&times;</button>
-      </div>
-      <div style="margin-top: 12px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
-        <label style="font-size: 13px; font-weight: 500;">Sourcing Criteria:
-          <select id="sourcingPromptSelect" class="mini-select" style="margin-left: 4px; padding: 4px 8px;"></select>
-        </label>
-        <button class="btn primary small" id="runSourcingBtn">Start sourcing run</button>
-      </div>
-      <div id="sourcingStatusText" style="margin-top: 10px; font-size: 13px; color: #475569;"></div>
-      <div id="sourcingReport" style="margin-top: 12px;"></div>
-    </div>
-
-    <div class="ingest-banner hidden" id="ingestBanner">
-      <button class="ingest-banner-close" id="ingestBannerClose" aria-label="Dismiss">&times;</button>
-      <div id="ingestBannerText"></div>
-    </div>
-
-    <div class="split-layout" id="splitLayout">
-      <!-- LEFT: target queue -->
-      <div class="queue-col" id="queueCol">
-        <div class="col-header">
-          <div class="col-header-title">
-            <h3>Targets <span class="pill neutral" id="queueCount"></span></h3>
-            <select id="listSelect" class="btn small" title="Active Company List"></select>
-            <button class="btn ghost small" id="createListBtn" title="Create named list">+ List</button>
-          </div>
-          <div class="col-actions">
-            <button class="btn primary small" id="draft5Btn">Draft 5</button>
-            <button class="btn ghost small" id="clearQueueBtn">Clear queue</button>
-          </div>
-        </div>
-        <div id="queueList"></div>
-        <div class="col-empty hidden" id="queueEmpty">
-          <span>Queue is empty.</span>
+  <main class="app-main">
+    <!-- Workspace View (Split: Queue + Active Drafts) -->
+    <section class="workspace-view" id="workspaceView">
+      <div class="ingest-box" id="ingestPanel">
+        <h2>Paste target names</h2>
+        <p class="hint">One target per line. Add a category, source, or URL after a comma if you like (e.g. Acclaim AI, https://acclaim.ai). These are drafts to review, not sends &mdash; you are the final check on every one.</p>
+        <textarea id="namesInput" placeholder="Alan&#10;Acclaim AI, https://acclaim.ai&#10;Qonto"></textarea>
+        <div class="ingest-actions">
+          <button class="btn primary" id="draftBtn">Add to queue</button>
+          <button class="btn primary alt" id="findTargetsBtn" style="background: #2563eb; color: #fff; border: none; font-weight: 500;">Find new targets</button>
+          <button class="btn ghost" id="uploadBtn">Upload CSV / XLSX / Tracker</button>
+          <div class="upload-hint">CSV/XLSX first col = name, or the Outreach_Tracker workbook</div>
+          <input type="file" id="fileInput" accept=".csv,.xlsx" class="hidden" />
+          <span class="count" id="nameCount"></span>
         </div>
       </div>
+
+      <!-- Sourcing Run Panel -->
+      <div class="sourcing-panel hidden" id="sourcingPanel" style="margin-bottom: 20px; padding: 16px; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <h4 style="margin: 0; font-size: 15px; color: #0f172a;">🚀 Find New Targets (Startup Heat Sourcing)</h4>
+          <button class="btn ghost small" id="closeSourcingPanelBtn" style="border: none; font-size: 18px; cursor: pointer;">&times;</button>
+        </div>
+        <div style="margin-top: 12px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+          <label style="font-size: 13px; font-weight: 500;">Sourcing Criteria:
+            <select id="sourcingPromptSelect" class="mini-select" style="margin-left: 4px; padding: 4px 8px;"></select>
+          </label>
+          <button class="btn primary small" id="runSourcingBtn">Start sourcing run</button>
+        </div>
+        <div id="sourcingStatusText" style="margin-top: 10px; font-size: 13px; color: #475569;"></div>
+        <div id="sourcingReport" style="margin-top: 12px;"></div>
+      </div>
+
+      <div class="ingest-banner hidden" id="ingestBanner">
+        <button class="ingest-banner-close" id="ingestBannerClose" aria-label="Dismiss">&times;</button>
+        <div id="ingestBannerText"></div>
+      </div>
+
+      <div class="split-layout" id="splitLayout">
+        <!-- LEFT: target queue -->
+        <div class="queue-col" id="queueCol">
+          <div class="col-header">
+            <div class="col-header-title">
+              <h3>Targets <span class="pill neutral" id="queueCount"></span></h3>
+              <span class="pill neutral" id="activeListNameDisplay" title="Active Company List">Default List</span>
+            </div>
+            <div class="list-select-row" style="display:flex; gap:6px; margin-top:6px; align-items:center;">
+              <label for="listSelect" class="sr-only">Active Company List</label>
+              <select id="listSelect" class="btn small" title="Active Company List" style="min-width:120px; flex-shrink:0;"></select>
+              <button class="btn ghost small" id="createListBtn" title="Create named list" style="white-space:nowrap;">+ List</button>
+            </div>
+            <div class="col-actions" style="margin-top:6px;">
+              <button class="btn primary small" id="draft5Btn" style="white-space:nowrap;">Draft 5</button>
+              <button class="btn ghost small" id="exportBtn" title="Export queue to CSV" style="white-space:nowrap;">Export CSV</button>
+              <button class="btn ghost small" id="clearQueueBtn" style="white-space:nowrap;">Clear queue</button>
+            </div>
+          </div>
+          <div id="queueList"></div>
+          <div class="col-empty hidden" id="queueEmpty">
+            <span>Queue is empty.</span>
+          </div>
+        </div>
 
       <!-- RIGHT: active drafts -->
       <div class="drafts-col" id="draftsCol">
@@ -169,11 +176,13 @@
           <p class="hint">Full lifecycle of target companies from queued to sent and replied.</p>
         </div>
         <div class="pipe-controls">
+          <span id="pipelineSummary" class="hint" style="margin-right:auto;"></span>
           <label class="check"><input type="checkbox" id="pipeStaleOnly" /> Stale only</label>
           <select id="pipeVoiceFilter" class="mini-select"><option value="">All voices</option></select>
         </div>
       </div>
       <div class="board-cols" id="pipelineBoard"></div>
+      <div id="pipelineCols" class="board-cols hidden"></div>
     </section>
 
     <!-- PERFORMANCE VIEW -->
@@ -185,9 +194,13 @@
         </div>
         <div class="perf-kind-toggle">
           <button class="vk-seg is-active" id="perfKindOutreach">Outreach</button>
+          <button class="vk-seg" id="perfKindFollowup">Follow-up</button>
         </div>
       </div>
+      <div id="perfSummary" class="hint" style="margin-bottom:12px;"></div>
+      <div id="perfTableWrap"></div>
       <div id="performanceList"></div>
+      <div class="col-empty hidden" id="perfEmpty"><span>No performance metrics recorded yet.</span></div>
     </section>
 
     <!-- TRIAGE VIEW -->
@@ -196,6 +209,9 @@
         <div>
           <h2>Inbox Triage</h2>
           <p class="hint">Incoming target emails and reply drafting.</p>
+        </div>
+        <div class="header-actions">
+          <button class="btn ghost small" id="triageSweepBtn">Run Sweep</button>
         </div>
       </div>
       <div class="triage-buckets">

@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import io
 import json
+import re
 from pathlib import Path
 
 from . import settings as S
@@ -62,6 +63,25 @@ LISTS_FILE = S.DATA_DIR / "lists.json"
 QUEUES_DIR = S.DATA_DIR / "queues"
 
 
+WINDOWS_RESERVED = {
+    "con", "prn", "aux", "nul",
+    "com1", "com2", "com3", "com4", "com5", "com6", "com7", "com8", "com9",
+    "lpt1", "lpt2", "lpt3", "lpt4", "lpt5", "lpt6", "lpt7", "lpt8", "lpt9",
+}
+
+
+def sanitize_list_id(name: str) -> str:
+    cleaned = re.sub(r"[^a-z0-9_-]", "_", name.lower().strip())
+    cleaned = re.sub(r"^[^a-z0-9]+", "", cleaned)
+    if not cleaned:
+        cleaned = "list"
+    if len(cleaned) > 40:
+        cleaned = cleaned[:40].rstrip("_-")
+    if cleaned in WINDOWS_RESERVED:
+        cleaned = f"{cleaned}_list"
+    return cleaned
+
+
 def _queue_file(list_id: str = "default") -> Path:
     if list_id == "default":
         return QUEUE_FILE
@@ -85,18 +105,42 @@ def load_lists() -> list[dict]:
         return [{"id": "default", "name": "Default List", "created_at": "2026-01-01T00:00:00Z", "count": len(load_queue("default"))}]
 
 
-def save_lists(lists: list[dict]) -> None:
-    safe_write_text(LISTS_FILE, json.dumps({"lists": lists}, indent=2, ensure_ascii=False))
+def active_list_id() -> str:
+    if not LISTS_FILE.exists():
+        return "default"
+    try:
+        data = json.loads(LISTS_FILE.read_text(encoding="utf-8"))
+        stored = data.get("active", "default")
+        lists = load_lists()
+        if any(l["id"] == stored for l in lists):
+            return stored
+        return "default"
+    except Exception:
+        return "default"
+
+
+def set_active_list(list_id: str) -> None:
+    lists = load_lists()
+    if not any(l["id"] == list_id for l in lists):
+        list_id = "default"
+    save_lists(lists, active_id=list_id)
+
+
+def save_lists(lists: list[dict], active_id: str | None = None) -> None:
+    if active_id is None:
+        active_id = active_list_id()
+    safe_write_text(LISTS_FILE, json.dumps({"active": active_id, "lists": lists}, indent=2, ensure_ascii=False))
 
 
 def create_list(name: str) -> dict:
-    import datetime, re
+    import datetime
     lists = load_lists()
-    list_id = re.sub(r"[^a-z0-9]", "_", name.lower().strip())
-    if not list_id:
-        list_id = f"list_{int(datetime.datetime.now().timestamp())}"
+    base_id = sanitize_list_id(name)
+    list_id = base_id
     if any(l["id"] == list_id for l in lists):
-        list_id = f"{list_id}_{int(datetime.datetime.now().timestamp())}"
+        suffix = f"_{int(datetime.datetime.now().timestamp())}"
+        max_base_len = 40 - len(suffix)
+        list_id = f"{base_id[:max_base_len]}{suffix}"
 
     rec = {
         "id": list_id,
@@ -117,7 +161,11 @@ def delete_list(list_id: str) -> bool:
     filtered = [l for l in lists if l["id"] != list_id]
     if len(filtered) == len(lists):
         return False
-    save_lists(filtered)
+
+    current_active = active_list_id()
+    new_active = "default" if current_active == list_id else current_active
+    save_lists(filtered, active_id=new_active)
+
     q_file = _queue_file(list_id)
     if q_file.exists():
         try:

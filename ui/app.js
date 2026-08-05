@@ -365,28 +365,45 @@ async function doUpload(file) {
 async function fetchLists() {
   try {
     const res = await api("/api/lists");
-    const lists = res.lists || [];
-    state.lists = lists;
+    state.lists = res.lists || [];
+    if (res.active) state.activeListId = res.active;
     renderListSelect();
   } catch (e) {
     console.error("Failed to fetch lists:", e);
+    renderListSelectError();
   }
 }
 
 function renderListSelect() {
   const sel = $("#listSelect");
   if (!sel) return;
-  const lists = state.lists || [{ id: "default", name: "Default List", count: (state.queue || []).length }];
+  const lists = (state.lists && state.lists.length) ? state.lists : [{ id: "default", name: "Default List", count: (state.queue || []).length }];
   sel.innerHTML = lists.map(l => `<option value="${esc(l.id)}"${l.id === (state.activeListId || "default") ? " selected" : ""}>${esc(l.name)} (${l.count || 0})</option>`).join("");
+
+  const activeObj = lists.find(l => l.id === (state.activeListId || "default")) || lists[0];
+  const activeName = activeObj ? activeObj.name : "Default List";
+
+  if ($("#activeListNameDisplay")) $("#activeListNameDisplay").textContent = activeName;
+  if ($("#activeListPill")) $("#activeListPill").textContent = `list: ${activeName}`;
+}
+
+function renderListSelectError() {
+  const sel = $("#listSelect");
+  if (sel) {
+    sel.innerHTML = '<option value="" disabled selected>Lists unavailable — reload</option>';
+  }
 }
 
 async function switchList(listId) {
   state.activeListId = listId;
   try {
-    const r = await api(`/api/queue?list_id=${encodeURIComponent(listId)}`);
-    state.queue = r.queue;
+    const r = await api("/api/lists/active", { method: "POST", body: { id: listId } });
+    if (r.lists) state.lists = r.lists;
+    if (r.active) state.activeListId = r.active;
+    const qRes = await api(`/api/queue?list_id=${encodeURIComponent(listId)}`);
+    state.queue = qRes.queue;
     renderQueue();
-    fetchLists();
+    renderListSelect();
   } catch (e) {
     toast("Failed to switch list: " + e.message, true);
   }
@@ -398,9 +415,11 @@ async function createNamedList() {
   try {
     const res = await api("/api/lists", { method: "POST", body: { name: name.trim() } });
     state.lists = res.lists;
-    state.activeListId = res.list.id;
+    state.activeListId = res.active || res.list.id;
+    const qRes = await api(`/api/queue?list_id=${encodeURIComponent(state.activeListId)}`);
+    state.queue = qRes.queue;
+    renderQueue();
     renderListSelect();
-    await switchList(res.list.id);
     toast(`Created list "${res.list.name}"`);
   } catch (e) {
     toast("Failed to create list: " + e.message, true);
@@ -527,7 +546,7 @@ function stateLabel(cs) {
 }
 
 function renderDrafts() {
-  const results = $("#results");
+  const results = $("#draftsList");
   const list = companyList().filter(cs => cs.state !== "ready");
   $("#draftsCount").textContent = list.length ? list.length : "";
   $("#draftsEmpty").classList.toggle("hidden", list.length > 0);

@@ -839,7 +839,16 @@ async def undo_sourcing_research_job(job_id: str):
 
 @app.get("/api/lists")
 async def get_lists():
-    return {"lists": store.load_lists()}
+    return {"active": store.active_list_id(), "lists": store.load_lists()}
+
+
+@app.post("/api/lists/active")
+async def set_active_list(payload: dict = Body(...)):
+    lid = (payload.get("id") or payload.get("list_id") or "").strip()
+    if not any(l["id"] == lid for l in store.load_lists()):
+        raise HTTPException(status_code=404, detail="List not found")
+    store.set_active_list(lid)
+    return {"ok": True, "active": store.active_list_id(), "lists": store.load_lists()}
 
 
 @app.post("/api/lists")
@@ -848,7 +857,8 @@ async def create_list(payload: dict = Body(...)):
     if not name:
         raise HTTPException(status_code=422, detail="List name is required")
     lst = store.create_list(name)
-    return {"ok": True, "list": lst, "lists": store.load_lists()}
+    store.set_active_list(lst["id"])
+    return {"ok": True, "list": lst, "active": store.active_list_id(), "lists": store.load_lists()}
 
 
 @app.delete("/api/lists/{list_id}")
@@ -857,7 +867,7 @@ async def delete_list(list_id: str):
         raise HTTPException(status_code=400, detail="Cannot delete default list")
     if not store.delete_list(list_id):
         raise HTTPException(status_code=404, detail="List not found")
-    return {"ok": True, "lists": store.load_lists()}
+    return {"ok": True, "active": store.active_list_id(), "lists": store.load_lists()}
 
 
 @app.get("/api/queue")
