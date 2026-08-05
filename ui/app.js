@@ -408,21 +408,33 @@ async function createNamedList() {
 }
 
 /* ================= QUEUE ================= */
+function humanBadgeLabel(str) {
+  if (!str) return "";
+  const map = {
+    cat_a: "Category A", cat_b: "Category B", cat_c: "Category C",
+    b2b_saas: "B2B SaaS", fintech: "Fintech", healthtech: "Healthtech",
+    deeptech: "Deeptech", ai_ml: "AI / ML", seed: "Seed Stage",
+    series_a: "Series A", series_b: "Series B", growth: "Growth Stage",
+    sourcing: "Sourced",
+  };
+  return map[str.toLowerCase()] || str.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase());
+}
+
 function renderQueue() {
   const list = $("#queueList");
   list.innerHTML = "";
-  $("#queueCount").textContent = state.queue.length ? state.queue.length : "";
+  $("#queueCount").textContent = state.queue.length ? `${state.queue.length} targets` : "0 targets";
   $("#queueEmpty").classList.toggle("hidden", state.queue.length > 0);
   state.queue.forEach(rec => {
     const el = document.createElement("div");
     el.className = "qrow";
     const m = rec.meta || {};
     const chips = [];
-    if (m.employees_band) chips.push(m.employees_band);
-    if (m.funding_heat || m.signal_basis || m.discovery_label) chips.push(m.funding_heat || m.signal_basis || m.discovery_label);
+    if (m.employees_band) chips.push(humanBadgeLabel(m.employees_band));
+    if (m.funding_heat || m.signal_basis || m.discovery_label) chips.push(humanBadgeLabel(m.funding_heat || m.signal_basis || m.discovery_label));
     if (m.hq_city || m.hq_country) chips.push([m.hq_city, m.hq_country].filter(Boolean).join(", "));
 
-    const chipHtml = chips.map(c => `<span class="qrow-chip" title="${esc(c)}">${esc(c)}</span>`).join("");
+    const chipHtml = chips.map(c => `<span class="tag neutral">${esc(c)}</span>`).join("");
 
     el.innerHTML = `
       <div class="qrow-info">
@@ -432,9 +444,9 @@ function renderQueue() {
         </div>
         ${chips.length ? `<div class="qrow-chips">${chipHtml}</div>` : ""}
       </div>
-      <div class="qrow-act">
-        <button class="btn primary small" data-act="draft">Draft &rarr;</button>
-        <button class="icon-btn small" data-act="remove" title="Remove">&times;</button>
+      <div class="qrow-act" style="display:flex; align-items:center; gap:8px;">
+        <button class="btn ghost small" data-act="draft">Draft &rarr;</button>
+        <button class="qrow-remove-btn" data-act="remove" aria-label="Remove target from queue" title="Remove">&times;</button>
       </div>`;
     el.querySelector('[data-act="draft"]').onclick = () => draftFromQueue(rec.slug);
     el.querySelector('[data-act="remove"]').onclick = () => removeFromQueue(rec.slug);
@@ -2420,35 +2432,75 @@ function renderProfileProofList(experiences) {
   }
   container.innerHTML = entries.map(([key, exp]) => {
     const facts = (exp.facts || []).join("\n");
-    const bridges = (exp.bridges || []).join(", ");
+    const bridges = exp.bridges || [];
     const xyz = exp.xyz || { action: "", metric: "", method: "" };
-    return `<div class="proof-exp-card" data-key="${esc(key)}" style="background:var(--surface, #0f172a); padding:16px; border-radius:6px; border:1px solid var(--border, #334155);">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-        <input type="text" class="exp-name inp" value="${esc(exp.name || key)}" style="font-weight:600; width:200px;" placeholder="Company Name" />
-        <div style="display:flex; gap:8px;">
-          <input type="text" class="exp-title inp" value="${esc(exp.title || '')}" style="width:150px;" placeholder="Title / Role" />
-          <input type="text" class="exp-when inp" value="${esc(exp.when || '')}" style="width:150px;" placeholder="Dates (e.g. 2026-present)" />
-          <button class="icon-btn small remove-exp-btn" data-key="${esc(key)}" title="Remove">&times;</button>
+    const hasXyz = Boolean(xyz.action || xyz.metric || xyz.method);
+
+    const bridgeTagsHtml = bridges.map(b => `<span class="tag neutral">${esc(b)}<button class="tag-remove-btn" data-key="${esc(key)}" data-tag="${esc(b)}" aria-label="Remove tag">&times;</button></span>`).join("");
+
+    return `<div class="proof-exp-card sheet" data-key="${esc(key)}">
+      <div class="proof-exp-card-head">
+        <div class="identity-grid-3col" style="flex:1;">
+          <div class="field" style="margin-bottom:0;">
+            <label for="exp_name_${esc(key)}">Company / Entity</label>
+            <input type="text" id="exp_name_${esc(key)}" class="exp-name" value="${esc(exp.name || key)}" placeholder="e.g. Example Capital" />
+          </div>
+          <div class="field" style="margin-bottom:0;">
+            <label for="exp_title_${esc(key)}">Title / Role</label>
+            <input type="text" id="exp_title_${esc(key)}" class="exp-title" value="${esc(exp.title || '')}" placeholder="e.g. Investment Associate" />
+          </div>
+          <div class="field" style="margin-bottom:0;">
+            <label for="exp_when_${esc(key)}">Dates / Timeline</label>
+            <input type="text" id="exp_when_${esc(key)}" class="exp-when" value="${esc(exp.when || '')}" placeholder="e.g. 2026 - present" />
+          </div>
         </div>
+        <button class="qrow-remove-btn remove-exp-btn" data-key="${esc(key)}" aria-label="Remove experience" title="Remove">&times;</button>
       </div>
-      <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-bottom:10px;">
-        <div><label class="lbl" style="font-size:11px;">XYZ Action</label><input type="text" class="exp-xyz-action inp" value="${esc(xyz.action || '')}" placeholder="Action (Accomplished X)" /></div>
-        <div><label class="lbl" style="font-size:11px;">XYZ Metric</label><input type="text" class="exp-xyz-metric inp" value="${esc(xyz.metric || '')}" placeholder="Metric (Measured by Y)" /></div>
-        <div><label class="lbl" style="font-size:11px;">XYZ Method</label><input type="text" class="exp-xyz-method inp" value="${esc(xyz.method || '')}" placeholder="Method (By doing Z)" /></div>
+
+      <div class="field" style="margin-top:12px;">
+        <label for="exp_anchor_${esc(key)}">Headline / Anchor Claim</label>
+        <div class="desc">How this experience reads in outreach email correspondence</div>
+        <input type="text" id="exp_anchor_${esc(key)}" class="exp-anchor" value="${esc(exp.anchor || '')}" placeholder="e.g. Led deal execution and financial modeling for B2B SaaS growth investments" />
       </div>
-      <div style="margin-bottom:8px;">
-        <label class="lbl" style="font-size:11px;">Headline / Anchor Claim</label>
-        <input type="text" class="exp-anchor inp" value="${esc(exp.anchor || '')}" placeholder="Standing anchor text" />
-      </div>
-      <div style="display:grid; grid-template-columns:2fr 1fr; gap:8px;">
-        <div>
-          <label class="lbl" style="font-size:11px;">Proof Points / Highlights (one per line)</label>
-          <textarea class="exp-facts inp" rows="2" placeholder="Proof points...">${esc(facts)}</textarea>
+
+      <details class="xyz-details"${hasXyz ? " open" : ""}>
+        <summary>Deconstruct XYZ formula (Action, Metric, Method)</summary>
+        <div class="identity-grid-3col" style="margin-top:10px;">
+          <div class="field" style="margin-bottom:0;">
+            <label for="exp_xyz_action_${esc(key)}">XYZ Action</label>
+            <div class="desc">e.g. Accomplished X</div>
+            <input type="text" id="exp_xyz_action_${esc(key)}" class="exp-xyz-action" value="${esc(xyz.action || '')}" placeholder="e.g. Led deal sourcing & due diligence" />
+          </div>
+          <div class="field" style="margin-bottom:0;">
+            <label for="exp_xyz_metric_${esc(key)}">XYZ Metric</label>
+            <div class="desc">e.g. Measured by Y</div>
+            <input type="text" id="exp_xyz_metric_${esc(key)}" class="exp-xyz-metric" value="${esc(xyz.metric || '')}" placeholder="e.g. 5 deals closed, €40M deployed" />
+          </div>
+          <div class="field" style="margin-bottom:0;">
+            <label for="exp_xyz_method_${esc(key)}">XYZ Method</label>
+            <div class="desc">e.g. By doing Z</div>
+            <input type="text" id="exp_xyz_method_${esc(key)}" class="exp-xyz-method" value="${esc(xyz.method || '')}" placeholder="e.g. building automated screening models" />
+          </div>
         </div>
-        <div>
-          <label class="lbl" style="font-size:11px;">Bridge Tags (comma-separated)</label>
-          <input type="text" class="exp-bridges inp" value="${esc(bridges)}" placeholder="builds, ops, analytical" />
+      </details>
+
+      <div class="field">
+        <label for="exp_facts_${esc(key)}">Proof Points / Highlights</label>
+        <div class="desc">One proof point per line</div>
+        <textarea id="exp_facts_${esc(key)}" class="exp-facts" rows="2" placeholder="e.g. Built automated pipeline tracking&#10;Evaluated 120+ growth stage candidates">${esc(facts)}</textarea>
+      </div>
+
+      <div class="field">
+        <label>Bridge Tags</label>
+        <div class="desc">Topic tags linking this experience to target companies</div>
+        <div class="chip-row">
+          ${bridgeTagsHtml}
+          <div class="tag-add-box">
+            <input type="text" class="tag-add-input" placeholder="+ add tag" />
+            <button class="btn ghost small tag-add-btn" data-key="${esc(key)}" type="button">Add</button>
+          </div>
         </div>
+        <input type="hidden" class="exp-bridges" value="${esc(bridges.join(", "))}" />
       </div>
     </div>`;
   }).join("");
@@ -2458,6 +2510,33 @@ function renderProfileProofList(experiences) {
       const k = btn.dataset.key;
       delete experiences[k];
       renderProfileProofList(experiences);
+    };
+  });
+
+  container.querySelectorAll(".tag-remove-btn").forEach(btn => {
+    btn.onclick = () => {
+      const k = btn.dataset.key;
+      const tagToRemove = btn.dataset.tag;
+      if (experiences[k] && experiences[k].bridges) {
+        experiences[k].bridges = experiences[k].bridges.filter(t => t !== tagToRemove);
+        renderProfileProofList(experiences);
+      }
+    };
+  });
+
+  container.querySelectorAll(".tag-add-btn").forEach(btn => {
+    btn.onclick = () => {
+      const k = btn.dataset.key;
+      const card = btn.closest(".proof-exp-card");
+      const inp = card.querySelector(".tag-add-input");
+      const newTag = (inp.value || "").trim().toLowerCase().replace(/[^a-z0-9_-]/g, "");
+      if (newTag && experiences[k]) {
+        if (!experiences[k].bridges) experiences[k].bridges = [];
+        if (!experiences[k].bridges.includes(newTag)) {
+          experiences[k].bridges.push(newTag);
+        }
+        renderProfileProofList(experiences);
+      }
     };
   });
 }
@@ -2472,7 +2551,8 @@ async function saveProfileTab() {
     const when = card.querySelector(".exp-when").value.trim() || "2026 - present";
     const anchor = card.querySelector(".exp-anchor").value.trim() || `${name} experience`;
     const facts = card.querySelector(".exp-facts").value.split("\n").map(s => s.trim()).filter(Boolean);
-    const bridges = card.querySelector(".exp-bridges").value.split(",").map(s => s.trim()).filter(Boolean);
+    const bridgesVal = card.querySelector(".exp-bridges").value;
+    const bridges = bridgesVal.split(",").map(s => s.trim()).filter(Boolean);
     const xyz = {
       action: card.querySelector(".exp-xyz-action").value.trim(),
       metric: card.querySelector(".exp-xyz-metric").value.trim(),

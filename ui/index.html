@@ -110,10 +110,10 @@
       <!-- LEFT: target queue -->
       <div class="queue-col" id="queueCol">
         <div class="col-header">
-          <div style="display:flex; align-items:center; gap:8px;">
-            <h3>Targets <span class="col-count" id="queueCount"></span></h3>
-            <select id="listSelect" class="mini-select" title="Active Company List" style="font-size:12px; padding:2px 6px;"></select>
-            <button class="btn ghost small" id="createListBtn" title="Create named list" style="padding:2px 6px; font-size:12px;">+ List</button>
+          <div class="col-header-title">
+            <h3>Targets <span class="pill neutral" id="queueCount"></span></h3>
+            <select id="listSelect" class="btn small" title="Active Company List"></select>
+            <button class="btn ghost small" id="createListBtn" title="Create named list">+ List</button>
           </div>
           <div class="col-actions">
             <button class="btn primary small" id="draft5Btn">Draft 5</button>
@@ -128,89 +128,77 @@
 
       <!-- RIGHT: active drafts -->
       <div class="drafts-col" id="draftsCol">
-        <div class="col-header" id="draftsHeader">
-          <h3>Drafts <span class="col-count" id="draftsCount"></span></h3>
+        <div class="col-header">
+          <h3>Active Drafts <span class="col-count" id="draftsCount"></span></h3>
           <div class="col-actions">
-            <button class="btn ghost small" id="exportBtn" title="Export drafts to CSV">Export</button>
-            <button class="btn ghost small" id="clearDraftsBtn">Clear drafts</button>
+            <button class="btn ghost small" id="runAllBtn">Run all</button>
+            <button class="btn ghost small" id="clearDraftsBtn">Clear all</button>
           </div>
         </div>
-        <section id="results"></section>
-        <div class="col-empty hidden" id="draftsEmpty">
-          <span>No drafts yet. Click Draft &rarr; on a target to begin.</span>
+
+        <div id="draftsList"></div>
+
+        <div class="col-empty" id="draftsEmpty">
+          <div class="empty-icon">✍️</div>
+          <h3>No active drafts</h3>
+          <p>Select targets on the left and click <strong>Draft &rarr;</strong> or <strong>Draft 5</strong> to generate personalized outreach emails.</p>
         </div>
       </div>
     </div>
 
-    <!-- Follow-ups view (toggles with the workspace) -->
+    <!-- FOLLOW-UPS VIEW -->
     <section class="followups-view hidden" id="followupsView">
       <div class="fu-head">
         <div>
-          <span class="eyebrow">Work queue</span>
-          <h2>Follow-ups</h2>
-          <p class="hint">Approving an email queues a follow-up here, oldest first so the most
-            overdue surface on top. Draft it, review, and approve it the same way you approve any
-            email &mdash; a follow-up voice writes it, and it stays in the same subject thread.</p>
+          <h2>Follow-up Radar</h2>
+          <p class="hint">Sent items that have gone quiet and require follow-up attention.</p>
         </div>
-        <button class="btn ghost small" id="fuClearBtn">Clear all</button>
+        <div class="fu-actions">
+          <button class="btn ghost small" id="fuClearBtn">Clear all follow-ups</button>
+        </div>
       </div>
       <div id="followupsList"></div>
-      <div class="col-empty hidden" id="followupsEmpty">
-        <span>No follow-ups yet. When you approve an email, a suggested follow-up appears here.</span>
-      </div>
+      <div class="col-empty hidden" id="followupsEmpty"><span>No follow-ups needed right now.</span></div>
     </section>
 
-    <!-- PIPELINE board (Phase 2) -->
-    <section class="board-view hidden" id="pipelineView">
+    <!-- PIPELINE VIEW -->
+    <section class="pipeline-view hidden" id="pipelineView">
       <div class="fu-head">
         <div>
-          <span class="eyebrow">Board</span>
-          <h2>Pipeline</h2>
+          <h2>Outreach Pipeline</h2>
+          <p class="hint">Full lifecycle of target companies from queued to sent and replied.</p>
+        </div>
+        <div class="pipe-controls">
+          <label class="check"><input type="checkbox" id="pipeStaleOnly" /> Stale only</label>
+          <select id="pipeVoiceFilter" class="mini-select"><option value="">All voices</option></select>
         </div>
       </div>
-      <div class="board-summary" id="pipelineSummary"></div>
-      <div class="board-filters" id="pipelineFilters">
-        <label class="board-filter">Voice
-          <select id="pipeVoiceFilter" class="mini-select"><option value="">all</option></select>
-        </label>
-        <label class="board-filter"><input type="checkbox" id="pipeStaleOnly" /> Quiet only</label>
-      </div>
-      <div class="board-cols" id="pipelineCols"></div>
+      <div class="board-cols" id="pipelineBoard"></div>
     </section>
 
-    <!-- VOICE PERFORMANCE (Phase 3) -->
-    <section class="perf-view hidden" id="performanceView">
+    <!-- PERFORMANCE VIEW -->
+    <section class="performance-view hidden" id="performanceView">
       <div class="fu-head">
         <div>
-          <span class="eyebrow">Learning</span>
-          <h2>Voice performance</h2>
-          <p class="hint">Reply rate excludes bounces from the denominator, and stays hidden until a
-            voice clears the minimum sample. Every rate is shown with its 95% interval and n so a
-            small sample is never read as a trend.</p>
+          <h2>Voice Performance</h2>
+          <p class="hint">Response rates and feedback per positioning voice.</p>
         </div>
-        <div class="vk-toggle" role="tablist" aria-label="Voice set">
-          <button class="vk-seg is-active" id="perfKindOutreach" role="tab" aria-selected="true">Outreach</button>
-          <button class="vk-seg" id="perfKindFollowup" role="tab" aria-selected="false">Follow-up</button>
+        <div class="perf-kind-toggle">
+          <button class="vk-seg is-active" id="perfKindOutreach">Outreach</button>
         </div>
       </div>
-      <div class="perf-summary" id="perfSummary"></div>
-      <div id="perfTableWrap"></div>
-      <div class="col-empty hidden" id="perfEmpty"><span>No sends recorded yet. Approve some emails, then check back after a sweep.</span></div>
+      <div id="performanceList"></div>
     </section>
 
-    <!-- TRIAGE worklist (Phase 6a) -->
+    <!-- TRIAGE VIEW -->
     <section class="triage-view hidden" id="triageView">
       <div class="fu-head">
         <div>
-          <span class="eyebrow">Worklist</span>
-          <h2>Triage</h2>
-          <p class="hint">Replies to answer, bounces to re-target, and sends that have gone quiet.
-            Run <b>Check for replies</b> to sweep your inbox, or mark any send by hand — a hand-mark
-            fires the same effects (pause the follow-up, suppress a dead address, stage a retry).</p>
+          <h2>Inbox Triage</h2>
+          <p class="hint">Incoming target emails and reply drafting.</p>
         </div>
-        <button class="btn primary small" id="triageSweepBtn">Check for replies</button>
       </div>
-      <div class="triage-filter" role="tablist" aria-label="Triage filter">
+      <div class="triage-buckets">
         <button class="vk-seg is-active" data-bucket="replied" role="tab" aria-selected="true">Replied <span class="col-count" id="triageCountReplied"></span></button>
         <button class="vk-seg" data-bucket="bounced" role="tab" aria-selected="false">Bounced <span class="col-count" id="triageCountBounced"></span></button>
         <button class="vk-seg" data-bucket="gone_quiet" role="tab" aria-selected="false">Gone quiet <span class="col-count" id="triageCountQuiet"></span></button>
@@ -225,36 +213,59 @@
     <section class="profile-view hidden" id="profileView">
       <div class="fu-head">
         <div>
-          <span class="eyebrow">Proof Library</span>
-          <h2>Candidate Profile</h2>
+          <span class="eyebrow">PROOF LIBRARY</span>
+          <div class="col-header profile-head-header">
+            <h3 class="profile-head-title">Candidate Profile</h3>
+          </div>
           <p class="hint">Structured proof points, standing experiences (XYZ formula), and bridge tags for outreach generation.</p>
         </div>
-        <div style="display:flex; gap:8px;">
-          <input type="file" id="importResumeInput" accept=".json" style="display:none;" />
+        <div class="header-actions profile-head-actions">
+          <input type="file" id="importResumeInput" accept=".json" class="hidden" />
           <button class="btn ghost small" id="importResumeBtn">Import resume.json</button>
           <button class="btn ghost small" id="exportResumeBtn">Export resume.json</button>
           <button class="btn primary small" id="saveProfileTabBtn">Save Profile</button>
         </div>
       </div>
-      <div class="profile-tab-content" style="display:flex; flex-direction:column; gap:20px; max-width:850px; margin-top:16px;">
-        <div class="profile-card" style="background:var(--surface-card, #1e293b); padding:20px; border-radius:8px; border:1px solid var(--border, #334155);">
-          <h3 style="margin-top:0;">Identity & Target Parameters</h3>
-          <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
-            <div><label class="lbl">Full Name</label><input type="text" id="profTabName" class="inp" placeholder="Your full name" /></div>
-            <div><label class="lbl">Email</label><input type="text" id="profTabEmail" class="inp" placeholder="your.email@domain.com" /></div>
-            <div><label class="lbl">Phone</label><input type="text" id="profTabPhone" class="inp" placeholder="+33 6 00 00 00 00" /></div>
-            <div><label class="lbl">LinkedIn</label><input type="text" id="profTabLinkedin" class="inp" placeholder="linkedin.com/in/username" /></div>
+
+      <div class="profile-tab-content">
+        <div class="profile-card">
+          <h3>Identity & Target Parameters</h3>
+          <div class="identity-grid-2col">
+            <div class="field">
+              <label for="profTabName">Full Name</label>
+              <input type="text" id="profTabName" placeholder="e.g. Jean Dupont" />
+            </div>
+            <div class="field">
+              <label for="profTabEmail">Email</label>
+              <input type="text" id="profTabEmail" placeholder="e.g. jean@example.com" />
+            </div>
+            <div class="field">
+              <label for="profTabPhone">Phone</label>
+              <input type="text" id="profTabPhone" placeholder="e.g. +33 6 12 34 56 78" />
+            </div>
+            <div class="field">
+              <label for="profTabLinkedin">LinkedIn</label>
+              <input type="text" id="profTabLinkedin" placeholder="e.g. linkedin.com/in/jeandupont" />
+            </div>
           </div>
-          <div style="margin-top:12px;"><label class="lbl">One Line Pitch</label><input type="text" id="profTabOneLine" class="inp" placeholder="One line summary" /></div>
-          <div style="margin-top:12px;"><label class="lbl">Core Spine Claim</label><input type="text" id="profTabSpine" class="inp" placeholder="Core spine claim" /></div>
+          <div class="field">
+            <label for="profTabOneLine">One Line Pitch</label>
+            <div class="desc">Summary pitch used for target introductions</div>
+            <input type="text" id="profTabOneLine" placeholder="e.g. Growth investor with 3 years executing B2B SaaS deals in Paris" />
+          </div>
+          <div class="field">
+            <label for="profTabSpine">Core Spine Claim</label>
+            <div class="desc">Central claim for position narrative</div>
+            <input type="text" id="profTabSpine" placeholder="e.g. Deep sourcing & financial modeling expertise across European tech" />
+          </div>
         </div>
 
-        <div class="profile-card" style="background:var(--surface-card, #1e293b); padding:20px; border-radius:8px; border:1px solid var(--border, #334155);">
-          <div style="display:flex; justify-content:space-between; align-items:center;">
+        <div class="profile-card">
+          <div class="card-title-row">
             <h3 style="margin:0;">Proof Library (XYZ Formula Experiences)</h3>
             <button class="btn ghost small" id="addProofExpBtn">+ Add Experience</button>
           </div>
-          <div id="profProofList" style="display:flex; flex-direction:column; gap:16px; margin-top:16px;"></div>
+          <div id="profProofList"></div>
         </div>
       </div>
     </section>
