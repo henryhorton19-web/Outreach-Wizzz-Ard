@@ -83,6 +83,23 @@ async def security(request: Request, call_next):
     return await call_next(request)
 
 
+@app.exception_handler(Exception)
+async def _unhandled_handler(request: Request, exc: Exception):
+    """Return the fault instead of a bare "Internal Server Error".
+
+    87 routes had no generic handler, so any unhandled exception reached the UI as
+    an opaque 500 with the traceback only on stderr. That is how a broken voice
+    validator looked identical to a network failure. Localhost, single user, key
+    never in a payload: naming the fault is strictly better than hiding it.
+    """
+    import traceback as _tb
+    _tb.print_exc()
+    return JSONResponse(
+        {"detail": f"{type(exc).__name__}: {exc}", "path": request.url.path},
+        status_code=500,
+    )
+
+
 @app.exception_handler(store.StorageError)
 async def _storage_error_handler(request: Request, exc: store.StorageError):
     """A rejected list id is a bad request, not a server fault.
@@ -382,7 +399,7 @@ def _validate_voice(v: CustomVoice) -> None:
         raise HTTPException(status_code=400, detail="voice needs a display name")
     if not v.blocks:
         raise HTTPException(status_code=400, detail="a voice needs at least one block")
-    ids, owners = set(), 0
+    ids: set[str] = set()
     for b in v.blocks:
         if not (b.id or "").strip():
             raise HTTPException(status_code=400, detail="every block needs an id")
@@ -402,10 +419,11 @@ def _validate_voice(v: CustomVoice) -> None:
         if b.mode == "ai" and not (b.guidance or "").strip() and not (b.text or "").strip():
             raise HTTPException(status_code=400,
                                 detail=f"the AI block '{b.label or b.id}' needs guidance (or seed text)")
-        if b.owns_sci_po:
-            owners += 1
-    if owners > 1:
-        raise HTTPException(status_code=400, detail="only one block may own the Sciences Po mention")
+    # NOTE: a per-block `owns_sci_po` flag was removed from Block. This function still
+    # read it, so `AttributeError: 'Block' object has no attribute 'owns_sci_po'` made
+    # BOTH POST /api/voices and PUT /api/voices/{id} return 500 for every voice with
+    # blocks — i.e. the entire Voices editor could not save. The flag has no consumer
+    # anywhere in compose/assemble/engine, so the constraint it guarded is meaningless.
     bad = [s for s in (v.situations or []) if s not in S.VALID_VOICES]
     if bad:
         raise HTTPException(status_code=400, detail=f"unknown situation(s): {', '.join(bad)}")

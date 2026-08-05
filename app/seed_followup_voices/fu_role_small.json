@@ -5,9 +5,10 @@
   "kind": "followup",
   "id": "fu_role_small",
   "display_name": "Follow-up · role · small company",
-  "situations": ["role_small"],
+  "situations": [
+    "role_small"
+  ],
   "subject": "",
-  "mention_sci_po": false,
   "length_min": 35,
   "length_max": 70,
   "blocks": [

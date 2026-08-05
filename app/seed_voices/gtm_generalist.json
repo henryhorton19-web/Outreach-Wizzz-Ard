@@ -4,11 +4,8 @@
   "seeded_from": "builtin",
   "id": "gtm_generalist",
   "display_name": "GTM Generalist / First Sales Hire",
-  "situations": [
-    "gtm_generalist"
-  ],
+  "situations": [],
   "subject": "{contact_first} | intro \u2014 first sales hire",
-  "mention_sci_po": true,
   "length_min": 75,
   "length_max": 120,
   "blocks": [
@@ -46,7 +43,6 @@
       "id": "positioning",
       "label": "Positioning",
       "mode": "fixed",
-      "owns_sci_po": true,
       "length": "short",
       "text": "I'm at Sciences Po this year looking for a part-time seat to build inside a company rather than evaluate from the outside."
     },

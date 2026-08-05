@@ -5,9 +5,10 @@
   "kind": "followup",
   "id": "fu_role_large",
   "display_name": "Follow-up · role · large company",
-  "situations": ["role_large"],
+  "situations": [
+    "role_large"
+  ],
   "subject": "",
-  "mention_sci_po": false,
   "length_min": 35,
   "length_max": 70,
   "blocks": [

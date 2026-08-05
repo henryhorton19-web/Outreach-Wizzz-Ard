@@ -4,11 +4,8 @@
   "seeded_from": "builtin",
   "id": "fractional_ops",
   "display_name": "Fractional Ops / Automation",
-  "situations": [
-    "fractional_ops"
-  ],
+  "situations": [],
   "subject": "quick question about {company}",
-  "mention_sci_po": true,
   "length_min": 75,
   "length_max": 120,
   "blocks": [
@@ -46,7 +43,6 @@
       "id": "positioning",
       "label": "Positioning",
       "mode": "fixed",
-      "owns_sci_po": true,
       "length": "short",
       "text": "I am on exchange at Sciences Po in Paris this year and taking on a couple of fractional ops projects."
     },

@@ -5,9 +5,10 @@
   "kind": "followup",
   "id": "fu_no_role_small",
   "display_name": "Follow-up · speculative · small company",
-  "situations": ["no_role_small"],
+  "situations": [
+    "no_role_small"
+  ],
   "subject": "",
-  "mention_sci_po": false,
   "length_min": 30,
   "length_max": 65,
   "blocks": [

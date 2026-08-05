@@ -8,7 +8,6 @@
     "role_small"
   ],
   "subject": "{role_or_company} | candidate intro",
-  "mention_sci_po": false,
   "length_min": 70,
   "length_max": 120,
   "blocks": [
@@ -46,7 +45,6 @@
       "id": "positioning",
       "label": "Positioning",
       "mode": "fixed",
-      "owns_sci_po": false,
       "length": "short",
       "text": "I am interested in supporting your team in {role_or_company}."
     },

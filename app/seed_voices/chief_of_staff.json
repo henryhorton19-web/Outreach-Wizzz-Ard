@@ -4,11 +4,8 @@
   "seeded_from": "builtin",
   "id": "chief_of_staff",
   "display_name": "Chief of Staff / Founder's Associate",
-  "situations": [
-    "chief_of_staff"
-  ],
+  "situations": [],
   "subject": "{contact_first} | intro \u2014 operating seat",
-  "mention_sci_po": true,
   "length_min": 75,
   "length_max": 120,
   "blocks": [
@@ -46,7 +43,6 @@
       "id": "positioning",
       "label": "Positioning",
       "mode": "fixed",
-      "owns_sci_po": false,
       "length": "short",
       "text": "I am looking for an operating seat to support your key strategic initiatives."
     },
