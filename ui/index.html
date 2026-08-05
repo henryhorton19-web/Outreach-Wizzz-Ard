@@ -42,6 +42,10 @@
         <span>Triage</span>
         <span class="badge-count hidden" id="triageBadge"></span>
       </button>
+      <button class="topbar-tab" id="tab-profile" role="tab" aria-selected="false" data-view="profile">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+        <span>Profile</span>
+      </button>
     </nav>
 
     <div class="spacer"></div>
@@ -55,9 +59,6 @@
       </button>
       <button class="icon-btn" id="voicesBtn" title="Voices" aria-label="Voices">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg>
-      </button>
-      <button class="icon-btn" id="profileBtn" title="Candidate Profile" aria-label="Candidate Profile">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
       </button>
       <button class="icon-btn" id="settingsBtn" title="Settings" aria-label="Settings">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
@@ -214,6 +215,44 @@
       <div class="triage-status" id="triageStatus"></div>
       <div id="triageList"></div>
       <div class="col-empty hidden" id="triageEmpty"><span>No items to work here. Check again after your next sweep.</span></div>
+    </section>
+
+    <!-- CANDIDATE PROFILE PROOF LIBRARY VIEW -->
+    <section class="profile-view hidden" id="profileView">
+      <div class="fu-head">
+        <div>
+          <span class="eyebrow">Proof Library</span>
+          <h2>Candidate Profile</h2>
+          <p class="hint">Structured proof points, standing experiences (XYZ formula), and bridge tags for outreach generation.</p>
+        </div>
+        <div style="display:flex; gap:8px;">
+          <input type="file" id="importResumeInput" accept=".json" style="display:none;" />
+          <button class="btn ghost small" id="importResumeBtn">Import resume.json</button>
+          <button class="btn ghost small" id="exportResumeBtn">Export resume.json</button>
+          <button class="btn primary small" id="saveProfileTabBtn">Save Profile</button>
+        </div>
+      </div>
+      <div class="profile-tab-content" style="display:flex; flex-direction:column; gap:20px; max-width:850px; margin-top:16px;">
+        <div class="profile-card" style="background:var(--surface-card, #1e293b); padding:20px; border-radius:8px; border:1px solid var(--border, #334155);">
+          <h3 style="margin-top:0;">Identity & Target Parameters</h3>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+            <div><label class="lbl">Full Name</label><input type="text" id="profTabName" class="inp" placeholder="Your full name" /></div>
+            <div><label class="lbl">Email</label><input type="text" id="profTabEmail" class="inp" placeholder="your.email@domain.com" /></div>
+            <div><label class="lbl">Phone</label><input type="text" id="profTabPhone" class="inp" placeholder="+33 6 00 00 00 00" /></div>
+            <div><label class="lbl">LinkedIn</label><input type="text" id="profTabLinkedin" class="inp" placeholder="linkedin.com/in/username" /></div>
+          </div>
+          <div style="margin-top:12px;"><label class="lbl">One Line Pitch</label><input type="text" id="profTabOneLine" class="inp" placeholder="One line summary" /></div>
+          <div style="margin-top:12px;"><label class="lbl">Core Spine Claim</label><input type="text" id="profTabSpine" class="inp" placeholder="Core spine claim" /></div>
+        </div>
+
+        <div class="profile-card" style="background:var(--surface-card, #1e293b); padding:20px; border-radius:8px; border:1px solid var(--border, #334155);">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <h3 style="margin:0;">Proof Library (XYZ Formula Experiences)</h3>
+            <button class="btn ghost small" id="addProofExpBtn">+ Add Experience</button>
+          </div>
+          <div id="profProofList" style="display:flex; flex-direction:column; gap:16px; margin-top:16px;"></div>
+        </div>
+      </div>
     </section>
   </main>
 

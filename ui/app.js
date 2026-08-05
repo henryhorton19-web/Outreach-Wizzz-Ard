@@ -843,7 +843,7 @@ async function clearArchive() {
 
 // Unified view router. The tab strip is the single source of truth for "where am I working".
 // Workspace = the split (ingest + queue + drafts); the others are full-width views.
-const VIEWS = ["workspace", "followups", "pipeline", "performance", "triage"];
+const VIEWS = ["workspace", "followups", "pipeline", "performance", "triage", "profile"];
 
 function showView(name) {
   if (!VIEWS.includes(name)) name = "workspace";
@@ -857,6 +857,7 @@ function showView(name) {
   $("#pipelineView").classList.toggle("hidden", name !== "pipeline");
   $("#performanceView").classList.toggle("hidden", name !== "performance");
   $("#triageView").classList.toggle("hidden", name !== "triage");
+  $("#profileView").classList.toggle("hidden", name !== "profile");
   // tab strip a11y + active state
   $$(".topbar-tab").forEach(t => {
     const on = t.dataset.view === name;
@@ -867,6 +868,7 @@ function showView(name) {
   else if (name === "pipeline") refreshPipeline();
   else if (name === "performance") refreshPerformance();
   else if (name === "triage") refreshTriage();
+  else if (name === "profile") refreshProfileTab();
 }
 
 // keep the old name working as a thin wrapper (called from follow-up row handlers)
@@ -2015,6 +2017,19 @@ function wire() {
   $("#exportBtn").onclick = doExport;
   $("#costMeter").onclick = openCostPopover;
 
+  if ($("#saveProfileTabBtn")) $("#saveProfileTabBtn").onclick = saveProfileTab;
+  if ($("#exportResumeBtn")) $("#exportResumeBtn").onclick = doExportResume;
+  if ($("#importResumeBtn")) $("#importResumeBtn").onclick = () => $("#importResumeInput").click();
+  if ($("#importResumeInput")) $("#importResumeInput").onchange = (e) => { const f = e.target.files[0]; if (f) doImportResume(f); e.target.value = ""; };
+  if ($("#addProofExpBtn")) $("#addProofExpBtn").onclick = () => {
+    const exps = (state.profile || {}).experiences || {};
+    const newKey = "exp_" + Date.now().toString(36);
+    exps[newKey] = { name: "New Experience", title: "Role", when: "2026 - present", anchor: "", facts: [], bridges: ["builds"], xyz: { action: "", metric: "", method: "" } };
+    if (!state.profile) state.profile = {};
+    state.profile.experiences = exps;
+    renderProfileProofList(exps);
+  };
+
   // pipeline filters
   $("#pipeVoiceFilter").onchange = renderPipeline;
   $("#pipeStaleOnly").onchange = renderPipeline;
@@ -2320,6 +2335,148 @@ async function resetProfile() {
     } catch (e) {
       toast(e.message, true);
     }
+  }
+}
+
+async function refreshProfileTab() {
+  try {
+    const p = await api("/api/profile");
+    state.profile = p;
+    state.profileLoaded = true;
+    if ($("#profTabName")) $("#profTabName").value = p.name || "";
+    if ($("#profTabEmail")) $("#profTabEmail").value = p.email || "";
+    if ($("#profTabPhone")) $("#profTabPhone").value = p.phone || "";
+    if ($("#profTabLinkedin")) $("#profTabLinkedin").value = p.linkedin || "";
+    if ($("#profTabOneLine")) $("#profTabOneLine").value = p.one_line || "";
+    if ($("#profTabSpine")) $("#profTabSpine").value = p.spine || "";
+    renderProfileProofList(p.experiences || {});
+  } catch (e) {
+    state.profileLoaded = false;
+    toast("Failed to load profile tab: " + e.message, true);
+  }
+}
+
+function renderProfileProofList(experiences) {
+  const container = $("#profProofList");
+  if (!container) return;
+  const entries = Object.entries(experiences);
+  if (!entries.length) {
+    container.innerHTML = '<div class="col-empty"><span>No experiences in proof library. Click "+ Add Experience" to create one.</span></div>';
+    return;
+  }
+  container.innerHTML = entries.map(([key, exp]) => {
+    const facts = (exp.facts || []).join("\n");
+    const bridges = (exp.bridges || []).join(", ");
+    const xyz = exp.xyz || { action: "", metric: "", method: "" };
+    return `<div class="proof-exp-card" data-key="${esc(key)}" style="background:var(--surface, #0f172a); padding:16px; border-radius:6px; border:1px solid var(--border, #334155);">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+        <input type="text" class="exp-name inp" value="${esc(exp.name || key)}" style="font-weight:600; width:200px;" placeholder="Company Name" />
+        <div style="display:flex; gap:8px;">
+          <input type="text" class="exp-title inp" value="${esc(exp.title || '')}" style="width:150px;" placeholder="Title / Role" />
+          <input type="text" class="exp-when inp" value="${esc(exp.when || '')}" style="width:150px;" placeholder="Dates (e.g. 2026-present)" />
+          <button class="icon-btn small remove-exp-btn" data-key="${esc(key)}" title="Remove">&times;</button>
+        </div>
+      </div>
+      <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-bottom:10px;">
+        <div><label class="lbl" style="font-size:11px;">XYZ Action</label><input type="text" class="exp-xyz-action inp" value="${esc(xyz.action || '')}" placeholder="Action (Accomplished X)" /></div>
+        <div><label class="lbl" style="font-size:11px;">XYZ Metric</label><input type="text" class="exp-xyz-metric inp" value="${esc(xyz.metric || '')}" placeholder="Metric (Measured by Y)" /></div>
+        <div><label class="lbl" style="font-size:11px;">XYZ Method</label><input type="text" class="exp-xyz-method inp" value="${esc(xyz.method || '')}" placeholder="Method (By doing Z)" /></div>
+      </div>
+      <div style="margin-bottom:8px;">
+        <label class="lbl" style="font-size:11px;">Headline / Anchor Claim</label>
+        <input type="text" class="exp-anchor inp" value="${esc(exp.anchor || '')}" placeholder="Standing anchor text" />
+      </div>
+      <div style="display:grid; grid-template-columns:2fr 1fr; gap:8px;">
+        <div>
+          <label class="lbl" style="font-size:11px;">Proof Points / Highlights (one per line)</label>
+          <textarea class="exp-facts inp" rows="2" placeholder="Proof points...">${esc(facts)}</textarea>
+        </div>
+        <div>
+          <label class="lbl" style="font-size:11px;">Bridge Tags (comma-separated)</label>
+          <input type="text" class="exp-bridges inp" value="${esc(bridges)}" placeholder="builds, ops, analytical" />
+        </div>
+      </div>
+    </div>`;
+  }).join("");
+
+  container.querySelectorAll(".remove-exp-btn").forEach(btn => {
+    btn.onclick = () => {
+      const k = btn.dataset.key;
+      delete experiences[k];
+      renderProfileProofList(experiences);
+    };
+  });
+}
+
+async function saveProfileTab() {
+  const cur = state.profile || {};
+  const experiences = {};
+  $$("#profProofList .proof-exp-card").forEach(card => {
+    const key = card.dataset.key || ("exp_" + Math.random().toString(36).slice(2, 7));
+    const name = card.querySelector(".exp-name").value.trim() || key;
+    const title = card.querySelector(".exp-title").value.trim() || "Role";
+    const when = card.querySelector(".exp-when").value.trim() || "2026 - present";
+    const anchor = card.querySelector(".exp-anchor").value.trim() || `${name} experience`;
+    const facts = card.querySelector(".exp-facts").value.split("\n").map(s => s.trim()).filter(Boolean);
+    const bridges = card.querySelector(".exp-bridges").value.split(",").map(s => s.trim()).filter(Boolean);
+    const xyz = {
+      action: card.querySelector(".exp-xyz-action").value.trim(),
+      metric: card.querySelector(".exp-xyz-metric").value.trim(),
+      method: card.querySelector(".exp-xyz-method").value.trim(),
+    };
+    experiences[key] = {
+      name, title, when, tense: when.toLowerCase().includes("present") ? "present" : "past",
+      anchor, facts: facts.length ? facts : [anchor], bridges: bridges.length ? bridges : ["builds"], xyz
+    };
+  });
+
+  const updated = {
+    ...cur,
+    name: ($("#profTabName") ? $("#profTabName").value : "").trim(),
+    email: ($("#profTabEmail") ? $("#profTabEmail").value : "").trim(),
+    phone: ($("#profTabPhone") ? $("#profTabPhone").value : "").trim(),
+    linkedin: ($("#profTabLinkedin") ? $("#profTabLinkedin").value : "").trim(),
+    one_line: ($("#profTabOneLine") ? $("#profTabOneLine").value : "").trim(),
+    spine: ($("#profTabSpine") ? $("#profTabSpine").value : "").trim(),
+    experiences: Object.keys(experiences).length ? experiences : (cur.experiences || {})
+  };
+
+  try {
+    const res = await api("/api/profile", { method: "POST", body: updated });
+    state.profile = res.profile;
+    toast("Profile saved successfully");
+    refreshProfileTab();
+  } catch (e) {
+    toast("Failed to save profile: " + e.message, true);
+  }
+}
+
+async function doExportResume() {
+  try {
+    const data = await api("/api/profile/export_resume");
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "resume.json";
+    a.click();
+    URL.revokeObjectURL(url);
+    toast("Exported resume.json");
+  } catch (e) {
+    toast("Failed to export resume: " + e.message, true);
+  }
+}
+
+async function doImportResume(file) {
+  try {
+    const text = await file.text();
+    const resume = JSON.parse(text);
+    const res = await api("/api/profile/import_resume", { method: "POST", body: resume });
+    state.profile = res.profile;
+    toast("Imported resume.json successfully");
+    refreshProfileTab();
+  } catch (e) {
+    toast("Failed to import resume.json: " + e.message, true);
   }
 }
 

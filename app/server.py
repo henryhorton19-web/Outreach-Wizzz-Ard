@@ -554,6 +554,93 @@ async def save_candidate_profile(request: Request):
     return {"ok": True, "profile": C.ProfileStore.load()}
 
 
+@app.get("/api/profile/export_resume")
+async def export_candidate_resume():
+    prof = C.ProfileStore.load()
+    exps = prof.get("experiences", {})
+    work = []
+    for k, exp in exps.items():
+        facts = exp.get("facts", [])
+        xyz = exp.get("xyz", {
+            "action": facts[0] if facts else exp.get("anchor", ""),
+            "metric": facts[1] if len(facts) > 1 else "",
+            "method": ", ".join(exp.get("bridges", []))
+        })
+        work.append({
+            "id": k,
+            "name": exp.get("name", k),
+            "position": exp.get("title", "Role"),
+            "startDate": exp.get("when", "").split("-")[0].strip() if exp.get("when") else "",
+            "endDate": exp.get("when", "").split("-")[1].strip() if exp.get("when") and "-" in exp.get("when") else "present",
+            "summary": exp.get("anchor", ""),
+            "highlights": facts,
+            "xyz": xyz,
+            "bridges": exp.get("bridges", [])
+        })
+    return {
+        "$schema": "https://raw.githubusercontent.com/jsonresume/resume-schema/v1.0.0/schema.json",
+        "basics": {
+            "name": prof.get("name", ""),
+            "label": prof.get("one_line", ""),
+            "email": prof.get("email", ""),
+            "phone": prof.get("phone", ""),
+            "url": prof.get("linkedin", ""),
+            "summary": prof.get("spine", "")
+        },
+        "work": work,
+        "standing_key": prof.get("standing_key", "anchor_co"),
+        "fallback_key": prof.get("fallback_key", "fund_co")
+    }
+
+
+@app.post("/api/profile/import_resume")
+async def import_candidate_resume(request: Request):
+    resume = await request.json()
+    if not isinstance(resume, dict):
+        raise HTTPException(status_code=400, detail="invalid resume payload")
+
+    basics = resume.get("basics", {})
+    work_list = resume.get("work", [])
+    cur_prof = C.ProfileStore.load()
+    experiences = {}
+
+    for idx, item in enumerate(work_list):
+        k = item.get("id") or re.sub(r"[^a-z0-9]", "_", (item.get("name") or f"exp_{idx}").lower())
+        facts = item.get("highlights") or []
+        when_str = f"{item.get('startDate', '')} - {item.get('endDate', 'present')}".strip(" -")
+        xyz = item.get("xyz") or {
+            "action": facts[0] if facts else item.get("summary", ""),
+            "metric": facts[1] if len(facts) > 1 else "",
+            "method": ", ".join(item.get("bridges", []))
+        }
+        experiences[k] = {
+            "name": item.get("name") or "Company",
+            "title": item.get("position") or item.get("title") or "Role",
+            "when": when_str or "2026 - present",
+            "tense": "present" if item.get("endDate", "").lower() == "present" else "past",
+            "anchor": item.get("summary") or item.get("anchor") or f"{xyz.get('action', '')} {xyz.get('metric', '')}".strip(),
+            "facts": facts if facts else [xyz.get("action", "Shipped core features")],
+            "bridges": item.get("bridges") or ([b.strip() for b in xyz.get("method", "").split(",") if b.strip()] if isinstance(xyz.get("method"), str) else ["builds"]),
+            "xyz": xyz
+        }
+
+    updated = {
+        **cur_prof,
+        "name": basics.get("name") or cur_prof.get("name", "Candidate"),
+        "email": basics.get("email") or cur_prof.get("email", ""),
+        "phone": basics.get("phone") or cur_prof.get("phone", ""),
+        "linkedin": basics.get("url") or cur_prof.get("linkedin", ""),
+        "one_line": basics.get("label") or cur_prof.get("one_line", ""),
+        "spine": basics.get("summary") or cur_prof.get("spine", ""),
+        "standing_key": resume.get("standing_key") or (list(experiences.keys())[0] if experiences else "anchor_co"),
+        "fallback_key": resume.get("fallback_key") or (list(experiences.keys())[1] if len(experiences) > 1 else "fund_co"),
+        "experiences": experiences if experiences else cur_prof.get("experiences", {})
+    }
+
+    C.ProfileStore.save(updated)
+    return {"ok": True, "profile": C.ProfileStore.load()}
+
+
 @app.post("/api/profile/reset")
 async def reset_candidate_profile():
     prof = C.ProfileStore.reset_to_default()
