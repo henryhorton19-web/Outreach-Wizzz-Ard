@@ -8,13 +8,13 @@ When opening, modifying, or launching Outreach Wizz-ard in a fresh chat or works
 
 ### Windows (PowerShell)
 ```powershell
-cd "C:\Users\HenryHorton\OneDrive\Documents\Internship\09 Personal Projects\paris-outreach"
+cd "<path-to-paris-outreach>"
 .\run-wizzard.ps1
 ```
 
 ### macOS / Linux (Bash/Zsh)
 ```bash
-cd "C:\Users\HenryHorton\OneDrive\Documents\Internship\09 Personal Projects\paris-outreach"
+cd "<path-to-paris-outreach>"
 ./run-wizzard.sh
 ```
 

@@ -14,8 +14,14 @@ faults.log
 session_stats.json
 
 # --- PRIVATE: personal profile & real outreach voices (never commit) ---
+.env
+.env.*
 engine/config_local.py
 app/seed_voices_local/
+profile.json
+campaign.json
+lists.json
+queues/
 
 # --- OS noise ---
 .DS_Store
