@@ -2,16 +2,49 @@
 from __future__ import annotations
 
 import json
+import re
 from datetime import datetime, timezone
-from pathlib import Path
 from typing import Any
 
 from app.sourcing.gates import evaluate_local_gates
 
-PROMPT_FILE = Path(__file__).resolve().parent.parent / "prompts" / "sourcing_verify.md"
+# NOTE: app/prompts/sourcing_verify.md exists but was never read. verify_candidate
+# applies deterministic local gates only; the mandate is applied at the harvest
+# stage (see GroundedSearchHarvester.build_query). If a model-backed verify is
+# added later, load the prompt there and reinstate a provider argument then.
 
 
-def verify_candidate(candidate_raw: dict, provider: Any = None,
+def _matched_exclusion(exclude_notes: str, name: str, meta: dict) -> str:
+    """Return the exclusion phrase that matched, or "".
+
+    Phrases are separated by ';' or a newline, not by whitespace. The previous rule
+    split on whitespace and substring-matched every token over 3 characters against
+    the company NAME alone, so "Skip mature legacy enterprises" rejected
+    "Legacy Robotics". Leading directive words are dropped so a phrase written
+    naturally ("Skip staffing agencies") still matches on its content.
+    """
+    if not exclude_notes:
+        return ""
+    _DIRECTIVES = {"skip", "exclude", "avoid", "no", "not", "ignore", "omit", "drop"}
+    haystack = " ".join(str(x) for x in (
+        name, meta.get("sector_tag", ""), meta.get("funding_heat", ""),
+        meta.get("employees_band", ""), meta.get("website", ""),
+    )).lower()
+    for raw in re.split(r"[;\n]+", exclude_notes):
+        phrase = raw.strip().strip(".").lower()
+        if not phrase:
+            continue
+        words = [w for w in phrase.split() if w not in _DIRECTIVES]
+        # A phrase must be at least two words, or one word of 5+ characters, to
+        # count. Single short words are what produced the false rejections.
+        if not words or (len(words) == 1 and len(words[0]) < 5):
+            continue
+        if " ".join(words) in haystack:
+            return " ".join(words)
+    return ""
+
+
+def verify_candidate(candidate_raw: dict,
                      custom_prompt: Any | None = None) -> dict:
     """Verify a raw harvested candidate record.
 
@@ -41,9 +74,8 @@ def verify_candidate(candidate_raw: dict, provider: Any = None,
     honest_pitch_risk = "low"
 
     # Check for negative criteria in exclude_notes
-    rejected_by_custom_prompt = False
-    if exclude_notes and any(term.lower() in name.lower() for term in exclude_notes.lower().split() if len(term) > 3):
-        rejected_by_custom_prompt = True
+    matched_exclusion = _matched_exclusion(exclude_notes, name, meta)
+    rejected_by_custom_prompt = bool(matched_exclusion)
 
     # Rule R3 / C8: gate check enforcement
     if loc_gate == "disqualify":
@@ -53,7 +85,7 @@ def verify_candidate(candidate_raw: dict, provider: Any = None,
         score = 40
     elif rejected_by_custom_prompt:
         verdict = "reject"
-        reject_reason = f"Excluded by custom prompt criteria: '{exclude_notes}'"
+        reject_reason = f"Excluded by custom prompt criteria: '{matched_exclusion}'"
         tier = "Needs Review"
         score = 30
     elif role_basis_confidence == "low" or honest_pitch_risk == "high":

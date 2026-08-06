@@ -43,6 +43,7 @@ class FranceInvestDirectoryHarvester:
                 "source_id": self.source_id,
                 "source_url": "https://www.franceinvest.org/annuaire/",
                 "retrieved_at": now.isoformat(),
+                "recency_unknown": True,
             }
             out.append({
                 "slug": slug,

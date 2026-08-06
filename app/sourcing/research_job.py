@@ -102,7 +102,8 @@ def _execute_job(job: dict, settings: Any, recency_days: int, max_candidates: in
             if not adapter:
                 continue
             try:
-                raw_items = adapter.harvest(recency_days=recency_days, max_items=max_candidates, custom_prompt=custom_prompt)
+                provider = getattr(settings, "provider_instance", None)
+                raw_items = adapter.harvest(recency_days=recency_days, max_items=max_candidates, custom_prompt=custom_prompt, provider=provider)
                 harvested_raw.extend(raw_items)
             except Exception as e:
                 job["errors"].append(f"Source {s_id} error: {e}")

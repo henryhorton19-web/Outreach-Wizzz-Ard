@@ -20,13 +20,16 @@ class TechEuFundingFeed:
 
         for rec in items:
             date_str = rec.get("date") or ""
+            rec_unk = False
             if date_str:
                 try:
                     dt = datetime.fromisoformat(date_str.replace("Z", "+00:00"))
                     if (now - dt) > timedelta(days=recency_days):
                         continue
                 except Exception:
-                    pass
+                    rec_unk = True
+            else:
+                rec_unk = True
 
             name = rec.get("name", "").strip()
             if not name:
@@ -42,6 +45,7 @@ class TechEuFundingFeed:
                 "source_id": self.source_id,
                 "source_url": rec.get("source_url", "https://tech.eu/rounds"),
                 "retrieved_at": now.isoformat(),
+                "recency_unknown": rec_unk,
             }
             out.append({
                 "slug": slug,
