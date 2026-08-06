@@ -801,7 +801,66 @@ async def delete_sourcing_prompt(prompt_id: str):
     return {"ok": True}
 
 
-# ---- Find New Targets Sourcing API -----------------------------------------
+@app.post("/api/sourcing_prompts/{prompt_id}/duplicate")
+async def duplicate_sourcing_prompt(prompt_id: str):
+    from app.sourcing.normalize import canonicalize_name
+    existing = store.get_custom_sourcing_prompt(prompt_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Preset not found")
+    new_name = f"{existing.display_name} (copy)"
+    base_slug = canonicalize_name(new_name).replace("-", "_")
+    new_id = base_slug
+    idx = 1
+    while store.get_custom_sourcing_prompt(new_id) is not None:
+        new_id = f"{base_slug}_{idx}"
+        idx += 1
+
+    dup_data = existing.model_dump()
+    dup_data.update({
+        "id": new_id,
+        "display_name": new_name,
+        "seeded_from": existing.seeded_from or existing.id,
+        "last_run_at": "",
+        "total_candidates_seen": 0,
+    })
+    dup = CustomSourcingPrompt(**dup_data)
+    store.save_custom_sourcing_prompt(dup)
+    return {"ok": True, "prompt": dup.model_dump()}
+
+
+@app.post("/api/sourcing_prompts/{prompt_id}/reset")
+async def reset_sourcing_prompt(prompt_id: str):
+    import json
+    existing = store.get_custom_sourcing_prompt(prompt_id)
+    if not existing or not existing.seeded_from:
+        raise HTTPException(status_code=404, detail="Preset not found or not seeded")
+    seed_file = Path(__file__).resolve().parent / "seed_sourcing_prompts" / f"{existing.seeded_from}.json"
+    if not seed_file.exists():
+        raise HTTPException(status_code=404, detail="Seed prompt file not found")
+    seed_raw = json.loads(seed_file.read_text(encoding="utf-8"))
+    seed_raw["id"] = existing.id
+    reset_preset = CustomSourcingPrompt(**seed_raw)
+    store.save_custom_sourcing_prompt(reset_preset)
+    return {"ok": True, "prompt": reset_preset.model_dump()}
+
+
+@app.get("/api/sourcing/sources")
+async def get_sourcing_sources():
+    labels = {
+        "grounded_search": "Grounded Web Search",
+        "techeu_funding_feed": "Tech.eu Funding Feed",
+        "franceinvest_directory": "France Invest Directory",
+    }
+    from app.sourcing.harvest import AVAILABLE_HARVESTERS
+    return {"sources": [{"id": k, "label": labels.get(k, k)} for k in AVAILABLE_HARVESTERS.keys()]}
+
+
+@app.post("/api/sourcing/preview_query")
+async def preview_sourcing_query(pdef: CustomSourcingPrompt = Body(...)):
+    from app.sourcing.harvest.grounded_search import GroundedSearchHarvester
+    h = GroundedSearchHarvester()
+    query = h.build_query(pdef, recency_days=pdef.recency_days)
+    return {"query": query}
 
 @app.post("/api/source/research")
 async def start_sourcing_research(payload: dict = Body(...)):

@@ -99,11 +99,13 @@
           <button class="btn ghost small" id="closeSourcingPanelBtn">&times;</button>
         </div>
         <div class="sourcing-controls">
-          <label>Sourcing Criteria:
+          <label>Preset:
             <select id="sourcingPromptSelect" class="mini-select"></select>
           </label>
+          <button class="btn ghost small" id="managePresetsBtn">+ Manage presets</button>
           <button class="btn primary small" id="runSourcingBtn">Start sourcing run</button>
         </div>
+        <div class="sourcing-status hidden" id="sourcingMandateHint" style="margin-top:4px; font-size:12px; color:var(--ink-soft);"></div>
         <div class="sourcing-status" id="sourcingStatusText"></div>
         <div class="sourcing-report" id="sourcingReport"></div>
       </div>
@@ -518,7 +520,7 @@
   <!-- Do-not-contact manager (Phase 4a) -->
   <div class="modal-scrim hidden" id="suppModal">
     <div class="modal" style="max-width: 640px; max-height: 88vh; overflow-y: auto;">
-      <div style="display:flex; justify-content:space-between; align-items:baseline;">
+      <div style="display:flex; justify-space-between; align-items:baseline;">
         <h2>Do-not-contact</h2>
         <button class="btn ghost small" id="suppClearBtn">Clear all</button>
       </div>
@@ -529,6 +531,56 @@
       </div>
       <div id="suppTableWrap"></div>
       <div class="modal-actions"><button class="btn ghost" id="suppCloseBtn">Close</button></div>
+    </div>
+  </div>
+
+  <!-- Sourcing Presets Manager Modal -->
+  <div class="modal-scrim hidden" id="sourcingPresetsModal">
+    <div class="modal" style="max-width: 680px; max-height: 90vh; overflow-y: auto;">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <h2>Sourcing presets</h2>
+        <button class="btn primary small" id="newPresetBtn">+ New preset</button>
+      </div>
+      <p class="lede" style="margin-top:4px;">Presets define the search mandate, target sources, recency, and exclusions for target discovery. Every preset is editable data, including the starter set.</p>
+      <div id="presetList" style="margin-top:16px; display:flex; flex-direction:column; gap:12px;"></div>
+
+      <div id="presetEditor" class="hidden" style="margin-top:20px; border-top:1px solid var(--line); padding-top:16px;">
+        <h3 id="presetEditorTitle">Edit preset</h3>
+        <div class="field" style="margin-top:12px;">
+          <label>Display name <span style="color:var(--error)">*</span></label>
+          <input type="text" id="presetNameInput" placeholder="e.g. AI Infra Paris" autocomplete="off" />
+        </div>
+        <div class="field" style="margin-top:12px;">
+          <label>Mandate <span style="color:var(--error)">*</span></label>
+          <div class="desc">What kind of company are you looking for? Written as prose — this becomes the search query.</div>
+          <textarea id="presetCriteriaInput" rows="3" placeholder="e.g. AI infrastructure and developer tools startups in Paris with recent seed or Series A funding"></textarea>
+        </div>
+        <div class="field" style="margin-top:12px;">
+          <label>Sources</label>
+          <div id="presetSourcesCheckboxes" style="display:flex; gap:12px; flex-wrap:wrap; margin-top:4px;"></div>
+        </div>
+        <div class="field" style="margin-top:12px;">
+          <label>Recency (days)</label>
+          <div class="desc">Only consider signals published in this window.</div>
+          <input type="number" id="presetRecencyInput" value="120" min="1" max="3650" style="width:120px;" />
+        </div>
+        <div class="field" style="margin-top:12px;">
+          <label>Exclude notes</label>
+          <div class="desc">One phrase per line, or separated by semicolons. Phrases are matched against the company name, sector and funding signal.</div>
+          <textarea id="presetExcludeInput" rows="2" placeholder="e.g. staffing agency; recruitment consultancy"></textarea>
+        </div>
+        <div class="field" style="margin-top:12px;">
+          <label>Query preview</label>
+          <div id="presetQueryPreview" style="font-family:var(--mono); font-size:12px; padding:8px 10px; background:var(--panel-2); border:1px solid var(--line); border-radius:var(--r); color:var(--ink-soft); min-height:40px;"></div>
+        </div>
+        <div class="modal-actions" style="display:flex; justify-content:flex-end; gap:8px; margin-top:16px;">
+          <button class="btn ghost" id="presetCancelBtn">Cancel</button>
+          <button class="btn primary" id="presetSaveBtn">Save preset</button>
+        </div>
+      </div>
+      <div class="modal-actions" style="margin-top:20px;">
+        <button class="btn ghost" id="presetsCloseBtn">Close</button>
+      </div>
     </div>
   </div>
 

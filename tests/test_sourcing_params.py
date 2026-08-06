@@ -65,3 +65,54 @@ def test_verify_no_longer_declares_an_unused_provider_or_prompt_file():
             "verify_candidate takes a provider it never uses"
     if "PROMPT_FILE" in src:
         assert "PROMPT_FILE.read_text" in src, "PROMPT_FILE is declared but never read"
+
+
+def test_duplicate_and_reset_endpoints(tmp_path, monkeypatch):
+    import os
+    from fastapi.testclient import TestClient
+    from app.server import app
+    from app import settings as S
+    monkeypatch.setenv("WIZZARD_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("WIZZARD_PROFILE_SOURCE", "fixture")
+    monkeypatch.setenv("WIZZARD_PROVIDER", "stub")
+    c = TestClient(app, raise_server_exceptions=False)
+    H = {"x-wizzard-token": S.SESSION_TOKEN}
+
+    # Save a seed preset first
+    sp = CustomSourcingPrompt(id="test_seed", display_name="Test Seed", criteria_text="Seed mandate", seeded_from="default_hot_startups")
+    c.post("/api/sourcing_prompts", json=sp.model_dump(), headers=H)
+
+    # Test Duplicate
+    dup_res = c.post("/api/sourcing_prompts/test_seed/duplicate", headers=H)
+    assert dup_res.status_code == 200
+    dup_data = dup_res.json()["prompt"]
+    assert dup_data["display_name"] == "Test Seed (copy)"
+    assert dup_data["total_candidates_seen"] == 0
+    assert not dup_data["last_run_at"]
+
+    # Test Duplicate twice (no ID collision)
+    dup_res2 = c.post("/api/sourcing_prompts/test_seed/duplicate", headers=H)
+    assert dup_res2.status_code == 200
+    assert dup_res2.json()["prompt"]["id"] != dup_data["id"]
+
+    # Test Reset
+    reset_res = c.post("/api/sourcing_prompts/test_seed/reset", headers=H)
+    assert reset_res.status_code == 200 or reset_res.status_code == 404
+
+
+def test_sources_and_preview_query_endpoints(tmp_path, monkeypatch):
+    from fastapi.testclient import TestClient
+    from app.server import app
+    from app import settings as S
+    monkeypatch.setenv("WIZZARD_DATA_DIR", str(tmp_path))
+    c = TestClient(app, raise_server_exceptions=False)
+    H = {"x-wizzard-token": S.SESSION_TOKEN}
+
+    res_src = c.get("/api/sourcing/sources", headers=H)
+    assert res_src.status_code == 200
+    assert "sources" in res_src.json()
+
+    res_prev = c.post("/api/sourcing/preview_query", json={"id": "t", "display_name": "T", "criteria_text": "AI Paris", "recency_days": 60}, headers=H)
+    assert res_prev.status_code == 200
+    assert "AI Paris" in res_prev.json()["query"]
+

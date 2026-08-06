@@ -2176,6 +2176,12 @@ function wire() {
   if ($("#findTargetsBtn")) $("#findTargetsBtn").onclick = openSourcingPanel;
   if ($("#closeSourcingPanelBtn")) $("#closeSourcingPanelBtn").onclick = closeSourcingPanel;
   if ($("#runSourcingBtn")) $("#runSourcingBtn").onclick = runSourcing;
+  if ($("#managePresetsBtn")) $("#managePresetsBtn").onclick = openPresetsManager;
+  if ($("#presetsCloseBtn")) $("#presetsCloseBtn").onclick = () => $("#sourcingPresetsModal").classList.add("hidden");
+  if ($("#newPresetBtn")) $("#newPresetBtn").onclick = () => openPresetEditor(null);
+  if ($("#presetCancelBtn")) $("#presetCancelBtn").onclick = () => $("#presetEditor").classList.add("hidden");
+  if ($("#presetSaveBtn")) $("#presetSaveBtn").onclick = savePreset;
+  if ($("#sourcingPromptSelect")) $("#sourcingPromptSelect").onchange = updateSourcingPanelMandateHint;
 
   $("#settingsBtn").onclick = openSettings;
   $("#settingsCancel").onclick = () => $("#settingsModal").classList.add("hidden");
@@ -2313,7 +2319,10 @@ function wire() {
 }
 
 /* ================= SOURCING ("Find new targets") ================= */
+/* ================= SOURCING PRESETS MANAGER ================= */
 let sourcingPrompts = [];
+let availableSourcingSources = [];
+let editingPresetId = null;
 
 async function loadSourcingPrompts() {
   try {
@@ -2321,11 +2330,221 @@ async function loadSourcingPrompts() {
     sourcingPrompts = r.prompts || [];
     const sel = $("#sourcingPromptSelect");
     if (!sel) return;
+    const curVal = sel.value;
     sel.innerHTML = `<option value="">Default (Hot Startups & Fresh Funding)</option>` +
-      sourcingPrompts.map(p => `<option value="${esc(p.id)}">${esc(p.display_name)}</option>`).join("");
+      sourcingPrompts.map(p => `<option value="${esc(p.id)}"${p.id === curVal ? " selected" : ""}>${esc(p.display_name)}</option>`).join("");
+    updateSourcingPanelMandateHint();
   } catch (e) {
     console.error("Failed to load sourcing prompts", e);
   }
+}
+
+function updateSourcingPanelMandateHint() {
+  const sel = $("#sourcingPromptSelect");
+  const hint = $("#sourcingMandateHint");
+  if (!sel || !hint) return;
+  const p = sourcingPrompts.find(x => x.id === sel.value);
+  if (p && p.criteria_text) {
+    hint.textContent = `Mandate: "${p.criteria_text.length > 90 ? p.criteria_text.slice(0, 90) + "…" : p.criteria_text}"`;
+    hint.classList.remove("hidden");
+  } else {
+    hint.classList.add("hidden");
+  }
+}
+
+async function fetchSourcingSources() {
+  if (availableSourcingSources.length > 0) return availableSourcingSources;
+  try {
+    const r = await api("/api/sourcing/sources");
+    availableSourcingSources = r.sources || [];
+  } catch (e) {
+    availableSourcingSources = [
+      { id: "grounded_search", label: "Grounded Web Search" },
+      { id: "techeu_funding_feed", label: "Tech.eu Funding Feed" },
+      { id: "franceinvest_directory", label: "France Invest Directory" }
+    ];
+  }
+  return availableSourcingSources;
+}
+
+function openPresetsManager() {
+  $("#sourcingPresetsModal").classList.remove("hidden");
+  $("#presetEditor").classList.add("hidden");
+  renderPresetsList();
+}
+
+async function renderPresetsList() {
+  await loadSourcingPrompts();
+  const listEl = $("#presetList");
+  if (!listEl) return;
+  if (!sourcingPrompts.length) {
+    listEl.innerHTML = `<div class="col-empty"><span>No custom presets defined.</span></div>`;
+    return;
+  }
+
+  listEl.innerHTML = sourcingPrompts.map(p => {
+    const runTime = p.last_run_at ? `last run ${timeAgo(p.last_run_at)}` : "never run";
+    const seen = `${p.total_candidates_seen || 0} candidates seen`;
+    const isSeeded = Boolean(p.seeded_from);
+    const tagSeeded = isSeeded ? `<span class="tag" style="background:var(--panel-2); color:var(--ink-soft);">seeded</span>` : "";
+    const srcs = (p.sources || []).map(s => `<span class="tag">${esc(s)}</span>`).join(" ");
+    const canDelete = sourcingPrompts.length > 1;
+
+    return `
+      <div class="preset-card" style="background:var(--panel); border:1px solid var(--line); border-radius:var(--r); padding:12px 14px;">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+          <div>
+            <div style="font-weight:600; font-size:14px; color:var(--ink); display:flex; align-items:center; gap:8px;">
+              ${esc(p.display_name)} ${tagSeeded}
+            </div>
+            <div style="font-size:12.5px; color:var(--ink-soft); margin-top:3px;">
+              ${esc(p.criteria_text || "No specific mandate text")}
+            </div>
+            <div style="display:flex; gap:12px; font-size:11.5px; color:var(--ink-faint); margin-top:6px; align-items:center;">
+              <div>${srcs}</div>
+              <div>·</div>
+              <div>${runTime}</div>
+              <div>·</div>
+              <div>${seen}</div>
+            </div>
+          </div>
+          <div style="display:flex; gap:6px;">
+            <button class="btn ghost small edit-preset-btn" data-id="${esc(p.id)}">Edit</button>
+            <button class="btn ghost small dup-preset-btn" data-id="${esc(p.id)}">Duplicate</button>
+            ${isSeeded ? `<button class="btn ghost small reset-preset-btn" data-id="${esc(p.id)}">Reset to seed</button>` : ""}
+            <button class="btn ghost small del-preset-btn" data-id="${esc(p.id)}"${canDelete ? "" : " disabled title=\"Cannot delete the only preset\""}>Delete</button>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join("");
+
+  $$(".edit-preset-btn", listEl).forEach(b => b.onclick = () => openPresetEditor(b.dataset.id));
+  $$(".dup-preset-btn", listEl).forEach(b => b.onclick = () => duplicatePreset(b.dataset.id));
+  $$(".reset-preset-btn", listEl).forEach(b => b.onclick = () => resetPreset(b.dataset.id));
+  $$(".del-preset-btn", listEl).forEach(b => b.onclick = () => deletePreset(b.dataset.id));
+}
+
+async function openPresetEditor(promptId) {
+  editingPresetId = promptId;
+  const sourcesList = await fetchSourcingSources();
+  const editor = $("#presetEditor");
+  editor.classList.remove("hidden");
+  $("#presetEditorTitle").textContent = promptId ? "Edit preset" : "New preset";
+
+  const p = promptId ? sourcingPrompts.find(x => x.id === promptId) : null;
+  $("#presetNameInput").value = p ? p.display_name : "";
+  $("#presetCriteriaInput").value = p ? (p.criteria_text || "") : "";
+  $("#presetRecencyInput").value = p ? (p.recency_days || 120) : 120;
+  $("#presetExcludeInput").value = p ? (p.exclude_notes || "") : "";
+
+  const activeSrcs = p ? (p.sources || ["grounded_search"]) : ["grounded_search"];
+  const chkWrap = $("#presetSourcesCheckboxes");
+  chkWrap.innerHTML = sourcesList.map(s => `
+    <label style="font-size:13px; display:inline-flex; align-items:center; gap:4px;">
+      <input type="checkbox" class="preset-src-chk" value="${esc(s.id)}"${activeSrcs.includes(s.id) ? " checked" : ""} />
+      ${esc(s.label)}
+    </label>
+  `).join("");
+
+  // Attach live query preview listeners
+  ["presetNameInput", "presetCriteriaInput", "presetRecencyInput", "presetExcludeInput"].forEach(id => {
+    const el = $("#" + id);
+    if (el) el.oninput = updatePresetQueryPreview;
+  });
+  $$(".preset-src-chk", chkWrap).forEach(chk => chk.onchange = updatePresetQueryPreview);
+
+  updatePresetQueryPreview();
+}
+
+async function updatePresetQueryPreview() {
+  const pdef = {
+    id: editingPresetId || "preview",
+    display_name: $("#presetNameInput").value.trim() || "Preview",
+    criteria_text: $("#presetCriteriaInput").value.trim(),
+    recency_days: parseInt($("#presetRecencyInput").value, 10) || 120,
+    exclude_notes: $("#presetExcludeInput").value.trim(),
+    sources: $$(".preset-src-chk:checked").map(c => c.value),
+  };
+  try {
+    const r = await api("/api/sourcing/preview_query", { method: "POST", body: pdef });
+    $("#presetQueryPreview").textContent = r.query || "";
+  } catch (e) {
+    $("#presetQueryPreview").textContent = "(Unable to build query preview)";
+  }
+}
+
+async function savePreset() {
+  const name = $("#presetNameInput").value.trim();
+  const criteria = $("#presetCriteriaInput").value.trim();
+  if (!name) { toast("Preset display name is required", true); return; }
+
+  const pdef = {
+    id: editingPresetId || name.toLowerCase().replace(/[^a-z0-9_-]/g, "_").slice(0, 40) || "custom_preset",
+    display_name: name,
+    criteria_text: criteria,
+    sources: $$(".preset-src-chk:checked").map(c => c.value),
+    recency_days: parseInt($("#presetRecencyInput").value, 10) || 120,
+    exclude_notes: $("#presetExcludeInput").value.trim(),
+  };
+  if (editingPresetId) {
+    const existing = sourcingPrompts.find(x => x.id === editingPresetId);
+    if (existing) pdef.seeded_from = existing.seeded_from;
+  }
+
+  try {
+    if (editingPresetId) {
+      await api(`/api/sourcing_prompts/${encodeURIComponent(editingPresetId)}`, { method: "PUT", body: pdef });
+    } else {
+      await api("/api/sourcing_prompts", { method: "POST", body: pdef });
+    }
+    toast("Preset saved");
+    $("#presetEditor").classList.add("hidden");
+    renderPresetsList();
+  } catch (e) { toast(e.message, true); }
+}
+
+async function duplicatePreset(promptId) {
+  try {
+    const r = await api(`/api/sourcing_prompts/${encodeURIComponent(promptId)}/duplicate`, { method: "POST" });
+    toast(`Duplicated as "${r.prompt.display_name}"`);
+    renderPresetsList();
+  } catch (e) { toast(e.message, true); }
+}
+
+async function resetPreset(promptId) {
+  const ok = await dialog({
+    title: "Reset preset to seed?",
+    message: "This will overwrite your changes to this preset with the original seeded default values.",
+    options: [{ label: "Cancel", value: false }, { label: "Reset to seed", value: true, danger: true }]
+  });
+  if (!ok) return;
+  try {
+    await api(`/api/sourcing_prompts/${encodeURIComponent(promptId)}/reset`, { method: "POST" });
+    toast("Preset reset to seed defaults");
+    renderPresetsList();
+  } catch (e) { toast(e.message, true); }
+}
+
+async function deletePreset(promptId) {
+  if (sourcingPrompts.length <= 1) {
+    toast("Cannot delete the only preset", true);
+    return;
+  }
+  const sel = $("#sourcingPromptSelect");
+  const isSelected = sel && sel.value === promptId;
+  const ok = await dialog({
+    title: "Delete preset?",
+    message: isSelected ? "This preset is currently selected for sourcing runs. Deleting it will reset selection to default." : "Delete this sourcing preset permanently.",
+    options: [{ label: "Cancel", value: false }, { label: "Delete", value: true, danger: true }]
+  });
+  if (!ok) return;
+  try {
+    await api(`/api/sourcing_prompts/${encodeURIComponent(promptId)}`, { method: "DELETE" });
+    toast("Preset deleted");
+    if (isSelected && sel) sel.value = "";
+    renderPresetsList();
+  } catch (e) { toast(e.message, true); }
 }
 
 function openSourcingPanel() {
@@ -2373,9 +2592,12 @@ function renderSourcingReport(job) {
   const notes = job.notes || [];
   const candidates = job.candidates || [];
   const addedSlugs = job.added_slugs || [];
+  const presetObj = sourcingPrompts.find(x => x.id === job.sourcing_prompt_id);
+  const presetName = presetObj ? presetObj.display_name : (job.sourcing_prompt_id || "Default");
 
   let html = `
     <div style="background: #ffffff; padding: 12px; border-radius: 6px; border: 1px solid #e2e8f0; font-size: 13px;">
+      <div class="sr-preset" style="font-weight:600; font-size:12px; color:var(--ink-soft); margin-bottom:6px;">Preset: ${esc(presetName)}</div>
       <div style="display: flex; gap: 16px; font-weight: 500; color: #1e293b; margin-bottom: 8px;">
         <span>Checked: ${counts.checked || 0}</span>
         <span style="color: #16a34a;">Queued: ${counts.queued || 0}</span>
