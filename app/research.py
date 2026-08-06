@@ -38,6 +38,50 @@ class ResearchError(RuntimeError):
     pass
 
 
+_DOMAIN_RE = re.compile(r"^(?:https?://)?(?:www\.)?([a-z0-9][a-z0-9\-\.]*\.[a-z]{2,})(?:/.*)?$", re.I)
+
+
+def _extract_domain(url_or_domain: str) -> str:
+    """Pull a bare domain out of a URL or an already-bare domain string.
+    'https://example-saas.test/about' and 'example-saas.test' both return 'example-saas.test'."""
+    if not url_or_domain:
+        return ""
+    m = _DOMAIN_RE.match(url_or_domain.strip())
+    return m.group(1).lower() if m else ""
+
+
+def resolve_company_domain(name: str, given_website: str | None,
+                           provider: Provider | None = None) -> tuple[str, str]:
+    """Resolve ONE domain for this company, before any person-lookup happens.
+
+    Returns (domain, source): source is "given" when the operator supplied a
+    website (the strongest signal — [R1]: Clearbit's whole model is that a domain
+    is unique where a company name is not), or "resolved" when a dedicated search
+    found it. Never returns a domain the person-lookup call invented itself —
+    that ordering is the entire fix. Pinning it once means a retry cannot
+    re-hallucinate a different domain (review R4: a fix can create a defect if
+    a later step is allowed to override an earlier one).
+    """
+    given = _extract_domain(given_website or "")
+    if given:
+        return given, "given"
+
+    if provider is None or getattr(provider, "is_stub", False):
+        return "", "unresolved"
+
+    system = ("Find the single official website domain for the company named below. "
+             "Return ONLY the bare domain (e.g. 'example-saas.test'), nothing else. "
+             "If you cannot confirm one real, currently-live domain for a company of "
+             "this name, return exactly: UNKNOWN")
+    try:
+        res = provider.generate(system=system, user=f"Company name: {name}",
+                                use_web=True, max_web=3, temperature=0.0, timeout_s=30)
+        domain = _extract_domain((res.text or "").strip())
+        return (domain, "resolved") if domain else ("", "unresolved")
+    except Exception:
+        return "", "unresolved"
+
+
 _OUTPUT_CONTRACT = """
 --- OUTPUT CONTRACT (appended by the app; obey exactly) ---
 Return ONLY a single JSON object conforming to the schema. No prose, no markdown, no code fences
@@ -70,9 +114,28 @@ FILL, and do not leave any of these empty:
   (kind: raise | funding | launch | hire | expansion | other). Set present=false if none.
 - contact: the right person (founder for a small company, partner for a fund, hiring manager for
   a large one). Set contact.status = "found" once you have a name; otherwise "to_research".
-  role_basis: founder | partner | hiring_manager. Provide a best-guess contact.email (NEVER blank),
-  with contact.email_confidence = high | medium | low. Set contact.contact_verified = true ONLY if
-  the person is confirmed from a primary/recent source; otherwise false (still give a best guess).
+  role_basis: founder | partner | hiring_manager.
+
+  THE COMPANY'S CONFIRMED DOMAIN IS: {confirmed_domain}
+  Any email you give MUST end in @{confirmed_domain}. If you find a real email at a DIFFERENT
+  domain for this exact person, the company's domain is probably wrong — say so in
+  research_failures and leave contact.email blank; do NOT invent an address at the confirmed
+  domain to fill the gap.
+
+  If you find the person's actual email on a page (team page, press release, GitHub, a
+  conference bio, a podcast show-note), set contact.email, contact.email_source_url to that
+  exact page URL, contact.email_confidence = "high", contact.contact_verified = true.
+
+  If you know the person's name and the domain but have NOT seen their literal email printed
+  anywhere, you MAY construct a pattern guess (first.last@, firstlast@, first@) IF AND ONLY IF
+  you set contact.email_confidence = "low", contact.contact_verified = false, and leave
+  contact.email_source_url empty. This is a labelled guess, not a finding — never upgrade its
+  confidence because the pattern looks plausible.
+
+  If you cannot find or reasonably construct a same-domain email at all, LEAVE contact.email
+  BLANK and say why in research_failures. A blank, correctly-domained email is a better result
+  than a fabricated one at a domain you are not confident about — a wrong guess reaches a real
+  stranger at the wrong company.
 - situation_read: one sentence naming the target's specific moment (most valuable when
   role_exists=false).
 - overall_confidence: high | medium | low. Use "medium" once you have a contact and two proof
@@ -229,7 +292,42 @@ def _looks_like_search_limit(msg):
     return any(k in m for k in _SEARCH_LIMIT)
 
 
-def _completeness_gaps(cache: dict) -> list[str]:
+def _contact_gaps(cache: dict, resolved_domain: str = "") -> list[str]:
+    """Contact-specific gaps, checked separately from the general completeness
+    gate so the reason is precise: 'wrong domain' is a different failure from
+    'no source', and the retry feedback (see research_company) should say which.
+
+    [R3]: the domain-match check is the hard, code-level constraint the precedent
+    research recommends over prompt instructions alone — 'the substantive
+    protections are the code-level domain-equality check and the cited-source
+    verification, not the schema or the prompt.'
+    """
+    contact = (cache or {}).get("contact") or {}
+    email = str(contact.get("email") or "").strip()
+    gaps: list[str] = []
+    if not email:
+        return gaps          # no email at all is handled by _completeness_gaps; not this function's job
+
+    at = email.rfind("@")
+    email_domain = email[at + 1:].lower() if at > 0 else ""
+    company_domain = resolved_domain or _extract_domain(
+        ((cache or {}).get("company") or {}).get("website") or "")
+
+    if company_domain and email_domain and email_domain != company_domain:
+        gaps.append(f"contact.email domain '{email_domain}' does not match the "
+                   f"company's resolved domain '{company_domain}'")
+    elif not company_domain:
+        gaps.append("contact.email was given but no company domain could be resolved "
+                   "to check it against")
+
+    source = str(contact.get("email_source_url") or "").strip()
+    if not source and not gaps:
+        gaps.append("contact.email has no email_source_url — it is an unverified "
+                   "pattern guess and must be labelled as one")
+    return gaps
+
+
+def _completeness_gaps(cache: dict, resolved_domain: str = "") -> list[str]:
     """Names of routing-critical fields the model left empty on an otherwise schema-valid cache.
     Empty list == complete enough to draft AND to show. This is the check the schema cannot make:
     the schema accepts an empty company_size_evidence or a null role decision, but such a cache
@@ -253,6 +351,9 @@ def _completeness_gaps(cache: dict) -> list[str]:
     has_read = bool(str(c.get("situation_read") or "").strip())
     if not has_contact and not has_read:
         gaps.append("contact.name or situation_read")
+
+    gaps.extend(_contact_gaps(c, resolved_domain=resolved_domain))
+    return gaps
 
     pts = [p for p in (c.get("proof_points") or [])
            if isinstance(p, dict) and str(p.get("fact") or "").strip()]
@@ -415,8 +516,10 @@ def _post_process(cache: dict, name: str, website: str | None, source_urls: list
 
 def _stub_cache(name: str, website: str | None) -> dict:
     """Deterministic offline cache for the stub provider and tests."""
+    dom = _extract_domain(website or "") or "example.com"
     return {
-        "company": {"name": name, "website": website or "", "what_they_do": "B2B software.",
+        "company": {"name": name, "website": website or "", "resolved_domain": dom, "domain_source": "given" if website else "unresolved",
+                    "what_they_do": "B2B software.",
                     "role_exists": True, "role_title": "Operations Analyst",
                     "company_size": "small", "work_mode": "remote_english",
                     "working_language": "English", "disqualified": False},
@@ -430,10 +533,12 @@ def _stub_cache(name: str, website: str | None) -> dict:
                          "detail": f"{name}'s recent seed round", "source": "https://example.com/c",
                          "staleness": "fresh"},
         "contact": {"status": "found", "name": "Alex Founder", "title": "CEO",
-                    "role_basis": "founder", "email": "alex@example.com",
-                    "email_confidence": "medium", "contact_verified": True},
+                    "role_basis": "founder", "email": f"alex@{dom}",
+                    "email_confidence": "medium", "contact_verified": True,
+                    "email_source_url": "https://example.com/a", "email_method": "found_on_page"},
         "contacts_alt": [{"name": "Robin Second", "title": "COO", "role_basis": "founder",
-                          "email": "robin@example.com", "email_confidence": "low"}],
+                          "email": f"robin@{dom}", "email_confidence": "low",
+                          "email_source_url": "", "email_method": "pattern_guess"}],
         "situation_read": f"{name} looks like it is about to need more hands on the commercial side",
         "evidence_sources": ["https://example.com/a", "https://example.com/b", "https://example.com/c"],
         "research_failures": [],
@@ -454,7 +559,10 @@ def research_company(provider: Provider, name: str, website: str | None,
     _today = datetime.date.today()
     today = _today.isoformat()
     recency_floor = (_today - datetime.timedelta(days=365)).isoformat()  # ~12-month proof-staleness floor
+
+    resolved_domain, domain_source = resolve_company_domain(name, website, provider)
     system, user = build_research_prompt(name, website, contact_hint, max_web, recency_floor, today)
+    system = system.replace("{confirmed_domain}", resolved_domain or "UNKNOWN — leave contact.email blank")
 
     last_text, last_urls, last_err, feedback = "", [], None, ""
     for attempt in range(2):            # attempt 0 + one retry; the retry carries targeted feedback
@@ -483,7 +591,10 @@ def research_company(provider: Provider, name: str, website: str | None,
 
         try:
             cache = extract_json(last_text)
-            cache = _post_process(cache, name, website, last_urls)
+            cache = _post_process(cache, name, website, last_urls, resolved_domain=resolved_domain)
+            cache.setdefault("company", {})
+            cache["company"]["resolved_domain"] = resolved_domain
+            cache["company"]["domain_source"] = domain_source
             _validate(cache)
         except Exception as e:                                 # parse/schema failure -> retry with the error
             last_err = e
@@ -492,15 +603,17 @@ def research_company(provider: Provider, name: str, website: str | None,
             continue
 
         # Valid JSON. Completeness gate: is it actually draftable AND showable?
-        gaps = _completeness_gaps(cache)
+        gaps = _completeness_gaps(cache, resolved_domain=resolved_domain)
         if gaps and attempt == 0:                              # one targeted retry naming the gaps
             feedback = ("\n\n--- YOUR PREVIOUS OUTPUT WAS INCOMPLETE ---\n"
-                        "It parsed but left these routing-critical fields empty: "
+                        "It parsed but left these routing-critical fields empty or wrong: "
                         + "; ".join(gaps) + ".\n"
-                        "Do targeted searches to fill them. If a field is genuinely not public "
+                        "For any 'domain does not match' gap: the confirmed domain is "
+                        f"{resolved_domain or 'UNKNOWN'}. Do not invent a different domain — "
+                        "either find a real email there or leave contact.email blank.\n"
+                        "Do targeted searches to fill the rest. If a field is genuinely not public "
                         "after a real attempt, leave it empty and add ONE research_failures line "
                         "explaining why. Return the full JSON again.")
-            continue
         if gaps:                                               # still thin after the retry: keep, but FLAG
             fails = list(cache.get("research_failures") or [])
             note = ("Research incomplete: could not confirm " + ", ".join(gaps)
@@ -508,6 +621,9 @@ def research_company(provider: Provider, name: str, website: str | None,
             if note not in fails:
                 fails.append(note)
             cache["research_failures"] = fails                 # word "incomplete" trips research_capped()
+        cache.setdefault("company", {})
+        cache["company"]["resolved_domain"] = resolved_domain
+        cache["company"]["domain_source"] = domain_source
         return cache
 
     # both attempts hard-failed to parse/validate
