@@ -70,8 +70,10 @@ a { color: var(--capital); }
 }
 .brand { display: flex; align-items: center; gap: 10px; flex: 0 0 auto; }
 .brand .logo { height: 18px; }
+.brand-title { font-family: var(--serif); font-size: 19px; color: #fff; font-weight: 600; letter-spacing: .01em; }
 .brand .sub { font-family: var(--mono); font-size: 11px; letter-spacing: .16em;
   text-transform: uppercase; color: #8C99B8; }
+.pv-body { white-space: pre-wrap; font-size: 14px; line-height: 1.6; }
 .topbar .spacer { flex: 1 1 0; min-width: 8px; }
 
 .topbar .signed {

@@ -14,7 +14,7 @@
 <body>
   <header class="topbar">
     <div class="brand">
-      <span style="font-family: var(--serif); font-size: 19px; color: #fff; font-weight: 600; letter-spacing: .01em;">Wizz-ard</span>
+      <span class="brand-title">Wizz-ard</span>
       <span class="sub">Outreach</span>
     </div>
 
@@ -181,8 +181,7 @@
           <select id="pipeVoiceFilter" class="mini-select"><option value="">All voices</option></select>
         </div>
       </div>
-      <div class="board-cols" id="pipelineBoard"></div>
-      <div id="pipelineCols" class="board-cols hidden"></div>
+      <div class="board-cols" id="pipelineCols"></div>
     </section>
 
     <!-- PERFORMANCE VIEW -->
@@ -199,7 +198,6 @@
       </div>
       <div id="perfSummary" class="hint" style="margin-bottom:12px;"></div>
       <div id="perfTableWrap"></div>
-      <div id="performanceList"></div>
       <div class="col-empty hidden" id="perfEmpty"><span>No performance metrics recorded yet.</span></div>
     </section>
 
@@ -689,7 +687,7 @@
             <div class="desc">Freeform steer, e.g. "offer a read of their business, not a lecture."</div>
           </div>
           <div class="field" style="margin-top:12px;">
-            <label>Example emails <span style="font-weight:normal;color:var(--ink-faint);">(optional)</span></label>
+            <label>Example emails <span class="hint">(optional)</span></label>
             <div class="desc" style="margin-bottom:8px;">Paste emails whose style you want matched.</div>
             <div id="veExamples" style="display:flex; flex-direction:column; gap:8px;"></div>
             <button class="btn ghost small" id="veAddExample" style="margin-top:8px;">+ Add example</button>
@@ -717,7 +715,7 @@
             <div class="desc">One line on how to frame you, e.g. "builder who can also value a company."</div>
           </div>
           <div class="field" style="margin-top:12px;">
-            <label>Custom facts <span style="font-weight:normal;color:var(--ink-faint);">(optional)</span></label>
+            <label>Custom facts <span class="hint">(optional)</span></label>
             <div class="desc" style="margin-bottom:8px;">True claims the model may use and cite, beyond your profile.</div>
             <div id="veCustomFacts" style="display:flex; flex-direction:column; gap:8px;"></div>
             <button class="btn ghost small" id="veAddFact" style="margin-top:8px;">+ Add fact</button>
@@ -737,7 +735,7 @@
               <div class="letter-subject">Subject: <b id="pvSubject"></b></div>
             </div>
             <div class="letter-body" style="padding:16px 18px;">
-              <div id="pvBody" style="white-space:pre-wrap; font-size:14px; line-height:1.6;"></div>
+              <div id="pvBody" class="pv-body"></div>
             </div>
           </div>
           <div class="note-line" style="margin-top:14px;">Tokens show sample values; experience tokens like

@@ -230,6 +230,7 @@ def draft_one(provider: Provider, cs: CompanyState, voice_override: str | None =
 
         # 3. fact pool (engine) + voice-parameterised evidence + {relevant} shortlist
         spec = de.prepare(cache)
+        spec["allow_dashes"] = bool(getattr(vdef, "allow_dashes", False))
         spec["what_they_do"] = company.get("what_they_do", "")
         spec["city"] = company.get("city", "") or company.get("location", "")
         ev = vdef.evidence
@@ -358,6 +359,8 @@ def draft_retarget(provider: Provider, sent_item, new_email: str, *, bounce_n: i
             # --- REUSE the approved (edited) copy verbatim; only re-address it. No model call. ---
             cs.voice = sent_item.voice or resolve_voice(cache, None)
             spec = de.prepare(cache)              # deterministic; gives contact_first/name/send_to
+            v_obj = store.get_custom_voice(cs.voice) if cs.voice else None
+            spec["allow_dashes"] = bool(getattr(v_obj, "allow_dashes", False))
             spec["send_to"] = new_email
             cs.spec = spec
             body = getattr(sent_item, "approved_body", "") or ""
@@ -390,6 +393,7 @@ def draft_retarget(provider: Provider, sent_item, new_email: str, *, bounce_n: i
             cs.voice = vdef.id
 
             spec = de.prepare(cache)
+            spec["allow_dashes"] = bool(getattr(vdef, "allow_dashes", False))
             spec["what_they_do"] = company.get("what_they_do", "")
             spec["city"] = company.get("city", "") or company.get("location", "")
             ev = vdef.evidence
@@ -497,6 +501,7 @@ def draft_followup(provider: Provider, fu, *, reuse_cache: bool = True,
 
         # 3. fact pool + evidence (for the ONE new angle) — same engine path as draft_one
         spec = de.prepare(cache)
+        spec["allow_dashes"] = bool(getattr(vdef, "allow_dashes", False))
         spec["what_they_do"] = company.get("what_they_do", "")
         spec["city"] = company.get("city", "") or company.get("location", "")
         ev = vdef.evidence

@@ -41,13 +41,19 @@ def _first_name(full: str) -> str:
 _DASHES = ["\u2014", "\u2013", "\u2012", "\u2015", "--"]
 
 
-def normalize(text: str) -> str:
-    """House style: no dashes of any kind; collapse runaway whitespace. Commas/full stops only."""
+def normalize(text: str, keep_dashes: bool = False) -> str:
+    """Collapse runaway whitespace. Replaces dashes with commas unless keep_dashes.
+
+    keep_dashes must be driven by the voice's allow_dashes flag. Stripping dashes
+    here unconditionally made that flag a no-op: the compose prompt permitted them,
+    this function removed them, and critique() then flagged them.
+    """
     if not text:
         return ""
     out = text
-    for d in _DASHES:
-        out = out.replace(d, ", ")
+    if not keep_dashes:
+        for d in _DASHES:
+            out = out.replace(d, ", ")
     out = re.sub(r"[ \t]+", " ", out)
     out = re.sub(r"\n{3,}", "\n\n", out)
     out = re.sub(r" *, *,", ",", out)
@@ -289,10 +295,11 @@ def finalize(spec: dict, parts: dict) -> dict:
     """Assemble greeting + opening + body + ask into the email, normalise
     dashes on the machine text, and run critique. The body is the composed text; the ask/close is
     the voice's fixed ask."""
-    body = normalize((parts.get("body") or "").strip())
+    keep_dashes = bool(spec.get("allow_dashes", False))
+    body = normalize((parts.get("body") or "").strip(), keep_dashes=keep_dashes)
     greeting = spec["greeting"].strip()
-    opening = normalize(_opening_line(spec))
-    ask_block = normalize(spec["ask"])
+    opening = normalize(_opening_line(spec), keep_dashes=keep_dashes)
+    ask_block = normalize(spec["ask"], keep_dashes=keep_dashes)
 
     blocks = [greeting, opening, body, ask_block]
     email = "\n\n".join(b for b in blocks if b.strip())
@@ -328,8 +335,8 @@ def critique(body: str, ask: str, spec: dict) -> Report:
     text = f"{body}\n{ask}".strip()
     low = text.lower()
 
-    # no dashes
-    if any(d in text for d in _DASHES):
+    # no dashes, unless this voice allows them
+    if not spec.get("allow_dashes", False) and any(d in text for d in _DASHES):
         r.hard.append("em dash")
 
     # forbidden cliches

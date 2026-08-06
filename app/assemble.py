@@ -16,7 +16,8 @@ from .engine_bridge import de
 def machine_draft(spec: dict, parts: dict) -> dict:
     """Return {email, report, machine_body}. `parts` is the composed {body, ask}."""
     result = de.finalize(spec, parts)
-    machine_body = de.normalize((parts.get("body") or "").strip())
+    machine_body = de.normalize((parts.get("body") or "").strip(),
+                                keep_dashes=bool(spec.get("allow_dashes", False)))
     return {"email": result["email"], "report": result["report"], "machine_body": machine_body}
 
 
@@ -42,12 +43,13 @@ def assemble_custom(spec: dict, body: str, vdef) -> str:
     close, signoff. Frame blocks are dash-normalised (they are machine-generated); `body` is passed
     already normalised so it matches the stored machine_body anchor exactly (the edit path swaps the
     body region verbatim via reassemble_with_edit, which is unchanged)."""
+    kd = bool(getattr(vdef, "allow_dashes", False)) if vdef else bool(spec.get("allow_dashes", False))
     blocks = [
-        de.normalize((spec.get("greeting", "") or "").strip()),
-        de.normalize((spec.get("opening", "") or "").strip()),
+        de.normalize((spec.get("greeting", "") or "").strip(), keep_dashes=kd),
+        de.normalize((spec.get("opening", "") or "").strip(), keep_dashes=kd),
         (body or "").strip(),
-        de.normalize((spec.get("boilerplate", "") or "").strip()),
-        de.normalize((spec.get("close", "") or "").strip()),
-        de.normalize((spec.get("signoff", "") or "").strip()),
+        de.normalize((spec.get("boilerplate", "") or "").strip(), keep_dashes=kd),
+        de.normalize((spec.get("close", "") or "").strip(), keep_dashes=kd),
+        de.normalize((spec.get("signoff", "") or "").strip(), keep_dashes=kd),
     ]
     return "\n\n".join(b for b in blocks if b)

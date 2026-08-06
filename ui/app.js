@@ -2664,6 +2664,8 @@ async function boot() {
   if ($("#profileBtn")) $("#profileBtn").onclick = openProfileModal;
   if ($("#closeProfileModal")) $("#closeProfileModal").onclick = closeProfileModal;
   if ($("#profileForm")) $("#profileForm").onsubmit = async (e) => { e.preventDefault(); await saveProfile(); };
+  if ($("#saveProfileTabBtn")) $("#saveProfileTabBtn").onclick = async () => { await saveProfile(); };
+  if ($("#saveProfileModalBtn")) $("#saveProfileModalBtn").onclick = async () => { await saveProfile(); };
   if ($("#resetProfileBtn")) $("#resetProfileBtn").onclick = async () => { await resetProfile(); };
   wire();
   try {
