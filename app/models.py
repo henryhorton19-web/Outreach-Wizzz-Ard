@@ -152,6 +152,7 @@ class CustomVoice(BaseModel):
     variables: dict[str, str] = Field(default_factory=dict)   # voice-defined custom tokens
     allow_dashes: bool = False                            # floor knob (default keeps the no-dash rule)
     audience: Literal["self", "organisation"] = "self"   # who this voice speaks FOR
+    recent_point_templates: dict[str, str] = Field(default_factory=dict)  # category -> opener template
 
     # ---- continuous voice learning (Layer 4) — all additive, defaults = today's behaviour ----
     origin: str = "user"                     # user | learned | challenger — provenance of this voice

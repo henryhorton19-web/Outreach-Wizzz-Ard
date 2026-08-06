@@ -330,6 +330,60 @@ class Report:
         return {"hard": self.hard, "soft": self.soft}
 
 
+_NUM_RE = re.compile(r"(?<![\w.])(\$?\d[\d,]*(?:\.\d+)?\s*[kKmMbB%]?)\b")
+
+
+def _num_tokens(text: str) -> set[str]:
+    """Extract number-like tokens for comparison against a fact set."""
+    return {m.group(1).strip().lower().replace(",", "") for m in _NUM_RE.finditer(text or "")}
+
+
+def numeric_guard(text: str, facts: list[dict], allowed_numbers: set[str] | None = None) -> list[str]:
+    """Reject any figure in `text` that is not present in `facts` or `allowed_numbers`."""
+    allowed_numbers = allowed_numbers or set()
+    fact_text = " ".join(str(f.get("fact") or "") for f in (facts or []))
+    fact_numbers = _num_tokens(fact_text) | allowed_numbers
+    hits = []
+    for tok in _num_tokens(text):
+        if tok not in fact_numbers:
+            hits.append(f"unsourced figure: {tok}")
+    return hits
+
+
+def find_unauthorized_commitments(text: str) -> list[str]:
+    patterns = [r"\bi (can |will )?guarantee\b", r"\bi promise\b", r"\bwe('ll| will) definitely\b",
+                r"\bi('ll| will) make sure\b.*\bwithin\b"]
+    return [p for p in patterns if re.search(p, text, re.IGNORECASE)]
+
+
+def find_unearned_superlatives(text: str) -> list[str]:
+    words = [r"\bunmatched\b", r"\bunparalleled\b", r"\bthe best\b", r"\bindustry[- ]leading\b",
+             r"\bworld[- ]class\b", r"\bbest[- ]in[- ]class\b"]
+    return [w for w in words if re.search(w, text, re.IGNORECASE)]
+
+
+def find_dramatised_opener(text: str) -> list[str]:
+    first_two = ". ".join(text.strip().split(". ")[:2])
+    if re.search(r"\bit'?s not\b.{0,40}\bit'?s\b", first_two, re.IGNORECASE):
+        return ["dramatised opener"]
+    return []
+
+
+def find_unallowed_precedent(text: str, spec: dict) -> list[str]:
+    allowed = set(spec.get("precedent_ids") or [])
+    named = set(spec.get("precedent_names_in_pool") or [])
+    hits = []
+    for name in named - allowed:
+        if name and name.lower() in text.lower():
+            hits.append(f"named an unselected precedent: {name}")
+    return hits
+
+
+def find_identity_mechanics_leak(text: str, spec: dict) -> list[str]:
+    patterns = spec.get("identity_leak_patterns") or []
+    return [p for p in patterns if re.search(p, text, re.IGNORECASE)]
+
+
 def critique(body: str, ask: str, spec: dict) -> Report:
     r = Report()
     text = f"{body}\n{ask}".strip()
@@ -368,10 +422,29 @@ def critique(body: str, ask: str, spec: dict) -> Report:
 
     # soft: ask echoes body
     if ask and body:
-        ask_words = set(re.findall(r"\b\w{5,}\b", ask.lower()))
-        body_words = set(re.findall(r"\b\w{5,}\b", body.lower()))
-        if len(ask_words & body_words) >= 3:
-            r.soft.append("ask echoes the body")
+        b_stem = re.sub(r"[^\w\s]", "", body.lower())
+        a_stem = re.sub(r"[^\w\s]", "", ask.lower())
+        if len(a_stem) > 20 and a_stem in b_stem:
+            r.soft.append("ask repeats body text")
+
+    # universal honesty-floor guards
+    facts = spec.get("allowed_facts") or []
+    allowed_numbers = set(spec.get("allowed_numbers") or [])
+    for hit in numeric_guard(text, facts, allowed_numbers):
+        r.hard.append(hit)
+    for hit in find_unauthorized_commitments(text):
+        r.hard.append(f"unauthorized commitment: {hit}")
+    for hit in find_unearned_superlatives(text):
+        r.hard.append(f"unearned superlative: {hit}")
+    for hit in find_dramatised_opener(text):
+        r.hard.append(hit)
+
+    # organisation-audience gated guards
+    if spec.get("audience") == "organisation":
+        for hit in find_unallowed_precedent(text, spec):
+            r.hard.append(hit)
+        for hit in find_identity_mechanics_leak(text, spec):
+            r.hard.append(hit)
 
     return r
 
