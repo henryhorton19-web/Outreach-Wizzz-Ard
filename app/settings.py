@@ -63,12 +63,7 @@ def _data_root() -> Path:
 
 def _default_outbox_dir() -> Path:
     """Staged .eml files live under the data dir. Override with the eml_dir setting
-    (or WIZZARD_EML_DIR) to route them to a synced folder instead.
-
-    This previously returned the PARENT OF THE REPOSITORY CHECKOUT, because
-    `if proj_parent.parent.exists()` is always true and the documented fallback
-    was therefore unreachable.
-    """
+    (or WIZZARD_EML_DIR) to route them to a synced folder instead."""
     return DATA_DIR / "outbox"
 
 
