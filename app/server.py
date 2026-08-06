@@ -746,6 +746,14 @@ async def arbitrate_voices():
 
 # ---- ingest ----------------------------------------------------------------
 
+def _exclusion_blocked(slug: str) -> bool:
+    """Return True iff this slug is in the permanent exclusion set and the toggle is enabled."""
+    st = S.load_settings()
+    if not getattr(st, "exclusion_enabled", True):
+        return False
+    return store.is_excluded(slug)
+
+
 def _ingest_to_queue(rows: list[dict], list_id: str = "default") -> dict:
     existing = store.queue_slugs(list_id=list_id) | {cs.slug for cs in store.load_drafts()}
     contacted_domains = suppression_mod.already_contacted_domains()
@@ -756,6 +764,10 @@ def _ingest_to_queue(rows: list[dict], list_id: str = "default") -> dict:
         slug = r["slug"]
         if slug in existing:
             already.append(r["name"])
+            continue
+        # permanent exclusion check (Stage E): already-approved entities are permanently blocked
+        if _exclusion_blocked(slug):
+            contacted.append(r["name"])
             continue
         # suppression / do-not-contact check (by any email/domain the ingest row carries)
         ref_email = (r.get("email") or "").strip()
@@ -1730,6 +1742,13 @@ def _approve_rows(rows: list[CompanyState], batch: BatchState | None) -> dict:
         except Exception as e:
             print(f"[outbox] Warning: failed to save to outbox for {cs.name}: {e}", file=sys.stderr)
         store.remove_draft(cs.slug)
+        # Stage E: unconditionally add to exclusion set (toggle does not gate writes)
+        try:
+            from app.sourcing.normalize import canonicalize_name
+            base_slug = cs.slug.split("__")[0]   # strip __f1 / __b1 suffixes
+            store.add_to_exclusion_set(base_slug)
+        except Exception:
+            pass
 
         # CRM follow-up hook (never let it break an approval):
         #  - if the email just approved was itself a follow-up draft, close out its FollowUp record;

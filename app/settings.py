@@ -273,6 +273,14 @@ class Settings:
     sourcing_sources: list[str] = field(default_factory=lambda: ["techeu_funding_feed", "grounded_search"])
     sourcing_reject_expiry_days: int = 60
 
+    # ---- Stage E: permanent contacted-exclusion layer ----
+    # When enabled, _ingest_to_queue and automated sourcing check excluded.json before
+    # adding a target. Unconditional write on approve_one remains even when disabled
+    # (so the list stays current). Never gates a human override -- operator can always
+    # manually add a target.
+    exclusion_enabled: bool = True
+    allow_org_voice_learning: bool = False   # G2: gates Layer-4 learning on org-audience voices
+
     def sanitized(self) -> dict:
         d = asdict(self)
         if d.get("provider") not in VALID_PROVIDERS:

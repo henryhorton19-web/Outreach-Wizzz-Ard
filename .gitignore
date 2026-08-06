@@ -31,3 +31,6 @@ resume.json
 # --- OS noise ---
 .DS_Store
 Thumbs.db
+
+# --- Stage E: permanent exclusion list (15,592 company names — never commit) ---
+excluded.json

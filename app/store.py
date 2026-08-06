@@ -35,6 +35,7 @@ SENT_ITEMS_FILE = S.DATA_DIR / "sent_items.json"
 SUPPRESSIONS_FILE = S.DATA_DIR / "suppressions.json"
 SNIPPETS_FILE = S.DATA_DIR / "snippets.json"
 SESSION_STATS_FILE = S.DATA_DIR / "session_stats.json"
+EXCLUDED_FILE = S.DATA_DIR / "excluded.json"
 
 QUEUE_CAP  = 500
 DRAFTS_CAP = 15
@@ -847,3 +848,45 @@ def export_xlsx_bytes(batch: BatchState | None = None, scope: str = "drafts") ->
 
 def export_count(scope: str = "drafts") -> int:
     return len(_export_rows(scope))
+
+
+# ---------------------------------------------------------------------------
+# Stage E: permanent contacted-exclusion layer
+# ---------------------------------------------------------------------------
+
+def excluded_slugs() -> set[str]:
+    """Load the persistent exclusion set from excluded.json (mutex-protected)."""
+    with _MUTEX:
+        if not EXCLUDED_FILE.exists():
+            return set()
+        try:
+            data = json.loads(EXCLUDED_FILE.read_text(encoding="utf-8"))
+            if isinstance(data, list):
+                return set(str(s) for s in data if s)
+            if isinstance(data, dict):
+                return set(str(s) for s in data.get("slugs", []) if s)
+        except Exception:
+            pass
+    return set()
+
+
+def add_to_exclusion_set(slug: str) -> None:
+    """Unconditionally add a slug to the exclusion set. Thread-safe."""
+    if not slug:
+        return
+    with _MUTEX:
+        current = excluded_slugs()
+        current.add(slug)
+        EXCLUDED_FILE.parent.mkdir(parents=True, exist_ok=True)
+        EXCLUDED_FILE.write_text(
+            json.dumps(sorted(current), indent=2, ensure_ascii=False),
+            encoding="utf-8",
+        )
+
+
+def is_excluded(slug: str) -> bool:
+    """Check if a slug appears in the permanent exclusion set."""
+    if not slug:
+        return False
+    return slug in excluded_slugs()
+
