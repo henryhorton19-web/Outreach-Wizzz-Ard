@@ -10,7 +10,7 @@ never touches it. 'error' is a terminal-ish state; the row stays visible and rev
 from __future__ import annotations
 
 from enum import Enum
-from typing import Any, Optional
+from typing import Any, Optional, Literal
 from datetime import datetime, timezone
 
 from pydantic import BaseModel, Field, model_validator
@@ -151,6 +151,7 @@ class CustomVoice(BaseModel):
     length_max: int = 120
     variables: dict[str, str] = Field(default_factory=dict)   # voice-defined custom tokens
     allow_dashes: bool = False                            # floor knob (default keeps the no-dash rule)
+    audience: Literal["self", "organisation"] = "self"   # who this voice speaks FOR
 
     # ---- continuous voice learning (Layer 4) — all additive, defaults = today's behaviour ----
     origin: str = "user"                     # user | learned | challenger — provenance of this voice
@@ -179,12 +180,16 @@ class CustomVoice(BaseModel):
         style.setdefault("proof_density", "single")
         style.setdefault("sentence_length", "flowing")
         d["style"] = style
-        d.setdefault("mention_sci_po", True)
-        # strip legacy top-level keys pydantic would otherwise reject/ignore
+        # Legacy top-level keys from a schema this model no longer has. mention_sci_po,
+        # boilerplate_owns_sci_po and close_owns_sci_po used to be set here via setdefault
+        # and then popped two lines later -- dead on arrival for every voice that ever
+        # passed through this validator, while engine/composition_brief.md kept describing
+        # them to the model as live controls. That lie is fixed at task A1; this removes
+        # the setdefault call that could never have done anything.
         for k in ("greeting", "opening", "opening_mode", "opening_guidance", "opening_use_recent",
                   "boilerplate", "boilerplate_mode", "boilerplate_guidance", "boilerplate_owns_sci_po",
                   "close_mode", "close_guidance", "close_owns_sci_po", "signoff", "register_note",
-                  "register", "body_guidance", "examples", "intro", "preferences"):
+                  "register", "body_guidance", "examples", "intro", "preferences", "mention_sci_po"):
             d.pop(k, None)
         return d
 

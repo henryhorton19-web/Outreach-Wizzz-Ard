@@ -429,9 +429,16 @@ def _validate_voice(v: CustomVoice) -> None:
     # BOTH POST /api/voices and PUT /api/voices/{id} return 500 for every voice with
     # blocks — i.e. the entire Voices editor could not save. The flag has no consumer
     # anywhere in compose/assemble/engine, so the constraint it guarded is meaningless.
-    bad = [s for s in (v.situations or []) if s not in S.VALID_VOICES]
+    # situations was a routing key when auto_route()/select_voice() existed (deleted in Task A4)
+    # -- a value outside VALID_VOICES would silently never match anything and the voice would
+    # never be auto-selected. Now that selection is manual only, situations is a descriptive
+    # label for the voice picker's browse/filter UI (Part 1's "an optional label" framing) and
+    # any string is a legitimate label -- a sector name, a use-case name, anything a human finds
+    # useful when scanning the picker. Length-cap only, to keep the label itself sane.
+    bad = [s for s in (v.situations or []) if len(s) > 60]
     if bad:
-        raise HTTPException(status_code=400, detail=f"unknown situation(s): {', '.join(bad)}")
+        raise HTTPException(status_code=400,
+                            detail=f"situation label(s) too long (max 60 chars): {', '.join(bad)}")
     if int(v.length_min) > int(v.length_max):
         raise HTTPException(status_code=400, detail="length_min cannot exceed length_max")
 

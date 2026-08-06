@@ -710,9 +710,8 @@ function buildDrawer(cs) {
     return `<div class="rs-src"><span class="rs-lbl">Sources</span><div class="src-wrap">${head}</div>${more}</div>`;
   })() : "";
 
-  // voice picker (redraft) — all voices plus Auto
-  const voiceOpts = `<option value="__auto__">Auto (by situation)</option>` +
-    allVoices.map(v => `<option value="${v.id}"${v.id === cs.voice ? " selected" : ""}>${esc(v.display_name)}</option>`).join("");
+  // voice picker (redraft) — all voices
+  const voiceOpts = allVoices.map(v => `<option value="${v.id}"${v.id === cs.voice ? " selected" : ""}>${esc(v.display_name)}</option>`).join("");
 
   // attachments selector
   const curAtts = cs.attachments || [];
@@ -1786,13 +1785,13 @@ async function openVoicesManager() {
     const defaultSel = $("#defaultVoiceSel");
     const opt = (selId) => allVoices.map(v => `<option value="${v.id}"${v.id === selId ? " selected" : ""}>${esc(v.display_name)}</option>`).join("");
     const sessionVoice = (state.status && state.status.voice) || "";
-    sessionSel.innerHTML = `<option value=""${sessionVoice ? "" : " selected"}>Auto (match by situation)</option>` + opt(sessionVoice);
+    sessionSel.innerHTML = `<option value=""${sessionVoice ? "" : " selected"}>Default voice</option>` + opt(sessionVoice);
     defaultSel.innerHTML = opt(state.defaultVoice);
     sessionSel.onchange = async () => {
       try {
         await api("/api/session", { method: "POST", body: { voice: sessionSel.value || null } });
         await refreshStatus();
-        toast(sessionSel.value ? `This session: ${voiceLabel(sessionSel.value)}` : "This session: Auto");
+        toast(sessionSel.value ? `This session: ${voiceLabel(sessionSel.value)}` : "This session: Default voice");
       } catch (e) { toast(e.message, true); }
     };
     defaultSel.onchange = async () => {

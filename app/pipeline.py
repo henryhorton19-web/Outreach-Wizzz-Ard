@@ -24,110 +24,43 @@ from . import cost as cost_mod
 # voice selection (unchanged: override > situation tag > default_voice > any > re-seed)
 # ---------------------------------------------------------------------------
 
-def auto_route(cache: dict) -> str:
-    company = cache.get("company") or {}
-    role_exists = bool(company.get("role_exists"))
-    size = (company.get("company_size") or "small").lower()
-    if not role_exists:
-        return "no_role_small"
-    return "role_large" if size == "large" else "role_small"
-
-
-def select_voice(cache: dict, override: str | None = None) -> str:
-    if override in S.VALID_VOICES:
-        return override
-    return auto_route(cache)
-
-
 def resolve_voice(cache: dict, override: str | None = None) -> str:
+    """Voice selection is manual only: override -> default_voice -> first-available.
+
+    Previously: override -> a voice whose `situations` matched a cache-derived tag
+    (auto_route) -> a reply-rate bandit tiebreak among matches (_learned_pick) ->
+    default_voice -> first-available -> re-seed. Deleted along with auto_route,
+    select_voice (dead code, zero callers, duplicated auto_route) and _learned_pick,
+    because a human now picks the voice for every draft regardless of what situation
+    the target is in -- there is no automatic selection left to tie-break among.
+
+    `cache` is kept as a parameter for call-site compatibility even though this
+    function no longer reads it, so every existing caller works unchanged.
+    """
     if override and store.get_custom_voice(override):
         return override
-    situation = auto_route(cache)
-    voices = store.list_custom_voices()
-    # Challengers (Layer 4 A/B clones) carry the same situations and must be routable so they can
-    # earn reply data; the bandit in _learned_pick arbitrates. Fallbacks below stay on real voices.
-    eligible = [v for v in store.list_custom_voices(include_challengers=True)
-                if situation in (getattr(v, "situations", None) or [])]
-    if eligible:
-        # Phase 7: stats-aware tiebreak AMONG same-situation voices, only when enabled and only
-        # when both clear min-n and their Wilson intervals are separated. Never overrides an
-        # explicit choice (handled above), never edits content, never invents a voice.
-        chosen = _learned_pick(eligible, situation)
-        return chosen.id if chosen else eligible[0].id
     dv = S.load_settings().default_voice
     if dv and store.get_custom_voice(dv):
         return dv
+    voices = store.list_custom_voices()
     if voices:
         return voices[0].id
     S.ensure_seeded()
     voices = store.list_custom_voices()
-    if voices:
-        for v in voices:
-            if situation in (getattr(v, "situations", None) or []):
-                return v.id
-        return voices[0].id
-    return S.VALID_VOICES[1]
-
-
-def _learned_pick(eligible: list, situation: str):
-    """Return the voice the learning loop prefers among `eligible`, or None to keep default order.
-
-    Rules (all must hold to re-order): routing is 'suggest' or 'auto'; at least two eligible voices
-    clear min-n; the leader's Wilson interval does not overlap the runner-up's (statistically
-    separated). Epsilon-greedy exploration occasionally returns a below-min-n voice to keep gathering
-    data on new/edited voices. Pure over stored stats; never raises (falls back to None)."""
-    try:
-        import random
-        st = S.load_settings()
-        mode = getattr(st, "voice_learning_routing", "off")
-        if mode not in ("suggest", "auto"):
-            return None
-        from . import voice_stats as vs
-        buckets = vs.rebuild_all()
-        scored = []
-        under = []
-        for v in eligible:
-            b = buckets.get(v.id)
-            if b and b.get("enough_data") and b.get("reply_ci"):
-                scored.append((v, b["reply_rate"], b["reply_ci"]))
-            else:
-                under.append(v)
-        # exploration: with prob epsilon, prefer a not-yet-proven voice to keep learning
-        eps = float(getattr(st, "voice_explore_epsilon", 0.1) or 0.0)
-        if under and eps > 0 and random.random() < eps:
-            return random.choice(under)
-        if len(scored) < 2:
-            return None
-        scored.sort(key=lambda t: t[1], reverse=True)
-        (v1, r1, ci1), (v2, r2, ci2) = scored[0], scored[1]
-        # intervals separated iff the leader's low bound exceeds the runner-up's high bound
-        if ci1[0] > ci2[1]:
-            return v1
-        return None
-    except Exception:
-        return None
+    return voices[0].id if voices else S.VALID_VOICES[1]
 
 
 def resolve_followup_voice(cache: dict, override: str | None = None) -> str:
-    """Pick a FOLLOW-UP-kind voice, routed by the same situation as the original. Mirrors
-    resolve_voice but scoped to kind='followup', so the follow-up set is chosen independently of
-    the outreach set. Falls back across the follow-up voices, re-seeding if the kind is empty."""
+    """Pick a FOLLOW-UP-kind voice manually: override -> first-available follow-up voice."""
     fu_voices = store.list_custom_voices(kind="followup")
     if override:
         ov = store.get_custom_voice(override)
         if ov is not None and (getattr(ov, "kind", "outreach") == "followup"):
             return override
-    situation = auto_route(cache)
-    for v in fu_voices:
-        if situation in (getattr(v, "situations", None) or []):
-            return v.id
     if fu_voices:
         return fu_voices[0].id
     S.ensure_seeded()
     fu_voices = store.list_custom_voices(kind="followup")
-    for v in fu_voices:
-        if situation in (getattr(v, "situations", None) or []):
-            return v.id
     return fu_voices[0].id if fu_voices else ""
 
 

@@ -269,7 +269,7 @@ def compose_voice(provider: Provider, voice, ai_blocks, spec: dict, tokens: dict
     if followup:
         instruction["task"] = ("Write each block of one short FOLLOW-UP email (follow-up #%d). "
                                "Return ONLY a JSON object mapping each block id to its text. Obey "
-                               "the follow-up rules above." % int(followup.get("step", 1))) + sci
+                               "the follow-up rules above." % int(followup.get("step", 1)))
         instruction["prior_email"] = {
             "subject": followup.get("original_subject", ""),
             "body": followup.get("original_body", ""),

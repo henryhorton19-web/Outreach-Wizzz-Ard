@@ -19,9 +19,7 @@ Regardless of the voice, every draft must obey:
 - **Standing experience reflects active status** — state current role in present tense if ongoing; never misrepresent standing.
 - **No sign-off** — the mail client appends the signature.
 
-Two further rules are *voice knobs*, not floor: dashes (off by default, `allow_dashes` opts in) and
-whether Sciences Po is named at all (`mention_sci_po`; when on, it must appear exactly once, in the
-block whose `owns_sci_po` is set).
+One further rule is a *voice knob*, not floor: dashes (off by default, `allow_dashes` opts in).
 
 ## Tokens
 

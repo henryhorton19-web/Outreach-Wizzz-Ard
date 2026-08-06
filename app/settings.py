@@ -250,10 +250,6 @@ class Settings:
     # ---- Phase 6c: send-window advisory ----
     send_window_advisory: bool = True             # non-blocking "consider staging Monday AM" hint
 
-    # ---- Phase 7: learning routing (bandit) — picks WHICH voice runs ----
-    voice_learning_routing: str = "off"           # off | suggest | auto
-    voice_explore_epsilon: float = 0.1            # exploration rate for new/edited voices
-
     # ---- Layer 4: continuous voice-CONTENT learning (updates HOW a voice writes) ----
     # Distils your (machine draft -> approved edit) diffs into structured voice updates so drafts
     # drift toward how you write. off = today (byte-for-byte). suggest = propose a patch you accept
@@ -320,12 +316,6 @@ class Settings:
             d["imap_poll_minutes"] = 0
         mb = d.get("imap_mailboxes") or ["INBOX"]
         d["imap_mailboxes"] = [str(m) for m in mb if isinstance(m, str) and m.strip()] or ["INBOX"]
-        if d.get("voice_learning_routing") not in ("off", "suggest", "auto"):
-            d["voice_learning_routing"] = "off"
-        try:
-            d["voice_explore_epsilon"] = max(0.0, min(1.0, float(d.get("voice_explore_epsilon", 0.1))))
-        except (TypeError, ValueError):
-            d["voice_explore_epsilon"] = 0.1
         # ---- Layer 4 content-learning fields ----
         if d.get("voice_learning_mode") not in ("off", "suggest", "auto"):
             d["voice_learning_mode"] = "auto"
