@@ -98,7 +98,7 @@ Settings (gear icon) or environment variables (`PARIS_PROVIDER`, `PARIS_GEMINI_M
 research on Gemini 2.5 Flash, compose on 2.5 Pro; Claude is the optional provider. Model IDs are
 defaults — verify against the provider docs and change them in Settings if they've moved.
 
-Data lives in `~/.paris_outreach` (or `%APPDATA%/ParisOutreach` on Windows): caches, drafts,
+Data lives in `~/.outreach_wizzard` (or `%APPDATA%/OutreachWizzard` on Windows): caches, drafts,
 archive, audit records, custom voices, the staged `.eml` outbox (`outbox/`), and uploaded
 attachments (under `attachments/`). Note that embedding attachments in `.eml` files increases disk
 usage for each staged draft by the size of the attached file.

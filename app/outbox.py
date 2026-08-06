@@ -1,6 +1,6 @@
 """Outbox storage and historical email sync.
 
-Manages saving approved emails into standard .eml format in S.OUTBOX_DIR (default: %APPDATA%/OutreachWizzard/outbox),
+Manages saving approved emails into standard .eml format in S.get_outbox_dir() (default: <data dir>/outbox; override with the eml_dir setting),
 and syncing historical approved emails from store.load_archive() / store.load_sent_items().
 """
 from __future__ import annotations

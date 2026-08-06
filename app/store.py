@@ -12,6 +12,7 @@ from __future__ import annotations
 import io
 import json
 import re
+import threading
 from pathlib import Path
 
 from . import settings as S
@@ -41,6 +42,12 @@ DRAFTS_CAP = 15
 
 class StorageError(RuntimeError):
     pass
+
+
+# Serialises every read-modify-write cycle in this module. The batch draft path
+# (POST /api/draft) mutates drafts.json from a ThreadPoolExecutor; without this,
+# concurrent workers overwrite each other's additions.
+_MUTEX = threading.RLock()
 
 
 def safe_write_text(path: Path, text: str) -> None:
@@ -262,25 +269,27 @@ def queue_slugs(list_id: str = "default") -> set[str]:
 
 
 def upsert_queue(slug: str, name: str, crm_id: str | None, meta: dict | None = None, list_id: str = "default") -> None:
-    import datetime
-    items = load_queue(list_id=list_id)
-    items = [r for r in items if r["slug"] != slug]   # replace if already present
-    rec = {"slug": slug, "name": name, "crm_id": crm_id or "",
-           "queued_at": datetime.datetime.now(datetime.timezone.utc).isoformat()}
-    if meta:
-        rec["meta"] = meta
-    items.append(rec)
-    items = sorted(items, key=lambda x: x.get("queued_at") or "", reverse=True)[:QUEUE_CAP]
-    save_queue(items, list_id=list_id)
+    with _MUTEX:
+        import datetime
+        items = load_queue(list_id=list_id)
+        items = [r for r in items if r["slug"] != slug]   # replace if already present
+        rec = {"slug": slug, "name": name, "crm_id": crm_id or "",
+               "queued_at": datetime.datetime.now(datetime.timezone.utc).isoformat()}
+        if meta:
+            rec["meta"] = meta
+        items.append(rec)
+        items = sorted(items, key=lambda x: x.get("queued_at") or "", reverse=True)[:QUEUE_CAP]
+        save_queue(items, list_id=list_id)
 
 
 def remove_from_queue(slug: str, list_id: str = "default") -> bool:
-    items = load_queue(list_id=list_id)
-    filtered = [r for r in items if r["slug"] != slug]
-    if len(filtered) == len(items):
-        return False
-    save_queue(filtered, list_id=list_id)
-    return True
+    with _MUTEX:
+        items = load_queue(list_id=list_id)
+        filtered = [r for r in items if r["slug"] != slug]
+        if len(filtered) == len(items):
+            return False
+        save_queue(filtered, list_id=list_id)
+        return True
 
 
 def clear_queue(list_id: str = "default") -> int:
@@ -316,16 +325,17 @@ def get_draft(slug: str) -> CompanyState | None:
 
 
 def upsert_draft(cs: CompanyState) -> None:
-    import datetime
-    cs.updated_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
-    drafts = load_drafts()
-    out = []
-    for d in drafts:
-        if d.slug != cs.slug:
-            out.append(d)
-    out.append(cs)
-    trimmed_dicts = _trim_keep_recent([c.model_dump() for c in out], "updated_at", 15)
-    save_drafts([CompanyState.model_validate(d) for d in trimmed_dicts])
+    with _MUTEX:
+        import datetime
+        cs.updated_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        drafts = load_drafts()
+        out = []
+        for d in drafts:
+            if d.slug != cs.slug:
+                out.append(d)
+        out.append(cs)
+        trimmed_dicts = _trim_keep_recent([c.model_dump() for c in out], "updated_at", DRAFTS_CAP)
+        save_drafts([CompanyState.model_validate(d) for d in trimmed_dicts])
 
 
 def remove_draft(slug: str) -> None:
@@ -395,16 +405,17 @@ def get_followup(fid: str) -> FollowUp | None:
 
 
 def upsert_followup(fu: FollowUp) -> None:
-    import datetime
-    fu.updated_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
-    items = load_followups()
-    for i, f in enumerate(items):
-        if f.id == fu.id:
-            items[i] = fu
-            save_followups(items)
-            return
-    items.append(fu)
-    save_followups(items)
+    with _MUTEX:
+        import datetime
+        fu.updated_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        items = load_followups()
+        for i, f in enumerate(items):
+            if f.id == fu.id:
+                items[i] = fu
+                save_followups(items)
+                return
+        items.append(fu)
+        save_followups(items)
 
 
 def remove_followup(fid: str) -> bool:
@@ -452,16 +463,17 @@ def get_sent_item(sid: str) -> SentItem | None:
 
 
 def upsert_sent_item(si: SentItem) -> None:
-    import datetime
-    si.updated_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
-    items = load_sent_items()
-    for i, s in enumerate(items):
-        if s.id == si.id:
-            items[i] = si
-            save_sent_items(items)
-            return
-    items.append(si)
-    save_sent_items(items)
+    with _MUTEX:
+        import datetime
+        si.updated_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        items = load_sent_items()
+        for i, s in enumerate(items):
+            if s.id == si.id:
+                items[i] = si
+                save_sent_items(items)
+                return
+        items.append(si)
+        save_sent_items(items)
 
 
 def next_sent_item_id(slug: str) -> str:

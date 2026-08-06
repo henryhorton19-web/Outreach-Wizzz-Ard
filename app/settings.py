@@ -62,9 +62,13 @@ def _data_root() -> Path:
 
 
 def _default_outbox_dir() -> Path:
-    proj_parent = Path(__file__).resolve().parent.parent.parent / "outbox"
-    if proj_parent.parent.exists():
-        return proj_parent
+    """Staged .eml files live under the data dir. Override with the eml_dir setting
+    (or WIZZARD_EML_DIR) to route them to a synced folder instead.
+
+    This previously returned the PARENT OF THE REPOSITORY CHECKOUT, because
+    `if proj_parent.parent.exists()` is always true and the documented fallback
+    was therefore unreachable.
+    """
     return DATA_DIR / "outbox"
 
 
@@ -76,7 +80,7 @@ VOICES_DIR = DATA_DIR / "voices"
 VOICE_HISTORY_DIR = DATA_DIR / "voice_history"   # per-voice snapshots for rollback (Layer 4)
 SOURCING_PROMPTS_DIR = DATA_DIR / "sourcing_prompts"
 ATTACH_DIR = DATA_DIR / "attachments"
-OUTBOX_DIR = _default_outbox_dir()      # staged .eml files; defaults to 09 Personal Projects/outbox
+OUTBOX_DIR = _default_outbox_dir()      # staged .eml files; defaults to DATA_DIR/outbox
 SETTINGS_FILE = DATA_DIR / "settings.json"
 
 for _d in (DATA_DIR, CACHE_DIR, BATCH_DIR, AUDIT_DIR, VOICES_DIR, VOICE_HISTORY_DIR,

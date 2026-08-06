@@ -238,7 +238,7 @@ def _eml_dir():
     """Where staged .eml drafts are written before the OS mail app opens them.
 
     Cross-platform and portable: the default is OUTBOX_DIR under the per-user data dir
-    (~/.outreach_wizzard/outbox on macOS/Linux, %APPDATA%/OutreachWizzard/outbox on Windows). A user can
+    (default: <data dir>/outbox; override with the eml_dir setting). A user can
     override it (Settings > eml_dir, or WIZZARD_EML_DIR) to route drafts to a findable/synced folder.
     Defensive: an unwritable override falls back to OUTBOX_DIR, then to a temp dir, so staging a
     draft never fails just because a configured path is missing on this machine."""

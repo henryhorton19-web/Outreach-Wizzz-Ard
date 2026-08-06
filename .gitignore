@@ -23,6 +23,11 @@ campaign.json
 lists.json
 queues/
 
+# --- PRIVATE: staged emails (bodies, recipient addresses, embedded attachments) ---
+outbox/
+*.eml
+resume.json
+
 # --- OS noise ---
 .DS_Store
 Thumbs.db
