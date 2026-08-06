@@ -621,6 +621,21 @@ def delete_custom_voice(voice_id: str) -> None:
 
 # ---- Custom Sourcing Prompts -----------------------------------------------
 
+def _preset_file(prompt_id: str) -> Path:
+    """Resolve a preset's file. Validates here, not at the call sites.
+
+    The id arrives from a request body (POST/PUT /api/sourcing_prompts accept the
+    whole model) and was concatenated into a path unvalidated, which was an
+    arbitrary file write outside DATA_DIR. Same class as _queue_file.
+    """
+    if not isinstance(prompt_id, str) or not _LIST_ID_RE.match(prompt_id):
+        raise StorageError(f"invalid preset id: {prompt_id!r}")
+    if prompt_id in WINDOWS_RESERVED:
+        raise StorageError(f"reserved preset id: {prompt_id!r}")
+    S.SOURCING_PROMPTS_DIR.mkdir(parents=True, exist_ok=True)
+    return S.SOURCING_PROMPTS_DIR / f"{prompt_id}.json"
+
+
 def list_custom_sourcing_prompts() -> list[CustomSourcingPrompt]:
     """Return all custom sourcing prompts on disk, sorted by display_name."""
     out: list[CustomSourcingPrompt] = []
@@ -636,7 +651,10 @@ def list_custom_sourcing_prompts() -> list[CustomSourcingPrompt]:
 
 
 def get_custom_sourcing_prompt(prompt_id: str) -> CustomSourcingPrompt | None:
-    p = S.SOURCING_PROMPTS_DIR / f"{prompt_id}.json"
+    try:
+        p = _preset_file(prompt_id)
+    except StorageError:
+        return None
     if p.exists():
         try:
             return CustomSourcingPrompt.model_validate_json(p.read_text(encoding="utf-8"))
@@ -648,12 +666,14 @@ def get_custom_sourcing_prompt(prompt_id: str) -> CustomSourcingPrompt | None:
 def save_custom_sourcing_prompt(prompt: CustomSourcingPrompt) -> None:
     import datetime
     prompt.updated_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
-    p = S.SOURCING_PROMPTS_DIR / f"{prompt.id}.json"
-    safe_write_text(p, prompt.model_dump_json(indent=2))
+    safe_write_text(_preset_file(prompt.id), prompt.model_dump_json(indent=2))
 
 
 def delete_custom_sourcing_prompt(prompt_id: str) -> None:
-    p = S.SOURCING_PROMPTS_DIR / f"{prompt_id}.json"
+    try:
+        p = _preset_file(prompt_id)
+    except StorageError:
+        return
     if p.exists():
         try:
             p.unlink()
