@@ -728,11 +728,11 @@ function buildDrawer(cs) {
   });
 
   // Domain & Contact confidence details (Execution Plan 4, Stage C)
-  const contact = (cs.cache || {}).contact || {};
+  const contact = cs.contact || (cs.cache || {}).contact || {};
   const emailMethod = contact.email_method || (contact.email_source_url ? "found_on_page" : (contact.email ? "pattern_guess" : "not_found"));
   const sourceUrl = contact.email_source_url || "";
-  const resolvedDom = (cs.cache || {}).company?.resolved_domain || cs.recipient_domain || "";
-  const domSource = (cs.cache || {}).company?.domain_source || (resolvedDom ? "given" : "unresolved");
+  const resolvedDom = cs.recipient_domain || (cs.cache || {}).company?.resolved_domain || "";
+  const domSource = cs.domain_source || (cs.cache || {}).company?.domain_source || (resolvedDom ? "given" : "unresolved");
 
   let badgeHtml = "";
   if (emailMethod === "found_on_page") {
@@ -897,9 +897,10 @@ async function clearDrafts() {
 
 async function approveOne(slug) {
   const cs = companies.get(slug);
-  const contact = ((cs || {}).cache || {}).contact || {};
+  const contact = (cs || {}).contact || ((cs || {}).cache || {}).contact || {};
   const emailMethod = contact.email_method || (contact.email_source_url ? "found_on_page" : (contact.email ? "pattern_guess" : "not_found"));
   const contactEmail = contact.email || (cs ? cs.sent_to : "");
+  const recipientDom = (cs ? cs.recipient_domain : "") || (contactEmail.includes("@") ? contactEmail.split("@")[1] : "domain");
 
   if (!contactEmail) {
     toast("Cannot approve target with no contact email. Add a contact email first.", true);
@@ -908,7 +909,7 @@ async function approveOne(slug) {
 
   let guessNote = "";
   if (emailMethod === "pattern_guess") {
-    guessNote = `\n\n⚠️ UNCONFIRMED EMAIL: This contact is an unverified pattern guess at @${cs.recipient_domain || "domain"}. Are you sure you want to send to an unconfirmed address?`;
+    guessNote = `\n\n⚠️ UNCONFIRMED EMAIL: This contact is an unverified pattern guess at @${recipientDom}. Are you sure you want to send to an unconfirmed address?`;
   }
 
   const dqNote = cs && cs.disqualified ? "\n\nThis target is marked disqualified (work mode or language). Approve anyway?" : "";

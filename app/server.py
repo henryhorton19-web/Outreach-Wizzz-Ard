@@ -183,6 +183,9 @@ def _cs_public(cs: CompanyState) -> dict:
     return {
         "slug": cs.slug,
         "name": cs.name,
+        "website": cs.website,
+        "recipient_domain": cs.recipient_domain or (cache.get("company") or {}).get("resolved_domain", ""),
+        "domain_source": (cache.get("company") or {}).get("domain_source", "given" if cs.recipient_domain else "unresolved"),
         "ref": cs.ref,
         "state": cs.state.value,
         "error": cs.error,
@@ -199,6 +202,8 @@ def _cs_public(cs: CompanyState) -> dict:
             "title": contact.get("title", ""),
             "email": spec.get("send_to", "") or contact.get("email", ""),
             "email_confidence": contact.get("email_confidence", ""),
+            "email_method": contact.get("email_method", ""),
+            "email_source_url": contact.get("email_source_url", ""),
         },
         "contact_unverified": cs.contact_unverified,
         "research_capped": cs.research_capped,
