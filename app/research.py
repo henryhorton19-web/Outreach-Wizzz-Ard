@@ -321,7 +321,8 @@ def _contact_gaps(cache: dict, resolved_domain: str = "") -> list[str]:
                    "to check it against")
 
     source = str(contact.get("email_source_url") or "").strip()
-    if not source and not gaps:
+    email_method = contact.get("email_method") or ""
+    if not source and not gaps and email_method != "pattern_guess":
         gaps.append("contact.email has no email_source_url — it is an unverified "
                    "pattern guess and must be labelled as one")
     return gaps
@@ -490,9 +491,22 @@ def _post_process(cache: dict, name: str, website: str | None, source_urls: list
 
     company_domain = resolved_domain or _extract_domain(cache["company"].get("website") or "")
 
-    # Hard stop domain drift check for primary contact
+    def _generate_fallback_emails(c_name: str, dom: str) -> tuple[str, str]:
+        clean_dom = dom or f"{name.lower().replace(' ', '')}.com"
+        parts = [p.lower() for p in re.findall(r"[a-z0-9]+", c_name, re.I)]
+        if not parts:
+            return f"contact@{clean_dom}", f"hello@{clean_dom}"
+        first = parts[0]
+        if len(parts) >= 2:
+            last = parts[-1]
+            return f"{first}@{clean_dom}", f"{first}.{last}@{clean_dom}"
+        return f"{first}@{clean_dom}", f"contact@{clean_dom}"
+
+    # Hard stop domain drift check for primary contact & fallback generation
     contact = cache.get("contact") or {}
+    c_name = str(contact.get("name") or "").strip()
     email = str(contact.get("email") or "").strip()
+
     if email and "@" in email:
         email_domain = email.rsplit("@", 1)[1].lower()
         if company_domain and email_domain != company_domain:
@@ -500,16 +514,38 @@ def _post_process(cache: dict, name: str, website: str | None, source_urls: list
             fails.append(f"Discarded contact.email at wrong domain '{email_domain}' "
                         f"(company domain is '{company_domain}')")
             cache["research_failures"] = fails
-            contact["email"] = ""
-            contact["email_confidence"] = "low"
-            contact["contact_verified"] = False
-            contact["email_method"] = "not_found"
-            contact["email_source_url"] = ""
-        else:
-            if not contact.get("email_method"):
-                contact["email_method"] = "found_on_page" if contact.get("email_source_url") else "pattern_guess"
+            email = ""
+
+    if not email and c_name:
+        primary_fb, alt_fb = _generate_fallback_emails(c_name, company_domain)
+        contact["email"] = primary_fb
+        contact["email_confidence"] = "low"
+        contact["contact_verified"] = False
+        contact["email_method"] = "pattern_guess"
+        contact["email_source_url"] = ""
+        fails = list(cache.get("research_failures") or [])
+        note = f"No verified email found on page — generated pattern fallback '{primary_fb}' using domain '{company_domain or 'unresolved'}'"
+        if note not in fails:
+            fails.append(note)
+        cache["research_failures"] = fails
+
+        # Add secondary format (first.last@domain) into contacts_alt for bounce retry pipeline
+        alts = list(cache.get("contacts_alt") or [])
+        if not any(isinstance(a, dict) and a.get("email") == alt_fb for a in alts):
+            alts.append({
+                "name": c_name,
+                "email": alt_fb,
+                "email_confidence": "low",
+                "email_method": "pattern_guess",
+                "email_source_url": "",
+            })
+        cache["contacts_alt"] = alts
+    elif email:
+        if not contact.get("email_method"):
+            contact["email_method"] = "found_on_page" if contact.get("email_source_url") else "pattern_guess"
     elif contact:
         contact["email_method"] = "not_found"
+
     cache["contact"] = contact
 
     # Hard stop domain drift check for contacts_alt (Task B3)
