@@ -1,0 +1,9 @@
+{
+  "field_renames": {
+    "sector_weights": "category_weights",
+    "custom_angles": "custom_facts",
+    "firm_positioning_note": "identity_note",
+    "firm_identity": "identity_record",
+    "firm_name": "identity_name"
+  }
+}

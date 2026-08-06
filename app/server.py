@@ -452,6 +452,28 @@ async def get_voices(kind: str = "outreach"):
     return {"voices": [v.model_dump() for v in voices], "kind": kind}
 
 
+@app.post("/api/voices/import")
+async def import_voices(payload: dict = Body(...)):
+    """Import and migrate a batch of custom voice dictionaries."""
+    from .voice_import import migrate_voice_dict
+    raw_list = payload.get("voices")
+    if not isinstance(raw_list, list):
+        raise HTTPException(status_code=400, detail="expected 'voices' array in payload")
+    imported = []
+    for item in raw_list:
+        if not isinstance(item, dict):
+            continue
+        migrated = migrate_voice_dict(item)
+        try:
+            v = CustomVoice.model_validate(migrated)
+            _validate_voice(v)
+            store.save_custom_voice(v)
+            imported.append(v.id)
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"failed to import voice '{item.get('id')}': {e}")
+    return {"imported": imported, "count": len(imported)}
+
+
 @app.get("/api/meta")
 async def get_meta():
     """Editor metadata derived from the live profile + schema: the per-experience tokens, the full

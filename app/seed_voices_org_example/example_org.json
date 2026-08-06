@@ -1,0 +1,29 @@
+{
+  "id": "example_org",
+  "display_name": "Example Organisation",
+  "audience": "organisation",
+  "kind": "outreach",
+  "subject": "Outreach regarding {company}",
+  "situations": ["b2b_software"],
+  "blocks": [
+    {
+      "id": "intro",
+      "mode": "ai",
+      "guidance": "Mention recent event {recent}",
+      "fact_scope": ["recent", "situation_read"]
+    },
+    {
+      "id": "value_prop",
+      "mode": "ai",
+      "guidance": "Highlight organisation proposition",
+      "fact_scope": ["target_proofs", "custom_facts"]
+    }
+  ],
+  "style": {
+    "register": "direct",
+    "proof_density": "single",
+    "sentence_length": "flowing"
+  },
+  "length_min": 60,
+  "length_max": 110
+}
