@@ -100,7 +100,9 @@
         "role_basis": {"type": "string", "description": "founder | partner | hiring_manager"},
         "email": {"type": "string"},
         "email_confidence": {"enum": ["high", "medium", "low"]},
-        "contact_verified": {"type": "boolean", "description": "true only if the named person was confirmed from a primary/recent source."}
+        "contact_verified": {"type": "boolean", "description": "true only if the named person was confirmed from a primary/recent source."},
+        "email_source_url": {"type": "string"},
+        "email_method": {"enum": ["found_on_page", "pattern_guess", "not_found"]}
       }
     },
     "contacts_alt": {
@@ -115,7 +117,9 @@
           "title": {"type": "string"},
           "role_basis": {"type": "string", "description": "founder | partner | hiring_manager"},
           "email": {"type": "string"},
-          "email_confidence": {"enum": ["high", "medium", "low"]}
+          "email_confidence": {"enum": ["high", "medium", "low"]},
+          "email_source_url": {"type": "string"},
+          "email_method": {"enum": ["found_on_page", "pattern_guess", "not_found"]}
         }
       }
     },

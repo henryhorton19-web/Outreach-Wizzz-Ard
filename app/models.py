@@ -268,6 +268,7 @@ class TargetState(BaseModel):
     slug: str
     name: str
     website: Optional[str] = None
+    recipient_domain: str = ""
     ref: Optional[str] = None         # display/audit only (e.g. tracker source / category tag)
 
     state: State = State.input

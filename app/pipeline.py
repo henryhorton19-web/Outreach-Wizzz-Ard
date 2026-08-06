@@ -198,13 +198,16 @@ def draft_one(provider: Provider, cs: CompanyState, voice_override: str | None =
             if cache is not None:
                 cache = research_mod._sanitize_cache(cache)
         if cache is None:
-            cache = research_mod.research_company(provider, cs.name, cs.website, None)
+            given_site = cs.recipient_domain or cs.website
+            cache = research_mod.research_company(provider, cs.name, given_site, None)
             store.save_cache(cs.slug, cache)
         cs.cache = cache
 
         company = cache.get("company") or {}
         if company.get("name"):
             cs.name = company["name"]
+        if company.get("resolved_domain"):
+            cs.recipient_domain = company["resolved_domain"]
         cs.role_exists = company.get("role_exists")
         cs.company_size = company.get("company_size")
         cs.state = State.researched

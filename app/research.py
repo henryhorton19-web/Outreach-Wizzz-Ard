@@ -475,7 +475,8 @@ def salvage_partial_cache(name, website, source_urls, raw_text, reason) -> dict:
         return _prune_nulls(minimal)
 
 
-def _post_process(cache: dict, name: str, website: str | None, source_urls: list[str]) -> dict:
+def _post_process(cache: dict, name: str, website: str | None, source_urls: list[str],
+                  resolved_domain: str = "") -> dict:
     cache = _sanitize_cache(cache)
     from .ingest import _display_name          # local import: avoids a top-level ingest<->research cycle
     cache.setdefault("company", {})
@@ -486,6 +487,53 @@ def _post_process(cache: dict, name: str, website: str | None, source_urls: list
         cache["company"]["name"] = _display_name(llm_name)  # keep model's name, normalise casing
     if website and not cache["company"].get("website"):
         cache["company"]["website"] = website
+
+    company_domain = resolved_domain or _extract_domain(cache["company"].get("website") or "")
+
+    # Hard stop domain drift check for primary contact
+    contact = cache.get("contact") or {}
+    email = str(contact.get("email") or "").strip()
+    if email and "@" in email:
+        email_domain = email.rsplit("@", 1)[1].lower()
+        if company_domain and email_domain != company_domain:
+            fails = list(cache.get("research_failures") or [])
+            fails.append(f"Discarded contact.email at wrong domain '{email_domain}' "
+                        f"(company domain is '{company_domain}')")
+            cache["research_failures"] = fails
+            contact["email"] = ""
+            contact["email_confidence"] = "low"
+            contact["contact_verified"] = False
+            contact["email_method"] = "not_found"
+            contact["email_source_url"] = ""
+        else:
+            if not contact.get("email_method"):
+                contact["email_method"] = "found_on_page" if contact.get("email_source_url") else "pattern_guess"
+    elif contact:
+        contact["email_method"] = "not_found"
+    cache["contact"] = contact
+
+    # Hard stop domain drift check for contacts_alt (Task B3)
+    alts = cache.get("contacts_alt")
+    if isinstance(alts, list):
+        cleaned_alts = []
+        for alt in alts:
+            if not isinstance(alt, dict):
+                continue
+            alt_email = str(alt.get("email") or "").strip()
+            if alt_email and "@" in alt_email:
+                alt_domain = alt_email.rsplit("@", 1)[1].lower()
+                if company_domain and alt_domain != company_domain:
+                    alt["email"] = ""
+                    alt["email_confidence"] = "low"
+                    alt["email_method"] = "not_found"
+                    alt["email_source_url"] = ""
+                else:
+                    if not alt.get("email_method"):
+                        alt["email_method"] = "found_on_page" if alt.get("email_source_url") else "pattern_guess"
+            else:
+                alt["email_method"] = "not_found"
+            cleaned_alts.append(alt)
+        cache["contacts_alt"] = cleaned_alts
 
     ev = []
     for item in list(cache.get("evidence_sources") or []):

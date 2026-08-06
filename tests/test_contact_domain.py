@@ -61,3 +61,30 @@ def test_the_fabrication_instruction_is_gone_from_the_prompt():
         "the model is still told to never leave the email blank"
     assert "best-guess" not in contract.lower() or "confirmed_domain" in contract, \
         "a best-guess instruction survives with no domain constraint attached"
+
+
+def test_post_process_discards_wrong_domain_email():
+    bad_cache = _cache(email="chandler@example-saas-alt.test")
+    processed = research._post_process(bad_cache, "Example SaaS", "https://example-saas.test", [], resolved_domain="example-saas.test")
+    assert processed["contact"]["email"] == ""
+    assert processed["contact"]["email_method"] == "not_found"
+    assert any("Discarded contact.email at wrong domain" in f for f in processed.get("research_failures", []))
+
+
+def test_contacts_alt_wrong_domain_email_is_discarded():
+    raw_cache = _cache(email="jamie@example-saas.test", email_source_url="https://example-saas.test/team")
+    raw_cache["contacts_alt"] = [{"name": "Wrong Alt", "email": "alt@wrong.com"}]
+    processed = research._post_process(raw_cache, "Example SaaS", "https://example-saas.test", [], resolved_domain="example-saas.test")
+    assert processed["contacts_alt"][0]["email"] == ""
+    assert processed["contacts_alt"][0]["email_method"] == "not_found"
+
+
+def test_pipeline_populates_recipient_domain_and_reuses_on_redraft():
+    from app.pipeline import draft_one
+    from app.models import CompanyState
+    from app.providers.stub import StubProvider
+    p = StubProvider()
+    cs = CompanyState(slug="test_co", name="Test Co", website="https://testco.io")
+    res_cs = draft_one(p, cs, reuse_cache=False)
+    assert res_cs.recipient_domain == "testco.io"
+
