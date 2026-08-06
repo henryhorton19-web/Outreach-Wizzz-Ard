@@ -152,11 +152,14 @@ def _execute_job(job: dict, settings: Any, recency_days: int, max_candidates: in
 
         if verdict == "accept" and screened.get("tier") == "Tier 1":
             job["counts"]["accepted"] += 1
+            meta = dict(raw.get("meta") or {})
+            if job.get("sourcing_prompt_id"):
+                meta["sourced_by_preset"] = job["sourcing_prompt_id"]
             ingest_rows.append({
                 "slug": slug,
                 "name": name,
                 "ref": screened.get("website", ""),
-                "meta": raw.get("meta") or {},
+                "meta": meta,
             })
         elif verdict == "needs_review" or screened.get("tier") == "Tier 2":
             job["counts"]["held"] += 1

@@ -116,3 +116,67 @@ def test_sources_and_preview_query_endpoints(tmp_path, monkeypatch):
     assert res_prev.status_code == 200
     assert "AI Paris" in res_prev.json()["query"]
 
+
+def test_dry_run_is_non_mutating(tmp_path, monkeypatch):
+    from fastapi.testclient import TestClient
+    from app.server import app
+    from app import settings as S
+    monkeypatch.setenv("WIZZARD_DATA_DIR", str(tmp_path))
+    c = TestClient(app, raise_server_exceptions=False)
+    H = {"x-wizzard-token": S.SESSION_TOKEN}
+
+    # Record directory state before dry run
+    queue_file = tmp_path / "queues" / "default.json"
+    before_exists = queue_file.exists()
+    before_content = queue_file.read_bytes() if before_exists else b""
+
+    res = c.post("/api/source/research/dry_run", json={"recency_days": 90}, headers=H)
+    assert res.status_code == 200
+    data = res.json()
+    assert data["dry_run"] is True
+    assert "query" in data
+    assert data["raw_harvested_count"] > 0
+
+    after_exists = queue_file.exists()
+    after_content = queue_file.read_bytes() if after_exists else b""
+    assert before_exists == after_exists
+    assert before_content == after_content, "dry_run mutated queue file!"
+
+
+def test_export_and_import_presets_round_trip(tmp_path, monkeypatch):
+    from fastapi.testclient import TestClient
+    from app.server import app
+    from app import settings as S
+    monkeypatch.setenv("WIZZARD_DATA_DIR", str(tmp_path))
+    c = TestClient(app, raise_server_exceptions=False)
+    H = {"x-wizzard-token": S.SESSION_TOKEN}
+
+    # Export presets
+    exp_res = c.get("/api/sourcing_prompts/export", headers=H)
+    assert exp_res.status_code == 200
+    prompts = exp_res.json()["prompts"]
+    assert len(prompts) > 0
+
+    # Test importing a new unique preset
+    new_preset = {
+        "id": "imported_unique_preset",
+        "display_name": "Imported Unique Preset",
+        "criteria_text": "Unique mandate",
+        "sources": ["grounded_search"],
+        "recency_days": 90,
+        "exclude_notes": "",
+    }
+
+    imp_res = c.post("/api/sourcing_prompts/import", json={"prompts": [new_preset]}, headers=H)
+    assert imp_res.status_code == 200
+    imp_data = imp_res.json()
+    assert imp_data["imported"] == 1
+    assert imp_data["duplicates"] == 0
+
+    # Import same preset again -> reported as duplicate
+    imp_res2 = c.post("/api/sourcing_prompts/import", json={"prompts": [new_preset]}, headers=H)
+    assert imp_res2.status_code == 200
+    assert imp_res2.json()["duplicates"] == 1
+    assert imp_res2.json()["imported"] == 0
+
+

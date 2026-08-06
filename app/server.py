@@ -862,6 +862,87 @@ async def preview_sourcing_query(pdef: CustomSourcingPrompt = Body(...)):
     query = h.build_query(pdef, recency_days=pdef.recency_days)
     return {"query": query}
 
+
+@app.post("/api/source/research/dry_run")
+async def dry_run_sourcing_research(payload: dict = Body(...)):
+    from app.sourcing.harvest.grounded_search import GroundedSearchHarvester
+    from app.sourcing.harvest import AVAILABLE_HARVESTERS
+    from app.sourcing.verify import verify_candidate
+
+    st = S.load_settings()
+    prompt_id = payload.get("sourcing_prompt_id")
+    custom_prompt = store.get_custom_sourcing_prompt(prompt_id) if prompt_id else None
+    recency_days = payload.get("recency_days") or (custom_prompt.recency_days if custom_prompt else st.sourcing_recency_days)
+    sources = payload.get("sources") or (custom_prompt.sources if custom_prompt else st.sourcing_sources)
+
+    h = GroundedSearchHarvester()
+    query = h.build_query(custom_prompt, recency_days)
+
+    harvested_raw = []
+    for s_id in sources:
+        adapter = AVAILABLE_HARVESTERS.get(s_id)
+        if adapter:
+            raw_items = adapter.harvest(recency_days=recency_days, max_items=10, custom_prompt=custom_prompt)
+            harvested_raw.extend(raw_items)
+
+    survived = []
+    for raw in harvested_raw:
+        verified = verify_candidate(raw, custom_prompt=custom_prompt)
+        if verified.get("verdict") != "reject":
+            survived.append(verified["name"])
+
+    return {
+        "dry_run": True,
+        "query": query,
+        "sources": sources,
+        "raw_harvested_count": len(harvested_raw),
+        "survived_count": len(survived),
+        "sample_candidate_names": survived[:3],
+    }
+
+
+@app.get("/api/sourcing_prompts/export")
+async def export_sourcing_prompts():
+    prompts = store.list_custom_sourcing_prompts()
+    return {"prompts": [p.model_dump() for p in prompts]}
+
+
+@app.post("/api/sourcing_prompts/import")
+async def import_sourcing_prompts(payload: dict = Body(...)):
+    items = payload.get("prompts") or []
+    if not isinstance(items, list):
+        raise HTTPException(status_code=400, detail="Invalid import payload: 'prompts' array expected")
+
+    imported_count = 0
+    duplicate_count = 0
+    invalid_count = 0
+
+    for raw in items:
+        if not isinstance(raw, dict):
+            invalid_count += 1
+            continue
+        pid = raw.get("id")
+        display_name = raw.get("display_name")
+        if not pid or not display_name or not (display_name or "").strip():
+            invalid_count += 1
+            continue
+        if store.get_custom_sourcing_prompt(pid) is not None:
+            duplicate_count += 1
+            continue
+        try:
+            sp = CustomSourcingPrompt(**raw)
+            store.save_custom_sourcing_prompt(sp)
+            imported_count += 1
+        except Exception:
+            invalid_count += 1
+
+    return {
+        "ok": True,
+        "imported": imported_count,
+        "duplicates": duplicate_count,
+        "invalid": invalid_count,
+    }
+
 @app.post("/api/source/research")
 async def start_sourcing_research(payload: dict = Body(...)):
     st = S.load_settings()
