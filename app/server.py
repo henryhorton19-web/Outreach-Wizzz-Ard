@@ -564,10 +564,15 @@ async def save_candidate_profile(request: Request):
     if not isinstance(data, dict):
         raise HTTPException(status_code=400, detail="invalid profile payload")
 
-    name = (data.get("name") or "").strip()
-    one_line = (data.get("one_line") or "").strip()
-    spine = (data.get("spine") or "").strip()
-    experiences = data.get("experiences")
+    # Merge against current store so partial payloads (e.g. from the modal) don't wipe out experiences/facts
+    cur = C.ProfileStore.load()
+    merged = dict(cur)
+    merged.update(data)
+
+    name = (merged.get("name") or "").strip()
+    one_line = (merged.get("one_line") or "").strip()
+    spine = (merged.get("spine") or "").strip()
+    experiences = merged.get("experiences")
     missing = []
     if not name: missing.append("name")
     if not one_line: missing.append("one_line")
@@ -580,7 +585,7 @@ async def save_candidate_profile(request: Request):
             detail=f"Profile validation failed. Required non-empty fields: {', '.join(missing)}"
         )
 
-    C.ProfileStore.save(data)
+    C.ProfileStore.save(merged)
     return {"ok": True, "profile": C.ProfileStore.load()}
 
 

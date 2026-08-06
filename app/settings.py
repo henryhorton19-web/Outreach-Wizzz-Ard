@@ -391,9 +391,10 @@ def load_settings() -> Settings:
     if SETTINGS_FILE.exists():
         try:
             raw = json.loads(SETTINGS_FILE.read_text(encoding="utf-8"))
-            for k, v in raw.items():
-                if hasattr(s, k) and v is not None:
-                    setattr(s, k, v)
+            if isinstance(raw, dict):
+                for k, v in raw.items():
+                    if hasattr(s, k) and v is not None:
+                        setattr(s, k, v)
         except Exception:
             pass  # a corrupt settings file falls back to defaults, never crashes launch
     # env overrides (highest precedence)
