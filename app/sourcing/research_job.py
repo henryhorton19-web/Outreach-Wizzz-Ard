@@ -153,8 +153,11 @@ def _execute_job(job: dict, settings: Any, recency_days: int, max_candidates: in
         if verdict == "accept" and screened.get("tier") == "Tier 1":
             job["counts"]["accepted"] += 1
             meta = dict(raw.get("meta") or {})
+            meta["website_source"] = screened.get("website_source", "unresolved")
             if job.get("sourcing_prompt_id"):
                 meta["sourced_by_preset"] = job["sourcing_prompt_id"]
+            if meta["website_source"] == "unresolved":
+                job["counts"]["unresolved_website"] = job["counts"].get("unresolved_website", 0) + 1
             ingest_rows.append({
                 "slug": slug,
                 "name": name,

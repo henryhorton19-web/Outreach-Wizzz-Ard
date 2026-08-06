@@ -66,7 +66,16 @@ def verify_candidate(candidate_raw: dict,
     now_iso = datetime.now(timezone.utc).isoformat()
     hq_city = meta.get("hq_city") or "Paris"
     hq_country = meta.get("hq_country") or "France"
-    website = meta.get("website") or candidate_raw.get("ref") or f"https://{slug}.com"
+    # Never invent a website. A slug-derived '.com' guess with no marker was
+    # indistinguishable from a real URL by the time it reached CompanyState.website
+    # — and the contact-discovery fix (EXECUTION_PLAN_4_CONTACT_DOMAIN.md, Task A2)
+    # trusts that field unconditionally as the strongest possible domain signal.
+    # This is the upstream half of the chandler@example-saas-alt.test bug: fabricate nothing here,
+    # let research.py's resolve_company_domain() do the one job of finding a real
+    # domain, with a real search, that it already exists to do.
+    # TODO(contact-domain-plan Task A2): validate via _extract_domain once it exists
+    website = meta.get("website") or candidate_raw.get("ref") or ""
+    website_source = "harvester" if meta.get("website") else ("ref" if website else "unresolved")
 
     # Default values derived from harvested metadata
     role_basis_guess = "hiring_manager"
@@ -103,6 +112,7 @@ def verify_candidate(candidate_raw: dict,
         "name": name,
         "canon_slug": slug,
         "website": website,
+        "website_source": website_source,
         "geo": {
             "hq_city": hq_city,
             "hq_country": hq_country,

@@ -2589,11 +2589,16 @@ function renderSourcingReport(job) {
   if (!reportEl || !job) return;
 
   const counts = job.counts || {};
-  const notes = job.notes || [];
+  const notes = [...(job.notes || [])];
   const candidates = job.candidates || [];
   const addedSlugs = job.added_slugs || [];
   const presetObj = sourcingPrompts.find(x => x.id === job.sourcing_prompt_id);
   const presetName = presetObj ? presetObj.display_name : (job.sourcing_prompt_id || "Default");
+
+  const unresWeb = counts.unresolved_website || 0;
+  if (unresWeb > 0) {
+    notes.push(`${counts.queued || 0} queued, ${unresWeb} with no confirmed website yet`);
+  }
 
   let html = `
     <div style="background: #ffffff; padding: 12px; border-radius: 6px; border: 1px solid #e2e8f0; font-size: 13px;">
