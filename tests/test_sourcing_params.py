@@ -144,6 +144,7 @@ def test_dry_run_is_non_mutating(tmp_path, monkeypatch):
 
 
 def test_export_and_import_presets_round_trip(tmp_path, monkeypatch):
+    import time
     from fastapi.testclient import TestClient
     from app.server import app
     from app import settings as S
@@ -158,8 +159,9 @@ def test_export_and_import_presets_round_trip(tmp_path, monkeypatch):
     assert len(prompts) > 0
 
     # Test importing a new unique preset
+    unique_id = f"imp_preset_{int(time.time() * 1000)}"
     new_preset = {
-        "id": "imported_unique_preset",
+        "id": unique_id,
         "display_name": "Imported Unique Preset",
         "criteria_text": "Unique mandate",
         "sources": ["grounded_search"],

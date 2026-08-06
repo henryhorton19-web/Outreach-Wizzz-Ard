@@ -1016,3 +1016,10 @@ h3.ve-h:first-child { margin-top: 0; }
 .status-strip .status-dot { width: 7px; height: 7px; border-radius: 999px;
   background: currentColor; flex: 0 0 auto; }
 .status-strip .status-text { flex: 1 1 auto; }
+
+.req-star { color: var(--error); }
+.query-preview {
+  font-family: var(--mono); font-size: 12px; padding: 8px 10px;
+  background: var(--panel-2); border: 1px solid var(--line);
+  border-radius: var(--r); color: var(--ink-soft); min-height: 40px;
+}

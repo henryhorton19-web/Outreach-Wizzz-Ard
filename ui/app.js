@@ -727,6 +727,25 @@ function buildDrawer(cs) {
     attOpts += `<option value="${esc(a.name)}"${a.name === attVal ? " selected" : ""}>Attach ${esc(a.name)}</option>`;
   });
 
+  // Domain & Contact confidence details (Execution Plan 4, Stage C)
+  const contact = (cs.cache || {}).contact || {};
+  const emailMethod = contact.email_method || (contact.email_source_url ? "found_on_page" : (contact.email ? "pattern_guess" : "not_found"));
+  const sourceUrl = contact.email_source_url || "";
+  const resolvedDom = (cs.cache || {}).company?.resolved_domain || cs.recipient_domain || "";
+  const domSource = (cs.cache || {}).company?.domain_source || (resolvedDom ? "given" : "unresolved");
+
+  let badgeHtml = "";
+  if (emailMethod === "found_on_page") {
+    badgeHtml = `<a class="tag pill-ok" href="${esc(sourceUrl || "#")}" target="_blank" rel="noopener" title="Source: ${esc(sourceUrl || "Confirmed on page")}">Verified</a>`;
+  } else if (emailMethod === "pattern_guess") {
+    badgeHtml = `<span class="tag badge-warn" title="Pattern guess at ${esc(resolvedDom || "domain")} — not confirmed on a page">Guessed</span>`;
+  } else {
+    badgeHtml = `<span class="tag pill-err" title="No contact email confirmed">No contact found</span>`;
+  }
+
+  const domTagStyle = domSource === "unresolved" ? "color:var(--error); font-weight:600;" : "color:var(--ink-soft);";
+  const domLineHtml = `<div class="rs-read"><span class="rs-lbl">Domain</span> ${esc(resolvedDom || "Unresolved")} <span class="tag" style="${domTagStyle} font-size:11px;">(${esc(domSource)})</span></div>`;
+
   wrap.innerHTML = `
     <div class="drawer-grid">
       <div class="research">
@@ -745,6 +764,7 @@ function buildDrawer(cs) {
         </div>
         ${whyVoice}
         ${cs.research_capped ? `<div class="rs-flag"><span class="rs-lbl rs-lbl-warn">Research partial</span> Stopped early or thin — verify the facts and contact before sending.</div>` : ""}
+        ${domLineHtml}
         ${rs.what_they_do ? `<div class="rs-what">${esc(rs.what_they_do)}</div>` : ""}
         ${thesisHtml}
         ${rs.role_title
@@ -768,7 +788,7 @@ function buildDrawer(cs) {
         <div class="letter">
           <div class="letter-head">
             <div class="letter-subject">Subject: <input type="text" class="subjectInput" value="${esc(cs.subject || "")}" /></div>
-            <div class="c-to">To: ${esc((cs.contact || {}).email || "")}</div>
+            <div class="c-to" style="display:flex; align-items:center; gap:8px;">To: <input type="text" class="toInput" style="flex:1; border:none; background:transparent; font-weight:600;" value="${esc(contact.email || cs.sent_to || "")}" /> ${badgeHtml}</div>
           </div>
           <div class="letter-body">
             <textarea class="emailEdit" spellcheck="true">${esc(cs.final_email || cs.machine_email || "")}</textarea>
@@ -794,7 +814,26 @@ function buildDrawer(cs) {
 
   wrap.querySelector(".saveEdit").onclick = async () => {
     try {
+      const toInput = wrap.querySelector(".toInput");
+      const newEmail = toInput ? toInput.value.trim() : "";
+      const at = newEmail.lastIndexOf("@");
+      const newDomain = at > 0 ? newEmail.substring(at + 1).toLowerCase() : "";
+      if (newDomain && cs.recipient_domain && newDomain !== cs.recipient_domain) {
+        const okDom = await dialog({
+          title: "Update company domain?",
+          message: `The email address uses @${newDomain}, which differs from the company's pinned domain (@${cs.recipient_domain}). Use ${newDomain} as this company's domain for future redrafts?`,
+          options: [{ label: "Keep current domain", value: false }, { label: `Update domain to ${newDomain}`, value: true, primary: true }],
+        });
+        if (okDom) {
+          cs.recipient_domain = newDomain;
+          if (cs.cache && cs.cache.company) cs.cache.company.resolved_domain = newDomain;
+        }
+      }
+      if (cs.cache && cs.cache.contact) {
+        cs.cache.contact.email = newEmail;
+      }
       const updated = await api(`/api/companies/${cs.slug}/email`, { method: "PUT", body: { subject: subjectInput.value, email: emailEdit.value } });
+      updated.recipient_domain = cs.recipient_domain;
       companies.set(cs.slug, updated); toast("Edit saved"); renderDrafts();
     } catch (e) { toast(e.message, true); }
   };
@@ -858,6 +897,20 @@ async function clearDrafts() {
 
 async function approveOne(slug) {
   const cs = companies.get(slug);
+  const contact = ((cs || {}).cache || {}).contact || {};
+  const emailMethod = contact.email_method || (contact.email_source_url ? "found_on_page" : (contact.email ? "pattern_guess" : "not_found"));
+  const contactEmail = contact.email || (cs ? cs.sent_to : "");
+
+  if (!contactEmail) {
+    toast("Cannot approve target with no contact email. Add a contact email first.", true);
+    return;
+  }
+
+  let guessNote = "";
+  if (emailMethod === "pattern_guess") {
+    guessNote = `\n\n⚠️ UNCONFIRMED EMAIL: This contact is an unverified pattern guess at @${cs.recipient_domain || "domain"}. Are you sure you want to send to an unconfirmed address?`;
+  }
+
   const dqNote = cs && cs.disqualified ? "\n\nThis target is marked disqualified (work mode or language). Approve anyway?" : "";
   const eff = getEffectiveAttachments(cs);
   const attachNote = eff.length ? `\n\nThe email will include ${eff.join(", ")}.` : "";
@@ -865,9 +918,9 @@ async function approveOne(slug) {
   let windowNote = "";
   try { const w = await api("/api/send_window"); if (w.advise) windowNote = `\n\n${w.message}`; } catch (e) {}
   const ok = await dialog({
-    title: "Approve and stage?",
-    message: `Stage the email for ${cs ? cs.name : "this target"} as a .eml file and write it to your tracker. Nothing sends until you open it and press send.${dqNote}${attachNote}${windowNote}`,
-    options: [{ label: "Cancel", value: false }, { label: "Approve", value: true, primary: true }],
+    title: emailMethod === "pattern_guess" ? "Approve unconfirmed contact?" : "Approve and stage?",
+    message: `Stage the email for ${cs ? cs.name : "this target"} as a .eml file and write it to your tracker. Nothing sends until you open it and press send.${guessNote}${dqNote}${attachNote}${windowNote}`,
+    options: [{ label: "Cancel", value: false }, { label: emailMethod === "pattern_guess" ? "Confirm & Stage" : "Approve", value: true, primary: true }],
   });
   if (!ok) return;
   try {

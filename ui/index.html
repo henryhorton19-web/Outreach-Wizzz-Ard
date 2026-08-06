@@ -105,7 +105,7 @@
           <button class="btn ghost small" id="managePresetsBtn">+ Manage presets</button>
           <button class="btn primary small" id="runSourcingBtn">Start sourcing run</button>
         </div>
-        <div class="sourcing-status hidden" id="sourcingMandateHint" style="margin-top:4px; font-size:12px; color:var(--ink-soft);"></div>
+        <div class="sourcing-status hidden" id="sourcingMandateHint"></div>
         <div class="sourcing-status" id="sourcingStatusText"></div>
         <div class="sourcing-report" id="sourcingReport"></div>
       </div>
@@ -547,11 +547,11 @@
       <div id="presetEditor" class="hidden" style="margin-top:20px; border-top:1px solid var(--line); padding-top:16px;">
         <h3 id="presetEditorTitle">Edit preset</h3>
         <div class="field" style="margin-top:12px;">
-          <label>Display name <span style="color:var(--error)">*</span></label>
+          <label>Display name <span class="req-star">*</span></label>
           <input type="text" id="presetNameInput" placeholder="e.g. AI Infra Paris" autocomplete="off" />
         </div>
         <div class="field" style="margin-top:12px;">
-          <label>Mandate <span style="color:var(--error)">*</span></label>
+          <label>Mandate <span class="req-star">*</span></label>
           <div class="desc">What kind of company are you looking for? Written as prose — this becomes the search query.</div>
           <textarea id="presetCriteriaInput" rows="3" placeholder="e.g. AI infrastructure and developer tools startups in Paris with recent seed or Series A funding"></textarea>
         </div>
@@ -571,7 +571,7 @@
         </div>
         <div class="field" style="margin-top:12px;">
           <label>Query preview</label>
-          <div id="presetQueryPreview" style="font-family:var(--mono); font-size:12px; padding:8px 10px; background:var(--panel-2); border:1px solid var(--line); border-radius:var(--r); color:var(--ink-soft); min-height:40px;"></div>
+          <div id="presetQueryPreview" class="query-preview"></div>
         </div>
         <div class="modal-actions" style="display:flex; justify-content:flex-end; gap:8px; margin-top:16px;">
           <button class="btn ghost" id="presetCancelBtn">Cancel</button>
