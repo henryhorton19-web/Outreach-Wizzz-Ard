@@ -20,30 +20,30 @@
 
     <!-- LEFT: primary working views (where am I working) -->
     <nav class="topbar-tabs" id="topbarTabs" role="tablist" aria-label="Views">
-      <button class="topbar-tab is-active" id="tab-workspace" role="tab" aria-selected="true" data-view="workspace">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+      <button class="topbar-tab is-active" id="tab-workspace" role="tab" aria-selected="true" data-view="workspace" title="Workspace" aria-label="Workspace">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
         <span>Workspace</span>
       </button>
-      <button class="topbar-tab" id="tab-followups" role="tab" aria-selected="false" data-view="followups">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9"></path><polyline points="3 3 3 8 8 8"></polyline><polyline points="12 7 12 12 15 14"></polyline></svg>
+      <button class="topbar-tab" id="tab-followups" role="tab" aria-selected="false" data-view="followups" title="Follow-ups" aria-label="Follow-ups">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9"></path><polyline points="3 3 3 8 8 8"></polyline><polyline points="12 7 12 12 15 14"></polyline></svg>
         <span>Follow-ups</span>
         <span class="badge-count hidden" id="followupsBadge"></span>
       </button>
-      <button class="topbar-tab" id="tab-pipeline" role="tab" aria-selected="false" data-view="pipeline">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="4" x2="4" y2="20"></line><line x1="10" y1="4" x2="10" y2="14"></line><line x1="16" y1="4" x2="16" y2="18"></line></svg>
+      <button class="topbar-tab" id="tab-pipeline" role="tab" aria-selected="false" data-view="pipeline" title="Pipeline" aria-label="Pipeline">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="4" y1="4" x2="4" y2="20"></line><line x1="10" y1="4" x2="10" y2="14"></line><line x1="16" y1="4" x2="16" y2="18"></line></svg>
         <span>Pipeline</span>
       </button>
-      <button class="topbar-tab" id="tab-performance" role="tab" aria-selected="false" data-view="performance">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"></path><path d="M18 9l-5 5-3-3-4 4"></path></svg>
+      <button class="topbar-tab" id="tab-performance" role="tab" aria-selected="false" data-view="performance" title="Performance" aria-label="Performance">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"></path><path d="M18 9l-5 5-3-3-4 4"></path></svg>
         <span>Performance</span>
       </button>
-      <button class="topbar-tab" id="tab-triage" role="tab" aria-selected="false" data-view="triage">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+      <button class="topbar-tab" id="tab-triage" role="tab" aria-selected="false" data-view="triage" title="Triage" aria-label="Triage">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
         <span>Triage</span>
         <span class="badge-count hidden" id="triageBadge"></span>
       </button>
-      <button class="topbar-tab" id="tab-profile" role="tab" aria-selected="false" data-view="profile">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+      <button class="topbar-tab" id="tab-profile" role="tab" aria-selected="false" data-view="profile" title="Profile" aria-label="Profile">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
         <span>Profile</span>
       </button>
     </nav>
@@ -69,6 +69,11 @@
       </button>
     </div>
   </header>
+  <div class="status-strip hidden" id="statusStrip" role="status" aria-live="polite">
+    <span class="status-dot"></span>
+    <span class="status-text" id="statusText"></span>
+    <button class="btn ghost small hidden" id="statusAction"></button>
+  </div>
 
   <main class="wrap">
     <!-- Workspace View (Split: Queue + Active Drafts) -->
@@ -130,6 +135,11 @@
           <div id="queueList"></div>
           <div class="col-empty hidden" id="queueEmpty">
             <span>Queue is empty.</span>
+            <div class="empty-actions">
+              <button class="btn ghost small" id="emptyPasteBtn">Paste names</button>
+              <button class="btn ghost small" id="emptyUploadBtn">Upload a spreadsheet</button>
+              <button class="btn ghost small" id="emptySourceBtn">Find new targets</button>
+            </div>
           </div>
         </div>
 
@@ -149,6 +159,9 @@
           <div class="empty-icon">✍️</div>
           <h3>No active drafts</h3>
           <p>Select targets on the left and click <strong>Draft &rarr;</strong> or <strong>Draft 5</strong> to generate personalized outreach emails.</p>
+          <div class="empty-actions">
+            <button class="btn primary small" id="emptyDraft5Btn">Draft the next 5 from the queue</button>
+          </div>
         </div>
       </div>
     </div>
@@ -165,7 +178,10 @@
         </div>
       </div>
       <div id="followupsList"></div>
-      <div class="col-empty hidden" id="followupsEmpty"><span>No follow-ups needed right now.</span></div>
+      <div class="col-empty hidden" id="followupsEmpty">
+        <span>No follow-ups due.</span>
+        <p class="hint" style="margin-top:4px;">They appear here once a send goes unanswered.</p>
+      </div>
     </section>
 
     <!-- PIPELINE VIEW -->
@@ -198,7 +214,10 @@
       </div>
       <div id="perfSummary" class="hint" style="margin-bottom:12px;"></div>
       <div id="perfTableWrap"></div>
-      <div class="col-empty hidden" id="perfEmpty"><span>No performance metrics recorded yet.</span></div>
+      <div class="col-empty hidden" id="perfEmpty">
+        <span>No performance data yet.</span>
+        <p class="hint" style="margin-top:4px;">Reply rates appear once sends have outcomes.</p>
+      </div>
     </section>
 
     <!-- TRIAGE VIEW -->
@@ -220,7 +239,12 @@
       </div>
       <div class="triage-status" id="triageStatus"></div>
       <div id="triageList"></div>
-      <div class="col-empty hidden" id="triageEmpty"><span>No items to work here. Check again after your next sweep.</span></div>
+      <div class="col-empty hidden" id="triageEmpty">
+        <span>Nothing to work here.</span>
+        <div class="empty-actions">
+          <button class="btn ghost small" id="emptyTriageSweepBtn">Check for replies</button>
+        </div>
+      </div>
     </section>
 
     <!-- CANDIDATE PROFILE PROOF LIBRARY VIEW -->
@@ -513,11 +537,21 @@
     <div class="modal" style="max-width: 420px;">
       <h2>Keyboard shortcuts</h2>
       <div class="shortcut-sheet" style="margin-top:12px;">
+        <span class="eyebrow" style="grid-column:1/-1; margin-bottom:2px;">Workspace only</span>
         <kbd>j</kbd><span>Next draft</span>
         <kbd>k</kbd><span>Previous draft</span>
         <kbd>a</kbd><span>Approve focused draft</span>
         <kbd>e</kbd><span>Open / edit focused draft</span>
         <kbd>/</kbd><span>Focus the ingest box</span>
+        <span class="eyebrow" style="grid-column:1/-1; margin-top:10px; margin-bottom:2px;">Triage view</span>
+        <kbd>j</kbd><span>Next triage row</span>
+        <kbd>k</kbd><span>Previous triage row</span>
+        <kbd>r</kbd><span>Mark replied</span>
+        <kbd>b</kbd><span>Mark bounced</span>
+        <kbd>n</kbd><span>Mark no response</span>
+        <kbd>u</kbd><span>Reopen</span>
+        <kbd>1</kbd>–<kbd>4</kbd><span>Switch bucket</span>
+        <span class="eyebrow" style="grid-column:1/-1; margin-top:10px; margin-bottom:2px;">Global</span>
         <kbd>?</kbd><span>Show this sheet</span>
       </div>
       <div class="modal-actions"><button class="btn ghost" id="shortcutCloseBtn">Close</button></div>

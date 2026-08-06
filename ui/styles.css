@@ -148,6 +148,7 @@ a { color: var(--capital); }
   display: flex; flex-direction: column; align-items: center; gap: 6px;
   background: var(--panel); border: 1px dashed var(--line-strong); border-radius: var(--r);
 }
+.empty-actions { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; justify-content: center; }
 
 /* ---- workbench columns ---- */
 /* Both split-layout tracks must allow shrink-below-content; otherwise the 1fr
@@ -847,9 +848,28 @@ h3.ve-h:first-child { margin-top: 0; }
 .topbar-tabs {
   display: flex; gap: 2px; align-items: center; margin-left: 18px;
   background: rgba(255,255,255,.06); border-radius: 8px; padding: 3px;
-  min-width: 0; flex: 0 1 auto; overflow-x: auto; scrollbar-width: none;
+  /* Primary navigation must not be the only shrinkable element in the row.
+     This was flex: 0 1 auto while the cost meter, list pill, provider pill and
+     utils were all fixed, so ~360px of status chrome held its width and the tab
+     strip absorbed the entire deficit. */
+  flex: 1 1 auto; min-width: 200px;
+  overflow-x: auto; overscroll-behavior-x: contain; scroll-behavior: smooth;
+  /* A visible thin scrollbar is the affordance. It was hidden, so nothing
+     signalled that content was cut off. */
+  scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.28) transparent;
 }
-.topbar-tabs::-webkit-scrollbar { display: none; }
+.topbar-tabs::-webkit-scrollbar { height: 3px; }
+.topbar-tabs::-webkit-scrollbar-track { background: transparent; }
+.topbar-tabs::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,.28); border-radius: 999px;
+}
+
+/* Status chrome yields before navigation does. */
+.topbar .cost-meter,
+.topbar .pill-provider {
+  flex: 0 1 auto; min-width: 0; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap;
+}
 .topbar-tab {
   display: inline-flex; align-items: center; gap: 6px; position: relative;
   border: 0; background: transparent; cursor: pointer; padding: 6px 12px; border-radius: 6px;
@@ -868,7 +888,14 @@ h3.ve-h:first-child { margin-top: 0; }
 }
 .cost-meter:hover { border-color: #fff; color: #fff; }
 
-@media (max-width: 1200px) {
+/* Keep the ACTIVE tab labelled so the current location is always named; inactive
+   tabs become icons with a tooltip. Previously all six labels were hidden at
+   once at 1200px, leaving six anonymous icons at every laptop width. */
+@media (max-width: 1440px) {
+  .topbar-tab:not(.is-active) span:not(.badge-count) { display: none; }
+  .topbar-tab:not(.is-active) { padding: 6px 9px; }
+}
+@media (max-width: 1080px) {
   .topbar-tab span:not(.badge-count) { display: none; }
   .topbar-tab { padding: 6px 9px; }
 }
@@ -877,7 +904,7 @@ h3.ve-h:first-child { margin-top: 0; }
 }
 
 @media (max-width: 760px) {
-  .topbar-tabs { overflow-x: auto; margin-left: 8px; max-width: 46vw; }
+  .topbar-tabs { margin-left: 8px; }
   .topbar-tab span:not(.badge-count) { display: none; }
   .cost-meter { display: none; }
 }
@@ -977,3 +1004,15 @@ h3.ve-h:first-child { margin-top: 0; }
 .ve-learn-ver { display: flex; align-items: center; justify-content: space-between;
   gap: 10px; padding: 5px 0; font-size: 13px; border-top: 1px solid var(--line); }
 .ve-learn-ver:first-of-type { border-top: none; }
+
+/* --- status strip: persistent error channel for store.DEGRADED --- */
+.status-strip { position: sticky; top: 58px; z-index: 30;
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 26px; font-size: 12px;
+  background: var(--caution-tint); color: var(--caution);
+  border-bottom: 1px solid var(--caution); }
+.status-strip.is-error { background: var(--error-tint); color: var(--error);
+  border-bottom-color: var(--error); }
+.status-strip .status-dot { width: 7px; height: 7px; border-radius: 999px;
+  background: currentColor; flex: 0 0 auto; }
+.status-strip .status-text { flex: 1 1 auto; }

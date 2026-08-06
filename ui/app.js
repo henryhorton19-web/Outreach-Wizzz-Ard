@@ -119,7 +119,19 @@ async function refreshStatus() {
   state.status = await api("/api/status");
   const prov = state.status.provider;
   $("#providerPill").textContent = "provider: " + (PROVIDER_LABEL[prov] || prov);
+  renderStatusStrip();
   return state.status;
+}
+
+function renderStatusStrip() {
+  const strip = $("#statusStrip");
+  if (!strip) return;
+  const degraded = state.status && state.status.degraded;
+  if (!degraded) { strip.classList.add("hidden"); return; }
+  strip.classList.remove("hidden");
+  strip.classList.add("is-error");
+  $("#statusText").textContent = degraded;
+  strip.setAttribute("aria-live", "assertive");
 }
 
 async function fetchVoices() {
@@ -378,7 +390,14 @@ function renderListSelect() {
   const sel = $("#listSelect");
   if (!sel) return;
   const lists = (state.lists && state.lists.length) ? state.lists : [{ id: "default", name: "Default List", count: (state.queue || []).length }];
-  sel.innerHTML = lists.map(l => `<option value="${esc(l.id)}"${l.id === (state.activeListId || "default") ? " selected" : ""}>${esc(l.name)} (${l.count || 0})</option>`).join("");
+  // The name is already shown by #activeListNameDisplay and the count by #queueCount.
+  // Repeating both in the option text duplicated identity inside a 280px header.
+  sel.innerHTML = lists.map(l => {
+    const off = l.unavailable ? " disabled" : "";
+    const why = l.unavailable ? ` title="${esc(l.reason || "unavailable")}"` : "";
+    const on = l.id === (state.activeListId || "default") ? " selected" : "";
+    return `<option value="${esc(l.id)}"${on}${off}${why}>${esc(l.name)}${l.unavailable ? " (unavailable)" : ""}</option>`;
+  }).join("");
 
   const activeObj = lists.find(l => l.id === (state.activeListId || "default")) || lists[0];
   const activeName = activeObj ? activeObj.name : "Default List";
@@ -954,6 +973,27 @@ async function clearArchive() {
 // Workspace = the split (ingest + queue + drafts); the others are full-width views.
 const VIEWS = ["workspace", "followups", "pipeline", "performance", "triage", "profile"];
 
+/* ---------- topbar tab strip ---------- */
+function initTabStripScroll() {
+  const strip = $("#topbarTabs");
+  if (!strip) return;
+  // A vertical wheel gesture is the only scroll a plain mouse can produce.
+  // Without this translation the strip is unreachable without a trackpad.
+  strip.addEventListener("wheel", (e) => {
+    if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;   // real h-scroll: pass through
+    if (strip.scrollWidth <= strip.clientWidth) return;      // nothing hidden
+    e.preventDefault();
+    strip.scrollLeft += e.deltaY;
+  }, { passive: false });
+}
+
+function scrollActiveTabIntoView() {
+  const active = $("#topbarTabs .topbar-tab.is-active");
+  if (active && active.scrollIntoView) {
+    active.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }
+}
+
 function showView(name) {
   if (!VIEWS.includes(name)) name = "workspace";
   state.view = name;
@@ -973,6 +1013,7 @@ function showView(name) {
     t.classList.toggle("is-active", on);
     t.setAttribute("aria-selected", on ? "true" : "false");
   });
+  scrollActiveTabIntoView();
   if (name === "followups") refreshFollowups();
   else if (name === "pipeline") refreshPipeline();
   else if (name === "performance") refreshPerformance();
@@ -1316,6 +1357,7 @@ function renderTriage() {
   list.innerHTML = "";
   items.forEach(it => {
     const row = document.createElement("div"); row.className = "triage-row";
+    row.dataset.id = it.id;
     const age = it.age_days ? `${it.age_days}d ago` : "recent";
     const src = it.outcome_source === "manual"
       ? `<span class="badge" title="You marked this by hand">marked</span> ` : "";
@@ -1524,6 +1566,7 @@ function handleShortcut(e) {
     if (e.key === "Escape" && typingInField()) document.activeElement.blur();
     return;
   }
+  if (state.view === "triage") { handleTriageShortcut(e); return; }
   if (state.view !== "workspace" && e.key !== "?") return;
   switch (e.key) {
     case "j": e.preventDefault(); moveKbdFocus(1); break;
@@ -1533,6 +1576,43 @@ function handleShortcut(e) {
     case "/": e.preventDefault(); { const t = $("#namesInput"); if (t) t.focus(); } break;
     case "?": e.preventDefault(); $("#shortcutModal").classList.remove("hidden"); break;
   }
+}
+
+// One-key triage. Reuses markOutcome / setTriageBucket, which already fire the
+// same effects as the automatic sweep.
+const TRIAGE_KEYS = { r: "replied", b: "bounced", n: "no_response", u: "reopen" };
+const TRIAGE_BUCKETS = ["replied", "bounced", "gone_quiet", "awaiting"];
+let triageFocusIdx = -1;
+
+function handleTriageShortcut(e) {
+  if (e.key === "?") { e.preventDefault(); $("#shortcutModal").classList.remove("hidden"); return; }
+  const bucketIdx = "1234".indexOf(e.key);
+  if (bucketIdx >= 0) { e.preventDefault(); setTriageBucket(TRIAGE_BUCKETS[bucketIdx]); return; }
+  if (e.key === "j" || e.key === "k") { e.preventDefault(); moveTriageFocus(e.key === "j" ? 1 : -1); return; }
+  const outcome = TRIAGE_KEYS[e.key];
+  if (!outcome) return;
+  const id = focusedTriageId();
+  if (!id) return;
+  e.preventDefault();
+  markOutcome(id, outcome);
+}
+
+function visibleTriageRows() { return $$("#triageList .triage-row"); }
+
+function moveTriageFocus(delta) {
+  const rows = visibleTriageRows();
+  if (!rows.length) return;
+  rows.forEach(r => r.classList.remove("kbd-focus"));
+  triageFocusIdx = Math.max(0, Math.min(rows.length - 1, triageFocusIdx + delta));
+  const row = rows[triageFocusIdx];
+  row.classList.add("kbd-focus");
+  row.scrollIntoView({ block: "nearest", behavior: (matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth") });
+}
+
+function focusedTriageId() {
+  const rows = visibleTriageRows();
+  if (triageFocusIdx < 0 || triageFocusIdx >= rows.length) return null;
+  return rows[triageFocusIdx].dataset.id || null;
 }
 
 /* ================= SNIPPET INSERT (Phase 4b) ================= */
@@ -2108,6 +2188,7 @@ function wire() {
   $("#clearArchiveBtn").onclick = clearArchive;
 
   // primary tab strip: click + roving-arrow keyboard nav
+  initTabStripScroll();
   const tabs = $$(".topbar-tab");
   tabs.forEach((t, i) => {
     t.onclick = () => showView(t.dataset.view);
@@ -2173,6 +2254,13 @@ function wire() {
   // keyboard shortcuts + cheat-sheet
   $("#shortcutCloseBtn").onclick = () => $("#shortcutModal").classList.add("hidden");
   document.addEventListener("keydown", handleShortcut);
+
+  // empty-state action buttons → wire to existing handlers
+  if ($("#emptyPasteBtn")) $("#emptyPasteBtn").onclick = () => { const t = $("#namesInput"); if (t) t.focus(); };
+  if ($("#emptyUploadBtn")) $("#emptyUploadBtn").onclick = () => $("#fileInput").click();
+  if ($("#emptySourceBtn")) $("#emptySourceBtn").onclick = openSourcingPanel;
+  if ($("#emptyDraft5Btn")) $("#emptyDraft5Btn").onclick = draft5;
+  if ($("#emptyTriageSweepBtn")) $("#emptyTriageSweepBtn").onclick = () => runSweep($("#emptyTriageSweepBtn"));
 
   $("#guideBtn").onclick = () => $("#guideModal").classList.remove("hidden");
   $("#guideCloseBtn").onclick = () => $("#guideModal").classList.add("hidden");
