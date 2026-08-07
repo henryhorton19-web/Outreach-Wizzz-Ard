@@ -140,6 +140,13 @@ def _relevant_anchor(provider: Provider, point_text: str, shortlist: list, regis
         return shortlist[0]["anchor"]
 
 
+# Which block the recent-point template replaces. The original contract, quoted in
+# the migrated voices' own guidance, is that the OPENING line is swapped -- not every
+# fixed block. Without this scope the template also replaced the greeting, identity
+# paragraph and close, producing an email that was the same sentence four times.
+_RECENT_SWAP_BLOCK_ID = "opening"
+
+
 def resolve_fixed(provider: Provider, block, tokens: dict, shortlist: list, register: str = "",
                   voice=None) -> str:
     """Render a fixed block's text.
@@ -158,7 +165,7 @@ def resolve_fixed(provider: Provider, block, tokens: dict, shortlist: list, regi
     templates = getattr(voice, "recent_point_templates", None) or {}
     kind = (tokens.get("recent_kind") or "").strip()
     source = block.text
-    if kind and templates.get(kind):
+    if kind and templates.get(kind) and block.id == _RECENT_SWAP_BLOCK_ID:
         source = templates[kind]
     text = render(source, tokens)
     if "{relevant}" in text:
