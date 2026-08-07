@@ -878,7 +878,7 @@ function buildDrawer(cs) {
           <button class="btn ghost small saveEdit">Save edit</button>
           <button class="btn ghost small resetEdit">Restore original</button>
           <button class="btn ghost small compareBtn">Compare with original</button>
-          <button class="btn ghost small insertSnippet">Insert snippet</button>
+          <button class="btn ghost small redraftSame" title="Redraft using the current voice">Redraft</button>
           <div class="wc"></div>
           ${costNote}
         </div>
@@ -928,9 +928,24 @@ function buildDrawer(cs) {
                      <div class="cmp-col"><span class="eyebrow">Current</span><pre>${esc(emailEdit.value)}</pre></div>`;
     box.classList.remove("hidden");
   };
-  wrap.querySelector(".insertSnippet").onclick = (e) => {
-    e.stopPropagation();
-    openSnippetPopover(e.currentTarget, emailEdit);
+  wrap.querySelector(".redraftSame").onclick = async () => {
+    const isEdited = (emailEdit.value !== (cs.machine_email || "")) || (subjectInput.value !== (cs.subject || ""));
+    if (isEdited) {
+      const ok = await dialog({
+        title: "Overwrite unsaved edits?",
+        message: "You have modified this email draft. Redrafting will replace your edits with a freshly generated draft. Continue?",
+        options: [{ label: "Cancel", value: false }, { label: "Redraft & overwrite", value: true, danger: true }]
+      });
+      if (!ok) return;
+    }
+    try {
+      const r = await api(`/api/companies/${cs.slug}/redraft`, { method: "POST", body: { voice: cs.voice, reuse_cache: true } });
+      companies.set(cs.slug, r.company);
+      toast(cs.voice ? `Redrafted as ${voiceLabel(cs.voice)}` : "Redrafted");
+      renderDrafts();
+    } catch (e2) {
+      toast(e2.message, true);
+    }
   };
   wrap.querySelector(".voiceSel").onchange = async (e) => {
     const val = e.target.value;
@@ -1786,67 +1801,7 @@ function focusedTriageId() {
   return rows[triageFocusIdx].dataset.id || null;
 }
 
-/* ================= SNIPPET INSERT (Phase 4b) ================= */
 
-async function loadSnippets() {
-  try { state.snippets = (await api("/api/snippets")).snippets || []; }
-  catch (e) { state.snippets = []; }
-}
-
-function openSnippetPopover(anchorBtn, textarea) {
-  closeSnippetPopover();
-  const pop = document.createElement("div");
-  pop.className = "snippet-popover";
-  pop.id = "snippetPopover";
-  const search = document.createElement("input");
-  search.type = "text"; search.placeholder = "Search snippets…";
-  search.style.cssText = "width:100%; margin-bottom:6px; padding:6px 8px; border:1px solid var(--line-strong); border-radius:6px;";
-  pop.appendChild(search);
-  const list = document.createElement("div");
-  pop.appendChild(list);
-  const render = (filter) => {
-    const items = (state.snippets || []).filter(s => !filter || (s.name + s.text).toLowerCase().includes(filter.toLowerCase()));
-    list.innerHTML = "";
-    if (!items.length) { list.innerHTML = `<div class="snippet-item"><span class="sn-prev">No snippets. Add them in the Voices editor.</span></div>`; return; }
-    items.forEach((s, i) => {
-      const it = document.createElement("div");
-      it.className = "snippet-item" + (i === 0 ? " sel" : "");
-      it.innerHTML = `<div class="sn-name">${esc(s.name)}</div><div class="sn-prev">${esc((s.text || "").slice(0, 80))}</div>`;
-      it.onclick = () => { insertAtCursor(textarea, s.text || ""); closeSnippetPopover(); };
-      list.appendChild(it);
-    });
-  };
-  render("");
-  search.oninput = () => render(search.value);
-  search.onkeydown = (e) => {
-    const sel = list.querySelector(".snippet-item.sel");
-    if (e.key === "Enter" && sel) { e.preventDefault(); sel.click(); }
-    else if (e.key === "Escape") { e.preventDefault(); closeSnippetPopover(); }
-  };
-  const r = anchorBtn.getBoundingClientRect();
-  pop.style.left = `${Math.max(8, r.left)}px`;
-  pop.style.top = `${r.bottom + window.scrollY + 4}px`;
-  document.body.appendChild(pop);
-  search.focus();
-  setTimeout(() => document.addEventListener("click", closeSnippetOnOutside, true), 0);
-}
-
-function closeSnippetOnOutside(e) {
-  const pop = $("#snippetPopover");
-  if (pop && !pop.contains(e.target)) closeSnippetPopover();
-}
-function closeSnippetPopover() {
-  const pop = $("#snippetPopover");
-  if (pop) pop.remove();
-  document.removeEventListener("click", closeSnippetOnOutside, true);
-}
-function insertAtCursor(textarea, text) {
-  if (!textarea) return;
-  const s = textarea.selectionStart || 0, e = textarea.selectionEnd || 0;
-  textarea.value = textarea.value.slice(0, s) + text + textarea.value.slice(e);
-  textarea.selectionStart = textarea.selectionEnd = s + text.length;
-  textarea.dispatchEvent(new Event("input"));
-}
 
 /* ================= VOICES (block-schema editor) ================= */
 let META = { experiences: [], tokens: [], fact_scopes: ["recent","target_proofs","situation_read","candidate_evidence","candidate_spine","custom_facts"],
@@ -3316,7 +3271,6 @@ async function boot() {
     await refreshDrafts();
     await updateFollowupsBadge();
     await refreshCost();
-    await loadSnippets();
     try { const t = await api("/api/triage"); state.triageData = t; updateTriageBadge(); } catch (e) {}
     showView("workspace");
     if (needsKey(state.status)) openStartup();
