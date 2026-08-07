@@ -118,9 +118,9 @@ def test_bootstrap_seeds_once_and_self_heals(isolated):
     assert len(store.list_custom_voices(kind="followup")) == expected_followup
     S.ensure_seeded()
     assert len(list((isolated / "voices").glob("*.json"))) == total
-    v = store.get_custom_voice("role_small"); v.display_name = "Mine"; store.save_custom_voice(v)
+    v = store.get_custom_voice("chief_of_staff"); v.display_name = "Mine"; store.save_custom_voice(v)
     S.ensure_seeded()
-    assert store.get_custom_voice("role_small").display_name == "Mine"
+    assert store.get_custom_voice("chief_of_staff").display_name == "Mine"
     for p in (isolated / "voices").glob("*.json"):
         p.unlink()
     S.ensure_seeded()

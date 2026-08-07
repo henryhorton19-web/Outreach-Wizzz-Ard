@@ -351,36 +351,36 @@ def test_http_learn_history_rollback(client):
     from app.models import SentItem as _SI, ReplyState as _RS
     pre, post = "Hi Jane,\n\n", "\n\nOpen to a short call?"
     for i in range(5):
-        client._store.upsert_sent_item(_SI(id=f"role_small#{i}", slug="s", name="X",
-                                           voice="role_small", reply_state=_RS.awaiting))
+        client._store.upsert_sent_item(_SI(id=f"chief_of_staff#{i}", slug="s", name="X",
+                                           voice="chief_of_staff", reply_state=_RS.awaiting))
         body = ("A fairly long and meandering machine paragraph that says a great deal "
                 "without much focus here. " * 3) + f"Variation {i}."
         edited = (f"Tightened, punchier body {i}. Straight to the point, one proof, "
                   "no throat clearing at all.")
-        client._el.record_edit("role_small", pre + body + post, body, pre + edited + post,
-                               sent_id=f"role_small#{i}")
+        client._el.record_edit("chief_of_staff", pre + body + post, body, pre + edited + post,
+                               sent_id=f"chief_of_staff#{i}")
 
-    r = client.post("/api/voices/role_small/learn", headers=client._H)
+    r = client.post("/api/voices/chief_of_staff/learn", headers=client._H)
     assert r.status_code == 200 and r.json()["proposal"]
     prop = r.json()["proposal"]
 
-    a = client.post(f"/api/voices/role_small/proposals/{quote(prop['id'], safe='')}/apply",
+    a = client.post(f"/api/voices/chief_of_staff/proposals/{quote(prop['id'], safe='')}/apply",
                     headers=client._H)
     assert a.status_code == 200 and a.json()["ok"]
 
-    h = client.get("/api/voices/role_small/history", headers=client._H)
+    h = client.get("/api/voices/chief_of_staff/history", headers=client._H)
     assert h.status_code == 200 and h.json()["versions"]
     ts = h.json()["versions"][0]["ts"]
 
-    rb = client.post("/api/voices/role_small/rollback", headers=client._H, json={"ts": ts})
+    rb = client.post("/api/voices/chief_of_staff/rollback", headers=client._H, json={"ts": ts})
     assert rb.status_code == 200 and rb.json()["ok"]
 
-    ls = client.get("/api/voices/role_small/learning", headers=client._H)
+    ls = client.get("/api/voices/chief_of_staff/learning", headers=client._H)
     assert ls.status_code == 200 and ls.json()["ok"]
 
 
 def test_http_challenger_hidden_from_voices_list(client):
-    v = client._store.get_custom_voice("role_small")
+    v = client._store.get_custom_voice("chief_of_staff")
     client._vl.spawn_challenger(v, {"style_deltas": {"directness": 1}})
     r = client.get("/api/voices?kind=outreach", headers=client._H)
     ids = [x["id"] for x in r.json()["voices"]]
