@@ -1023,3 +1023,15 @@ h3.ve-h:first-child { margin-top: 0; }
   background: var(--panel-2); border: 1px solid var(--line);
   border-radius: var(--r); color: var(--ink-soft); min-height: 40px;
 }
+
+/* --- Stage F: Bulk export screening gate styles --- */
+.sourcing-bulk-section { border-top: 1px solid var(--line); margin-top: 12px; padding-top: 12px; }
+.sourcing-bulk-head { display: flex; justify-content: space-between; align-items: center; }
+.sourcing-bulk-head h5 { margin: 0; font-size: 13px; font-weight: 600; }
+.sourcing-bulk-filename { font-size: 12px; margin-top: 4px; color: var(--ink-soft); }
+.sourcing-bulk-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+.sourcing-bulk-grid.tight { margin-top: 6px; }
+.sourcing-bulk-lbl { font-size: 11px; display: block; margin-bottom: 2px; color: var(--ink-soft); }
+.sourcing-bulk-inp { padding: 4px 8px; font-size: 12px; width: 100%; }
+.sourcing-bulk-actions { margin-top: 10px; display: flex; justify-content: flex-end; }
+

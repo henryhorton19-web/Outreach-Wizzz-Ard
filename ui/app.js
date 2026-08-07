@@ -280,6 +280,15 @@ async function openSettings() {
   $("#setStaleDays").value = String(fs.pipeline_stale_days || 7);
   $("#setMaxBounce").value = String(fs.max_bounce_retries != null ? fs.max_bounce_retries : 3);
   $("#setSendWindow").checked = fs.send_window_advisory !== false;
+  // Stage E & G: exclusion layer & org voice learning
+  if ($("#setExclusionEnabled")) $("#setExclusionEnabled").checked = fs.exclusion_enabled !== false;
+  if ($("#setAllowOrgVoiceLearning")) $("#setAllowOrgVoiceLearning").checked = !!fs.allow_org_voice_learning;
+  try {
+    const exInfo = await api("/api/exclusion");
+    if (exInfo && exInfo.total != null && $("#settingExclusionStats")) {
+      $("#settingExclusionStats").textContent = `${exInfo.total.toLocaleString()} excluded`;
+    }
+  } catch (e) {}
 }
 async function saveSettings() {
   const prov = $("#setProvider").value;
@@ -313,6 +322,9 @@ async function saveSettings() {
     pipeline_stale_days: parseInt($("#setStaleDays").value, 10) || 7,
     max_bounce_retries: (() => { const n = parseInt($("#setMaxBounce").value, 10); return isNaN(n) ? 3 : Math.max(0, Math.min(5, n)); })(),
     send_window_advisory: $("#setSendWindow").checked,
+    // Stage E & G settings
+    exclusion_enabled: $("#setExclusionEnabled") ? $("#setExclusionEnabled").checked : true,
+    allow_org_voice_learning: $("#setAllowOrgVoiceLearning") ? $("#setAllowOrgVoiceLearning").checked : false,
   };
   const key = $("#setKeyInput").value.trim();
   const apolloKey = $("#setApolloKeyInput").value.trim();
@@ -2235,6 +2247,7 @@ function wire() {
   if ($("#presetCancelBtn")) $("#presetCancelBtn").onclick = () => $("#presetEditor").classList.add("hidden");
   if ($("#presetSaveBtn")) $("#presetSaveBtn").onclick = savePreset;
   if ($("#sourcingPromptSelect")) $("#sourcingPromptSelect").onchange = updateSourcingPanelMandateHint;
+  setupBulkExportHandlers();
 
   $("#settingsBtn").onclick = openSettings;
   $("#settingsCancel").onclick = () => $("#settingsModal").classList.add("hidden");
@@ -2637,6 +2650,97 @@ async function runSourcing() {
   }
 }
 
+let parsedBulkRows = [];
+
+function setupBulkExportHandlers() {
+  const chooseBtn = $("#chooseBulkFileBtn");
+  const fileInput = $("#bulkExportFileInput");
+  const nameDisplay = $("#bulkFileNameDisplay");
+  const runBtn = $("#runScreenedImportBtn");
+
+  if (chooseBtn && fileInput) {
+    chooseBtn.onclick = () => fileInput.click();
+    fileInput.onchange = async (evt) => {
+      const file = evt.target.files && evt.target.files[0];
+      if (!file) return;
+      if (nameDisplay) {
+        nameDisplay.textContent = `Selected: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
+        nameDisplay.classList.remove("hidden");
+      }
+      try {
+        const text = await file.text();
+        if (file.name.endsWith(".json")) {
+          const data = JSON.parse(text);
+          parsedBulkRows = Array.isArray(data) ? data : (data.results || data.companies || data.items || []);
+        } else {
+          const lines = text.split(/\r?\n/).filter(l => l.trim());
+          if (lines.length > 1) {
+            const headers = lines[0].split(",").map(h => h.trim().replace(/^["']|["']$/g, ""));
+            parsedBulkRows = lines.slice(1).map(line => {
+              const vals = line.split(",").map(v => v.trim().replace(/^["']|["']$/g, ""));
+              const row = {};
+              headers.forEach((h, idx) => { row[h] = vals[idx] || ""; });
+              return row;
+            });
+          } else {
+            parsedBulkRows = [];
+          }
+        }
+        if (runBtn) runBtn.disabled = parsedBulkRows.length === 0;
+        toast(`Loaded ${parsedBulkRows.length} targets from ${file.name}`);
+      } catch (e) {
+        toast(`Failed to parse file: ${e.message}`, true);
+        if (runBtn) runBtn.disabled = true;
+      }
+    };
+  }
+
+  if (runBtn) {
+    runBtn.onclick = async () => {
+      if (!parsedBulkRows.length) return;
+      runBtn.disabled = true;
+      runBtn.textContent = "Screening & Importing...";
+
+      const revMin = parseInt(($("#gateRevMin") || {}).value, 10);
+      const revMax = parseInt(($("#gateRevMax") || {}).value, 10);
+      const reqKwRaw = (($("#gateReqKeyword") || {}).value || "").trim();
+      const reqKw = {};
+      if (reqKwRaw.includes(":")) {
+        const [f, k] = reqKwRaw.split(":", 2);
+        reqKw[f.trim()] = k.trim();
+      }
+      const rejEvents = (($("#gateRejectEvents") || {}).value || "")
+        .split(",").map(s => s.trim()).filter(Boolean);
+
+      const gates = {};
+      if (!isNaN(revMin)) gates.revenue_band_min = revMin;
+      if (!isNaN(revMax)) gates.revenue_band_max = revMax;
+      if (Object.keys(reqKw).length) gates.require_keyword_in_field = reqKw;
+      if (rejEvents.length) gates.reject_last_event_types = rejEvents;
+
+      try {
+        const res = await api("/api/source/import_screened", {
+          method: "POST",
+          body: {
+            rows: parsedBulkRows,
+            gates: gates,
+            list_id: state.activeListId || "default"
+          }
+        });
+        toast(`Imported: ${res.added} added, ${res.skipped_duplicates ? res.skipped_duplicates.length : 0} duplicate, ${res.screened_out || 0} screened out`);
+        const q = await api(`/api/queue?list_id=${encodeURIComponent(state.activeListId || "default")}`);
+        state.queue = q.queue;
+        renderQueue();
+      } catch (e) {
+        toast(`Import failed: ${e.message}`, true);
+      } finally {
+        runBtn.disabled = false;
+        runBtn.textContent = "Import & Screen Targets";
+      }
+    };
+  }
+}
+
 function renderSourcingReport(job) {
   const reportEl = $("#sourcingReport");
   if (!reportEl || !job) return;
@@ -2769,7 +2873,7 @@ function closeProfileModal() {
 
 async function saveProfile() {
   if (!state.profileLoaded) {
-    toast("Cannot save: Candidate profile is not loaded", true);
+    toast("Cannot save: Profile is not loaded", true);
     return;
   }
   const cur = state.profile || {};
@@ -2802,8 +2906,8 @@ async function saveProfile() {
 
 async function resetProfile() {
   const ok = await dialog({
-    title: "Reset Candidate Profile?",
-    message: "This will revert your candidate profile template to default values. Continue?",
+    title: "Reset Profile?",
+    message: "This will revert your profile template to default values. Continue?",
     options: [{ label: "Reset", value: "reset", danger: true }, { label: "Cancel", value: false, primary: true }],
   });
   if (ok === "reset") {

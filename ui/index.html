@@ -108,6 +108,39 @@
         <div class="sourcing-status hidden" id="sourcingMandateHint"></div>
         <div class="sourcing-status" id="sourcingStatusText"></div>
         <div class="sourcing-report" id="sourcingReport"></div>
+
+        <!-- Stage F: Bulk Export Import & Local Screening Gates -->
+        <div class="sourcing-bulk-section">
+          <div class="sourcing-bulk-head">
+            <h5>Bulk Export Import & Screening</h5>
+            <input type="file" id="bulkExportFileInput" accept=".csv,.xlsx,.json" class="hidden" />
+            <button class="btn ghost small" id="chooseBulkFileBtn" type="button">Choose File (.csv, .xlsx, .json)</button>
+          </div>
+          <div id="bulkFileNameDisplay" class="sourcing-bulk-filename hidden"></div>
+          <div class="sourcing-bulk-grid">
+            <div>
+              <label class="sourcing-bulk-lbl">Revenue Min (USD)</label>
+              <input type="number" id="gateRevMin" class="inp sourcing-bulk-inp" placeholder="e.g. 1000000" />
+            </div>
+            <div>
+              <label class="sourcing-bulk-lbl">Revenue Max (USD)</label>
+              <input type="number" id="gateRevMax" class="inp sourcing-bulk-inp" placeholder="e.g. 50000000" />
+            </div>
+          </div>
+          <div class="sourcing-bulk-grid tight">
+            <div>
+              <label class="sourcing-bulk-lbl">Required Keyword (field:keyword)</label>
+              <input type="text" id="gateReqKeyword" class="inp sourcing-bulk-inp" placeholder="e.g. industry:software" />
+            </div>
+            <div>
+              <label class="sourcing-bulk-lbl">Reject Event Types</label>
+              <input type="text" id="gateRejectEvents" class="inp sourcing-bulk-inp" placeholder="e.g. acquisition, bankruptcy" />
+            </div>
+          </div>
+          <div class="sourcing-bulk-actions">
+            <button class="btn primary small" id="runScreenedImportBtn" type="button" disabled>Import & Screen Targets</button>
+          </div>
+        </div>
       </div>
 
       <div class="ingest-banner hidden" id="ingestBanner">
@@ -255,7 +288,7 @@
         <div>
           <span class="eyebrow">PROOF LIBRARY</span>
           <div class="col-header profile-head-header">
-            <h3 class="profile-head-title">Candidate Profile</h3>
+            <h3 class="profile-head-title">Sender Profile</h3>
           </div>
           <p class="hint">Structured proof points, standing experiences (XYZ formula), and bridge tags for outreach generation.</p>
         </div>
@@ -489,6 +522,18 @@
       <div class="field">
         <label class="check"><input type="checkbox" id="setSendWindow" checked /> Suggest a better send window on weekends / late nights</label>
         <div class="desc">A non-blocking hint at approve time. Never blocks staging.</div>
+      </div>
+
+      <!-- Contacted-Exclusion Layer — Stage E & G -->
+      <div class="field" style="margin-top:14px;">
+        <label class="check"><input type="checkbox" id="setExclusionEnabled" checked /> Enable Contacted-Exclusion Layer</label>
+        <div class="desc">Blocks targets already contacted or listed in excluded.json during ingest & sourcing. <span id="settingExclusionStats" class="tag" style="margin-left:6px;">15,592 excluded</span></div>
+      </div>
+
+      <!-- Org-Audience Voice Learning — Stage G2 -->
+      <div class="field" style="margin-top:14px;">
+        <label class="check"><input type="checkbox" id="setAllowOrgVoiceLearning" /> Allow Org-Audience Voice Learning</label>
+        <div class="desc">Gates continuous Layer-4 learning for organisation-audience voices.</div>
       </div>
 
       <!-- do-not-contact — Phase 4a -->
@@ -836,7 +881,7 @@
     <div class="modal" style="max-width:720px; max-height:85vh; display:flex; flex-direction:column;">
       <div class="modal-head">
         <div>
-          <span class="eyebrow">Candidate Profile</span>
+          <span class="eyebrow">Sender Profile</span>
           <h2 id="profileModalTitle">Edit your profile & credentials</h2>
         </div>
         <button class="icon-btn" id="closeProfileModal" aria-label="Close modal">&times;</button>

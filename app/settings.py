@@ -119,18 +119,20 @@ def ensure_seeded() -> None:
         return any((v.get("kind", "outreach") or "outreach") == kind for v in existing_v)
 
     v_plan = [
-        ("outreach", pkg / "seed_voices"),
-        ("outreach", pkg / "seed_voices_local"),
-        ("followup", pkg / "seed_followup_voices"),
+        pkg / "seed_voices",
+        pkg / "seed_voices_local",
+        pkg / "seed_followup_voices",
     ]
-    for kind, seed_dir in v_plan:
-        if _have_voice(kind) or not seed_dir.exists():
+    for seed_dir in v_plan:
+        if not seed_dir.exists():
             continue
         for src in seed_dir.glob("*.json"):
-            try:
-                shutil.copyfile(src, VOICES_DIR / src.name)
-            except Exception:
-                pass
+            target = VOICES_DIR / src.name
+            if not target.exists():
+                try:
+                    shutil.copyfile(src, target)
+                except Exception:
+                    pass
 
     # 2. Custom Sourcing Prompts
     try:

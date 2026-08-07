@@ -363,7 +363,9 @@ async def update_settings(payload: dict = Body(...)):
               # Sourcing settings ("Find new targets")
               "sourcing_enabled", "sourcing_target_n", "sourcing_max_candidates",
               "sourcing_max_web_per_candidate", "sourcing_budget_usd",
-              "sourcing_recency_days", "sourcing_sources", "sourcing_reject_expiry_days"):
+              "sourcing_recency_days", "sourcing_sources", "sourcing_reject_expiry_days",
+              # Stage E & G settings
+              "exclusion_enabled", "allow_org_voice_learning"):
         if k in payload and payload[k] is not None:
             setattr(st, k, payload[k])
     if st.provider not in S.VALID_PROVIDERS:
