@@ -68,15 +68,33 @@ def _batch() -> BatchState | None:
     return _STATE["batch"]
 
 
-_ALLOWED_HOSTS = {"127.0.0.1", "localhost", "testserver"}
+# Loopback hostnames on ANY port. The previous check bound allowed hosts to
+# S.load_settings().port, which caused two failures reported together:
+#  1. IPv6 loopback ([::1]) was rejected because it was missing entirely.
+#  2. A transient read failure in load_settings() rebuilt the list around port
+#     8770 regardless of the port actually in use, returning 400 'bad host' on
+#     every endpoint (Pipeline, Follow-ups, Performance, Triage) until reload.
+_LOOPBACK_NAMES = {"127.0.0.1", "localhost", "[::1]", "::1", "0.0.0.0", "testserver"}
+
+
+def _is_loopback_host(host_header: str) -> bool:
+    if not host_header:
+        return True
+    hostname = host_header.lower()
+    if hostname in _LOOPBACK_NAMES:
+        return True
+    # Strip port (e.g. 127.0.0.1:8775 -> 127.0.0.1, [::1]:8775 -> [::1])
+    if "]:" in hostname:
+        hostname = hostname.split("]:")[0] + "]"
+    elif ":" in hostname:
+        hostname = hostname.split(":")[0]
+    return hostname in _LOOPBACK_NAMES
 
 
 @app.middleware("http")
 async def security(request: Request, call_next):
-    host = (request.headers.get("host") or "").lower()
-    port = S.load_settings().port
-    allowed = _ALLOWED_HOSTS | {f"127.0.0.1:{port}", f"localhost:{port}", "127.0.0.1", "localhost"}
-    if host and host not in allowed:
+    host = request.headers.get("host") or ""
+    if host and not _is_loopback_host(host):
         return JSONResponse({"detail": "bad host"}, status_code=400)
     if request.url.path.startswith("/api/"):
         token = request.headers.get("x-wizzard-token") or request.headers.get("x-paris-token")
