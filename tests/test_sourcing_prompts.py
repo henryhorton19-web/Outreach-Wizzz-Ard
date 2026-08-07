@@ -52,6 +52,7 @@ def test_custom_prompt_cannot_override_gate():
         "city": "Tokyo",
         "country": "Japan",
         "is_remote_english": False,
+        "allowed_locations": {"france", "paris"},
         "ref": "https://tokyoai.jp",
         "meta": {"hq_city": "Tokyo", "hq_country": "Japan"}
     }

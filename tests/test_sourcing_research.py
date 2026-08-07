@@ -46,19 +46,21 @@ def test_no_paywalled_fetch():
     assert len(items) == 0, "Paywalled detail URLs must be filtered out per C10"
 
 
-def test_gates_reject_non_paris_non_remote():
+def test_gates_pass_everything_with_no_allow_list():
     assert evaluate_location_language_gate("France", "Paris") == "pass"
     assert evaluate_location_language_gate("", "", is_remote_english=True) == "pass"
-    assert evaluate_location_language_gate("Germany", "Berlin", is_remote_english=False) == "disqualify"
+    assert evaluate_location_language_gate("Germany", "Berlin", is_remote_english=False) == "pass"
+    assert evaluate_location_language_gate("Germany", "Berlin", is_remote_english=False, allowed_locations={"france", "paris"}) == "disqualify"
 
 
-def test_location_language_gate_never_autoqueues():
+def test_location_language_gate_honors_explicit_allowlist():
     raw_disqualified = {
         "name": "Berlin Hardware Tech",
         "slug": "berlin_hardware",
         "city": "Berlin",
         "country": "Germany",
         "is_remote_english": False,
+        "allowed_locations": {"france", "paris"},
         "ref": "https://berlinhardware.de",
         "meta": {"hq_city": "Berlin", "hq_country": "Germany"}
     }

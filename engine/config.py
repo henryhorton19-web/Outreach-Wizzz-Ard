@@ -32,6 +32,7 @@ DEFAULT_PROFILE_TEMPLATE = {
     "target_roles": ["Chief of Staff", "Operations Lead", "Growth Manager"],
     "target_firm_types": ["Growth / Tech / Venture"],
     "target_locations": ["Remote", "New York", "London", "Paris"],
+    "allowed_locations": [],
     "experiences": {
         "anchor_co": {
             "name": "Anchor Co",

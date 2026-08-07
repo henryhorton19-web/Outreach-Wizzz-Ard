@@ -101,11 +101,12 @@ FILL, and do not leave any of these empty:
 - company.company_size: exactly "small" (pre-Series B / <~80 headcount / early or boutique fund)
   or "large". You MUST also set company.company_size_evidence — a short, sourced justification
   (e.g. "Series A, ~45 staff on LinkedIn"). A size verdict with no evidence is not acceptable.
-- company.work_mode: exactly one of paris_office | remote_english | disqualify.
-- company.working_language: English, English-dominant, or the dominant language if it disqualifies.
-  If presence is required outside Paris, or the role is French-dominant, set work_mode/language
-  accordingly, disqualified=true, and a short disqualify_reason. Do not "rescue" a disqualified
-  target by softening these.
+- company.work_mode: exactly one of onsite | remote | hybrid | unknown. Describe how the company
+  actually works. Do NOT judge whether it suits any particular person -- that is decided later,
+  and only for a candidate job search.
+- company.working_language: English, English-dominant, or the dominant language.
+  Report work_mode and working_language factually. Never mark a company as unsuitable; the
+  application decides fit separately, and for most uses there is no location constraint at all.
 - proof_points: TWO sourced facts about the target (one acceptable, never more than three). Each
   MUST carry proof_points[].staleness = exactly one of: fresh | aging | stale. Choose by the
   fact's date relative to {recency_floor}: "fresh" if on/after it (within ~12 months), "aging" if
@@ -176,7 +177,7 @@ def _identity_anchor(name: str, website: str | None, contact_hint: str | None) -
     """SOFT disambiguation block appended to the USER message only. Its sole job is to make sure
     the model researches the RIGHT company of a given name — NOT to supply facts. Everything must
     still be verified independently from primary/recent web sources; nothing here enters the cache.
-    Paris carries no Dealroom identity metadata, so the anchor is whatever the operator gave us:
+    The app carries no Dealroom identity metadata, so the anchor is whatever the operator gave us:
     the website domain and/or a contact hint."""
     if not (website or contact_hint):
         return ""
