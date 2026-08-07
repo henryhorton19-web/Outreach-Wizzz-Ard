@@ -78,7 +78,7 @@ def test_creating_a_voice_through_the_route_succeeds(client):
 @pytest.mark.parametrize("label,mutation", [
     ("blank display_name", {"display_name": "   "}),
     ("no blocks",          {"blocks": []}),
-    ("unknown situation",  {"situations": ["not_a_situation"]}),
+    ("situation label too long", {"situations": ["a" * 65]}),
     ("length inverted",    {"length_min": 200, "length_max": 10}),
 ])
 def test_invalid_voice_is_400_not_500(client, label, mutation):
@@ -125,14 +125,12 @@ def test_every_seed_voice_passes_its_own_validator(path):
 
 @pytest.mark.parametrize("path", _seed_files(), ids=lambda p: p.stem)
 def test_seed_situations_are_routing_keys_or_empty(path):
-    """`situations` is a routing key, not a role label. Three seeds used their
-    own id, so they could never auto-match any target."""
+    """Stage A relaxed situation validation: situations are descriptive labels (max 60 chars)."""
     d = json.loads(path.read_text(encoding="utf-8"))
     sits = d.get("situations") or []
-    unknown = [s for s in sits if s not in S.VALID_VOICES]
-    assert not unknown, (
-        f"{path.name}: {unknown} not in {S.VALID_VOICES}. "
-        "Use [] for a voice that is only ever chosen explicitly."
+    invalid = [s for s in sits if not isinstance(s, str) or len(s) > 60]
+    assert not invalid, (
+        f"{path.name}: {invalid} are not valid situation labels (must be string <= 60 chars)."
     )
 
 

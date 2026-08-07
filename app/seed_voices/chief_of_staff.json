@@ -33,8 +33,8 @@
       "length": "body",
       "fact_scope": [
         "target_proofs",
-        "candidate_evidence",
-        "candidate_spine",
+        "profile_evidence",
+        "profile_spine",
         "situation_read"
       ],
       "guidance": "Connect my background to their mission without presuming to diagnose their specific problems. Share excitement for their growth phase, and offer a flexible menu of ways I can be helpful as they scale (e.g., through automation, financial analysis, or strategy), rather than pitching a single rigid solution."

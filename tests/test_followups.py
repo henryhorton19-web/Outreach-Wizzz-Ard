@@ -283,10 +283,12 @@ def test_outreach_listing_excludes_followup_voices(clean_data_dir):
 
 
 def test_followup_draft_routes_to_matching_situation_voice(clean_data_dir):
+    """Stage A removed auto-routing. resolve_followup_voice returns the first-available
+    followup-kind voice, not a situation-matched one. We verify the draft is produced
+    and the voice is a real followup voice (not an error)."""
     from app import followups, pipeline, store
     from app.providers.base import make_provider
     st = S.load_settings(); st.follow_up_max_steps = 1; S.save_settings(st)
-    # large-company parent -> should route to fu_role_large
     store.save_cache("bigco", {"company": {"name": "Big Co", "role_exists": True, "company_size": "large"},
                                "proof_points": [{"fact": "Launched a new platform.", "source": "blog"}],
                                "contact": {"name": "Sam", "email": "sam@big.co"}})
@@ -295,7 +297,10 @@ def test_followup_draft_routes_to_matching_situation_voice(clean_data_dir):
                 "contact": {"name": "Sam", "email": "sam@big.co"}}
     fu = followups.enroll_from_approval(cs)
     draft = pipeline.draft_followup(make_provider("stub", None), fu)
-    assert draft.voice == "fu_role_large"
+    # Auto-routing is gone: assert that a valid followup voice was used, not which one.
+    fu_voices = {v.id for v in store.list_custom_voices(kind="followup")}
+    assert draft.voice in fu_voices, f"draft.voice={draft.voice!r} not in available fu voices"
+
 
 
 # ---- settings endpoint persists the follow-up knobs (regression) ------------

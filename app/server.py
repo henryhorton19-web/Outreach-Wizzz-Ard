@@ -417,7 +417,9 @@ def _validate_voice(v: CustomVoice) -> None:
         if b.length not in BLOCK_LENGTHS:
             raise HTTPException(status_code=400,
                                 detail=f"block '{b.id}' has an invalid length '{b.length}'")
-        bad_scope = [s for s in (b.fact_scope or []) if s not in FACT_SCOPES]
+        # Backward-compat: accept old vocabulary during on-disk migration period (Task H3)
+        _COMPAT = {"candidate_evidence", "candidate_spine"}
+        bad_scope = [s for s in (b.fact_scope or []) if s not in FACT_SCOPES and s not in _COMPAT]
         if bad_scope:
             raise HTTPException(status_code=400,
                                 detail=f"block '{b.id}' has unknown fact scope: {', '.join(bad_scope)}")
@@ -1257,6 +1259,70 @@ async def get_voice_stats(kind: str = "outreach"):
     best = next((b for b in rows if b.get("enough_data")), None)
     return {"voices": rows, "min_n": int(getattr(st, "voice_stats_min_n", 15)),
             "best": best, "kind": kind}
+
+
+# ---- Stage E: exclusion management endpoints ------------------------------
+
+@app.get("/api/exclusion")
+async def get_exclusion():
+    from app.sourcing.exclude import exclusion_info
+    return exclusion_info()
+
+
+@app.post("/api/exclusion")
+async def add_exclusion(payload: dict = Body(...)):
+    slugs = payload.get("slugs") or []
+    if isinstance(slugs, str):
+        slugs = [slugs]
+    for s in slugs:
+        store.add_to_exclusion_set(str(s).strip())
+    return {"added": len(slugs), "total": len(store.excluded_slugs())}
+
+
+# ---- Stage F: bulk export ingestion and screened import --------------------
+
+@app.post("/api/source/import")
+async def source_import(payload: dict = Body(...)):
+    """Import raw pre-parsed rows directly into the queue (no gate screening)."""
+    rows = payload.get("rows") or []
+    list_id = payload.get("list_id", "default")
+    if not rows:
+        raise HTTPException(status_code=400, detail="expected 'rows' array")
+    queue_rows = []
+    from app.slugs import slug as make_slug
+    for r in rows:
+        name = (r.get("name") or r.get("company_name") or "").strip()
+        if not name:
+            continue
+        queue_rows.append({"slug": make_slug(name), "name": name,
+                           "ref": r.get("ref") or r.get("website") or "",
+                           "meta": r})
+    return _ingest_to_queue(queue_rows, list_id=list_id)
+
+
+@app.post("/api/source/import_screened")
+async def source_import_screened(payload: dict = Body(...)):
+    """Import rows after applying local gate screening before adding to the queue."""
+    from app.sourcing.bulk_export import evaluate_local_gates
+    from app.slugs import slug as make_slug
+    rows = payload.get("rows") or []
+    gates = payload.get("gates") or {}
+    list_id = payload.get("list_id", "default")
+    if not rows:
+        raise HTTPException(status_code=400, detail="expected 'rows' array")
+    passed, rejected = evaluate_local_gates(rows, gates)
+    queue_rows = []
+    for r in passed:
+        name = (r.get("name") or r.get("company_name") or "").strip()
+        if not name:
+            continue
+        queue_rows.append({"slug": make_slug(name), "name": name,
+                           "ref": r.get("ref") or r.get("website") or "",
+                           "meta": r})
+    result = _ingest_to_queue(queue_rows, list_id=list_id)
+    result["screened_out"] = len(rejected)
+    result["reject_reasons"] = [r.get("__reject_reason") for r in rejected]
+    return result
 
 
 # ---- suppression / do-not-contact (Phase 4a) -------------------------------

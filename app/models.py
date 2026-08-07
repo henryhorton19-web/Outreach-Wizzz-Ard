@@ -37,8 +37,8 @@ DRAFT_SLOT_STATES = frozenset({
 })
 
 
-FACT_SCOPES = ("recent", "target_proofs", "situation_read", "candidate_evidence",
-               "candidate_spine", "custom_facts")
+FACT_SCOPES = ("recent", "target_proofs", "situation_read", "profile_evidence",
+               "profile_spine", "custom_facts")
 BLOCK_LENGTHS = ("one_line", "short", "medium", "body")
 BLOCK_MODES = ("fixed", "ai")
 
@@ -107,12 +107,12 @@ def _canonical_blocks_from_legacy(d: dict) -> list[dict]:
                    "optional": bool(use_recent)})
     blocks.append({"id": "body", "label": "Body", "mode": "ai",
                    "guidance": d.get("body_guidance", ""),
-                   "fact_scope": ["target_proofs", "candidate_evidence", "candidate_spine",
+                   "fact_scope": ["target_proofs", "profile_evidence", "profile_spine",
                                   "situation_read"], "length": "body"})
     blocks.append({"id": "positioning", "label": "Positioning",
                    "mode": mode(d.get("boilerplate_mode", "fixed")),
                    "text": d.get("boilerplate", ""), "guidance": d.get("boilerplate_guidance", ""),
-                   "fact_scope": (["candidate_spine"] if d.get("boilerplate_mode") == "llm" else []),
+                   "fact_scope": (["profile_spine"] if d.get("boilerplate_mode") == "llm" else []),
                    "length": "short"})
     blocks.append({"id": "close", "label": "Close", "mode": mode(d.get("close_mode", "fixed")),
                    "text": d.get("close", ""), "guidance": d.get("close_guidance", ""),
@@ -181,6 +181,15 @@ class CustomVoice(BaseModel):
         style.setdefault("proof_density", "single")
         style.setdefault("sentence_length", "flowing")
         d["style"] = style
+        # Backward-compat: rewrite candidate_evidence / candidate_spine in any existing
+        # stored block fact_scopes to the new generic profile_* names (Task H3).
+        for blk in d.get("blocks") or []:
+            if isinstance(blk, dict):
+                blk["fact_scope"] = [
+                    "profile_evidence" if s == "candidate_evidence" else
+                    "profile_spine" if s == "candidate_spine" else s
+                    for s in (blk.get("fact_scope") or [])
+                ]
         # Legacy top-level keys from a schema this model no longer has. mention_sci_po,
         # boilerplate_owns_sci_po and close_owns_sci_po used to be set here via setdefault
         # and then popped two lines later -- dead on arrival for every voice that ever
@@ -392,6 +401,15 @@ class CustomSourcingPrompt(BaseModel):
     sources: list[str] = Field(default_factory=lambda: ["techeu_funding_feed", "grounded_search"])
     recency_days: int = 120
     exclude_notes: str = ""
+
+    # ---- Stage F / G1: local screening gates (typed, all optional) ----
+    revenue_band_min: int | None = None           # minimum annual revenue (USD)
+    revenue_band_max: int | None = None           # maximum annual revenue (USD)
+    require_keyword_in_field: dict[str, str] = Field(default_factory=dict)   # {field: keyword}
+    reject_last_event_types: list[str] = Field(default_factory=list)         # e.g. ["acquisition"]
+
+    # ---- G3: exclusion policy ----
+    exclusion_policy: Literal["permanent", "expiring"] = "permanent"
 
     last_run_at: str = ""
     total_candidates_seen: int = 0

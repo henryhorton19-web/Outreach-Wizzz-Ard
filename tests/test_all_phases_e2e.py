@@ -110,14 +110,9 @@ def test_all_phases_end_to_end(app_ctx):
     assert not (listed & {ch.id for ch in challengers})              # challengers hidden from editor
     ch = challengers[0]
 
-    # ---- Phase C: the bandit can route live sends to the challenger ----
-    _set(c, voice_learning_routing="auto", voice_explore_epsilon=1.0, voice_stats_min_n=2)
-    sit = ch.situations[0]
-    cache = {"company": {"name": "X", "role_exists": (sit != "no_role_small"),
-                         "company_size": ("large" if sit == "role_large" else "small")},
-             "contact": {"name": "Y", "email": "y@x.com"}}
-    picks = {pipeline.resolve_voice(cache) for _ in range(50)}
-    assert ch.id in picks, "challenger must be routable"
+    # ---- Phase C: the bandit routing (voice_learning_routing / voice_explore_epsilon)
+    # was removed in Stage A. Voice selection is now entirely manual.
+    # The challenger is still visible in the store and arbitrate/promote/retire still work.
 
     # ---- Phase C: arbitrate promotes a clearly-winning challenger (HTTP) ----
     store.clear_sent_items()

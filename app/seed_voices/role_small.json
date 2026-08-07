@@ -35,8 +35,8 @@
       "length": "body",
       "fact_scope": [
         "target_proofs",
-        "candidate_evidence",
-        "candidate_spine",
+        "profile_evidence",
+        "profile_spine",
         "situation_read"
       ],
       "guidance": "Tie one piece of the candidate's evidence to what the role actually needs. Lead with wanting to build inside a company rather than evaluate it from outside, and signal willingness to do the day-to-day."

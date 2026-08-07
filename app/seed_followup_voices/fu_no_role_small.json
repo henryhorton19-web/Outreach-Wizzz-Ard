@@ -30,7 +30,7 @@
       "label": "New angle",
       "mode": "ai",
       "length": "body",
-      "fact_scope": ["target_proofs", "candidate_evidence", "situation_read"],
+      "fact_scope": ["target_proofs", "profile_evidence", "situation_read"],
       "guidance": "Since there is no advertised role, add ONE new, concrete piece of value that lowers the bar to a conversation: a specific observation about what they are building or a small, tangible way the candidate could help, tied to one piece of evidence. Keep it exploratory and low-pressure, one or two short sentences. Do not repeat the first email or use filler openers."
     },
     {

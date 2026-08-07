@@ -30,7 +30,7 @@
       "label": "New angle",
       "mode": "ai",
       "length": "body",
-      "fact_scope": ["target_proofs", "candidate_evidence", "situation_read"],
+      "fact_scope": ["target_proofs", "profile_evidence", "situation_read"],
       "guidance": "Add exactly ONE new, specific point that was NOT in the first email: a concrete detail about them (a launch, hire, market move) tied in one clause to a single piece of the candidate's evidence, framed as why a part-time pair of hands would be useful now. Two sentences at most. Do not restate the first email. No 'just checking in'."
     },
     {

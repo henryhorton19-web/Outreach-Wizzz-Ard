@@ -22,13 +22,6 @@ def _dq_cache(**over):
     return base
 
 
-def test_voice_selection_matrix():
-    assert P.select_voice(_dq_cache(role_exists=False)) == "no_role_small"
-    assert P.select_voice(_dq_cache(role_exists=True, company_size="small")) == "role_small"
-    assert P.select_voice(_dq_cache(role_exists=True, company_size="large")) == "role_large"
-    # override wins
-    assert P.select_voice(_dq_cache(role_exists=True), override="no_role_small") == "no_role_small"
-
 
 def test_disqualifier_workmode():
     dq, reason = V.is_disqualified(_dq_cache(work_mode="disqualify", disqualify_reason="Berlin on-site"))

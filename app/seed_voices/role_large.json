@@ -31,8 +31,8 @@
       "length": "body",
       "fact_scope": [
         "target_proofs",
-        "candidate_evidence",
-        "candidate_spine"
+        "profile_evidence",
+        "profile_spine"
       ],
       "guidance": "Be credential-forward and specific about this exact role. State the most relevant one or two experiences plainly and how they map to the role's requirements."
     },

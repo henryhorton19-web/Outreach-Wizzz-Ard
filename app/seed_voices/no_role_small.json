@@ -35,8 +35,8 @@
       "length": "body",
       "fact_scope": [
         "situation_read",
-        "candidate_evidence",
-        "candidate_spine",
+        "profile_evidence",
+        "profile_spine",
         "target_proofs"
       ],
       "guidance": "Lead with a read of their situation and an offer, not a CV recital. Name a specific problem you could take off their plate and tie one piece of evidence to it. Do not tell the founder what they already know."

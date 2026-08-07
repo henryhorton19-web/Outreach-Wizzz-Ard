@@ -36,7 +36,7 @@ def _voice(**kw):
         blocks=[
             {"id": "greeting", "mode": "fixed", "text": "Hi {contact_first},"},
             {"id": "body", "mode": "ai", "length": "body",
-             "fact_scope": ["target_proofs", "candidate_evidence", "candidate_spine", "situation_read"],
+             "fact_scope": ["target_proofs", "profile_evidence", "profile_spine", "situation_read"],
              "guidance": "Tie one fact to their need."},
             {"id": "positioning", "mode": "fixed", "length": "short",
              "text": "I am seeking a part-time role."},
@@ -102,20 +102,20 @@ def test_legacy_voice_json_migrates_on_load(isolated):
 # ---- bootstrap-once seeding --------------------------------------------------
 
 def test_bootstrap_seeds_once_and_self_heals(isolated):
-    # Committed repo ships 6 outreach + 3 follow-up starters. A dev machine may also carry a
-    # git-ignored app/seed_voices_local/ with private voices; count those in so the guard is
-    # correct both for a fresh public clone and for a local dev checkout.
+    # Count seed files dynamically from app/seed_voices and app/seed_followup_voices.
+    # A dev machine may also carry a git-ignored app/seed_voices_local/ with private voices.
     pkg = Path(S.__file__).resolve().parent
     n_local = len(list((pkg / "seed_voices_local").glob("*.json"))) \
         if (pkg / "seed_voices_local").exists() else 0
-    expected_outreach = 6 + n_local
-    total = 9 + n_local
+    expected_outreach = len(list((pkg / "seed_voices").glob("*.json"))) + n_local
+    expected_followup = len(list((pkg / "seed_followup_voices").glob("*.json")))
+    total = expected_outreach + expected_followup
 
     assert store.list_custom_voices() == []
     S.ensure_seeded()
     assert len(list((isolated / "voices").glob("*.json"))) == total
     assert len(store.list_custom_voices(kind="outreach")) == expected_outreach
-    assert len(store.list_custom_voices(kind="followup")) == 3
+    assert len(store.list_custom_voices(kind="followup")) == expected_followup
     S.ensure_seeded()
     assert len(list((isolated / "voices").glob("*.json"))) == total
     v = store.get_custom_voice("role_small"); v.display_name = "Mine"; store.save_custom_voice(v)
@@ -136,18 +136,28 @@ def test_resolve_override_wins(isolated):
 
 
 def test_resolve_by_situation_tag(isolated):
+    """Stage A removed auto-routing: voices are now selected manually. A voice with a
+    `situations` tag is NOT auto-matched to the cache; resolve_voice returns whatever
+    is the default_voice or first-available voice."""
     store.save_custom_voice(_voice(id="only_large", display_name="Only Large",
                                    situations=["role_large"]))
+    # No default_voice set -- first available is "only_large" (the one we saved).
     assert P.resolve_voice(_cache(role_exists=True, size="large")) == "only_large"
 
 
 def test_resolve_default_and_delete_safety(isolated):
+    """Stage A removed auto-routing. Voices are selected manually. resolve_voice returns
+    default_voice if set, otherwise first-available. Deleting default_voice falls back to
+    first-available (not a crash)."""
     store.save_custom_voice(_voice(id="tag_large", display_name="Tag", situations=["role_large"]))
     store.save_custom_voice(_voice(id="fallback", display_name="Fallback", situations=[]))
     st = S.load_settings(); st.default_voice = "fallback"; S.save_settings(st)
-    assert P.resolve_voice(_cache(size="large")) == "tag_large"
-    store.delete_custom_voice("tag_large")
+    # default_voice is "fallback"; auto-routing is gone, so size=large still returns "fallback"
     assert P.resolve_voice(_cache(size="large")) == "fallback"
+    store.delete_custom_voice("fallback")
+    # deleted default_voice -> falls back to first-available
+    resolved = P.resolve_voice(_cache(size="large"))
+    assert resolved in {"tag_large"}
 
 
 def test_resolve_reseeds_empty_store(isolated):

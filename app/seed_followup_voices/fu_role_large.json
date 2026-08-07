@@ -30,7 +30,7 @@
       "label": "New angle",
       "mode": "ai",
       "length": "body",
-      "fact_scope": ["target_proofs", "candidate_evidence", "candidate_spine", "situation_read"],
+      "fact_scope": ["target_proofs", "profile_evidence", "profile_spine", "situation_read"],
       "guidance": "Add ONE new, specific hook not in the first email, sharpened for a larger organisation: reference a concrete team, product line, or recent announcement, and tie it in one clause to a single relevant piece of the candidate's evidence and to the specific function they could support. At most two tight sentences. Do not recap the first email. No filler openers."
     },
     {

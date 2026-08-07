@@ -32,7 +32,7 @@ class ComposeError(RuntimeError):
 # The honesty floor — the ONLY fixed instruction (everything else is the voice)
 # ---------------------------------------------------------------------------
 
-def floor_preamble(*, allow_dashes: bool, has_candidate_evidence: bool) -> str:
+def floor_preamble(*, allow_dashes: bool, has_profile_evidence: bool) -> str:
     lines = [
         "You are writing parts of a short cold outreach email from a candidate.",
         "Use ONLY the facts provided for each block. Invent no numbers, names, companies, or claims.",
@@ -87,7 +87,8 @@ def derive_tokens(spec: dict, variables: dict | None = None) -> dict:
         "proof_2": proofs[1] if len(proofs) > 1 else "",
         "city": spec.get("city", "") or "",
         "candidate_name": name,
-        "candidate_first": (name.split(" ")[0] if name else ""),
+        "profile_first": (name.split(" ")[0] if name else ""),
+        "candidate_first": (name.split(" ")[0] if name else ""),   # backward-compat alias
     }
     # one token per candidate experience -> its anchor (derived, not hardcoded)
     for k, e in EC.CANDIDATE_PROFILE.get("experiences", {}).items():
@@ -187,9 +188,9 @@ def _scoped_facts(scope, spec: dict, shortlist: list) -> list[str]:
         facts += [p for p in (spec.get("proof_points") or []) if p]
     if "situation_read" in scope and spec.get("situation_read"):
         facts.append(spec["situation_read"])
-    if "candidate_evidence" in scope:
+    if "profile_evidence" in scope or "candidate_evidence" in scope:
         facts += [e["anchor"] for e in (spec.get("evidence") or [])]
-    if "candidate_spine" in scope and spec.get("spine"):
+    if ("profile_spine" in scope or "candidate_spine" in scope) and spec.get("spine"):
         facts.append(spec["spine"])
     if "custom_facts" in scope:
         facts += list(spec.get("custom_facts") or [])
@@ -204,9 +205,9 @@ _LEN_HINT = {"one_line": "exactly one sentence", "short": "one or two sentences"
 # The one compose call
 # ---------------------------------------------------------------------------
 
-def build_voice_system(voice, has_candidate_evidence: bool) -> str:
+def build_voice_system(voice, has_profile_evidence: bool) -> str:
     parts = [floor_preamble(allow_dashes=voice.allow_dashes,
-                            has_candidate_evidence=has_candidate_evidence),
+                            has_profile_evidence=has_profile_evidence),
              "\n--- VOICE (the author's intent; follow it) ---"]
     parts += _compile_style(voice.style)
     if (voice.style.notes or "").strip():
@@ -254,9 +255,11 @@ def compose_voice(provider: Provider, voice, ai_blocks, spec: dict, tokens: dict
     if getattr(provider, "is_stub", False):
         return mock_voice(voice, ai_blocks, spec, tokens, shortlist, followup=followup)
 
-    has_cv = any(("candidate_evidence" in (b.fact_scope or [])) or
+    has_cv = any(("profile_evidence" in (b.fact_scope or [])) or
+                 ("candidate_evidence" in (b.fact_scope or [])) or
+                 ("profile_spine" in (b.fact_scope or [])) or
                  ("candidate_spine" in (b.fact_scope or [])) for b in ai_blocks)
-    system = build_voice_system(voice, has_candidate_evidence=has_cv)
+    system = build_voice_system(voice, has_profile_evidence=has_cv)
     if followup:
         system = followup_floor_preamble() + "\n\n" + system
     specs, _ = _blockspecs(voice, ai_blocks, spec, tokens, shortlist)
