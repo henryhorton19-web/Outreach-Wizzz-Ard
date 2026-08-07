@@ -566,7 +566,76 @@ async function draft5() {
   // Previously every slug was passed to runDraft regardless, so a failed
   // promotion produced a second 404 ("unknown target") for the same row.
   if (!promoted.length) return;
-  await Promise.all(promoted.map(runDraft));
+  const r = await api("/api/draft", { method: "POST", body: { reuse_cache: true } });
+  if (r && r.job_id) {
+    trackDraftJob(r.job_id);
+  } else {
+    await Promise.all(promoted.map(runDraft));
+  }
+}
+
+let activeDraftJobId = null;
+let draftJobPollTimer = null;
+
+function trackDraftJob(jobId) {
+  activeDraftJobId = jobId;
+  updateDraftingUIState(true);
+
+  if (draftJobPollTimer) clearInterval(draftJobPollTimer);
+
+  draftJobPollTimer = setInterval(async () => {
+    try {
+      const job = await api(`/api/draft/job/${jobId}`);
+      renderDraftJobProgress(job);
+      if (job.state === "done" || job.state === "cancelled" || job.state === "error") {
+        clearInterval(draftJobPollTimer);
+        draftJobPollTimer = null;
+        activeDraftJobId = null;
+        updateDraftingUIState(false);
+        await refreshDrafts();
+        await refreshQueue();
+        if (job.state === "done") toast(`Batch drafting complete (${job.done} drafted)`);
+        else if (job.state === "cancelled") toast("Batch drafting cancelled");
+      }
+    } catch (e) {
+      clearInterval(draftJobPollTimer);
+      draftJobPollTimer = null;
+      activeDraftJobId = null;
+      updateDraftingUIState(false);
+    }
+  }, 1000);
+}
+
+function renderDraftJobProgress(job) {
+  const strip = $("#statusStrip");
+  if (!strip) return;
+  if (!job || job.state !== "running") {
+    renderStatusStrip();
+    return;
+  }
+  strip.classList.remove("hidden");
+  strip.classList.remove("is-error");
+  const textEl = $("#statusText");
+  if (textEl) {
+    textEl.textContent = `Drafting ${job.done}/${job.total}` + (job.current_slug ? ` — ${job.current_slug}` : "");
+  }
+  const actionBtn = $("#statusAction");
+  if (actionBtn) {
+    actionBtn.textContent = "Cancel";
+    actionBtn.classList.remove("hidden");
+    actionBtn.onclick = async () => {
+      await api(`/api/draft/job/${job.job_id}/cancel`, { method: "POST" });
+    };
+  }
+}
+
+function updateDraftingUIState(isDrafting) {
+  $$(".redraftSame, #draft5Btn, #emptyDraft5Btn").forEach(btn => {
+    if (btn) {
+      btn.disabled = isDrafting;
+      btn.title = isDrafting ? "Batch drafting is currently in progress." : "";
+    }
+  });
 }
 
 /* ================= DRAFTS ================= */
@@ -1090,11 +1159,16 @@ function showView(name) {
 function showFollowupsView(on) { showView(on ? "followups" : "workspace"); }
 
 async function refreshFollowups() {
+  const list = $("#followupsList");
+  if (list) list.innerHTML = '<div class="col-empty shimmer" style="padding:24px; text-align:center;">Loading follow-ups\u2026</div>';
   try {
     const r = await api("/api/followups");
     state.followups = r.followups || [];
-  } catch (e) { state.followups = []; }
-  renderFollowups();
+    renderFollowups();
+  } catch (e) {
+    state.followups = [];
+    if (list) list.innerHTML = `<div class="col-empty" style="padding:24px; text-align:center;"><p>${esc(e.message)}</p><button class="btn ghost small" onclick="refreshFollowups()">Retry</button></div>`;
+  }
   updateFollowupsBadge();
 }
 
@@ -1240,8 +1314,16 @@ async function openCostPopover() {
 /* ================= PIPELINE BOARD (Phase 2) ================= */
 
 async function refreshPipeline() {
-  try { state.pipeline = await api("/api/pipeline"); }
-  catch (e) { state.pipeline = null; toast(e.message, true); return; }
+  const cols = $("#pipelineCols");
+  if (cols) cols.innerHTML = '<div class="col-empty shimmer" style="padding:24px; text-align:center;">Loading pipeline board\u2026</div>';
+  try {
+    state.pipeline = await api("/api/pipeline");
+  } catch (e) {
+    state.pipeline = null;
+    if (cols) cols.innerHTML = `<div class="col-empty" style="padding:24px; text-align:center;"><p>${esc(e.message)}</p><button class="btn ghost small" onclick="refreshPipeline()">Retry</button></div>`;
+    toast(e.message, true);
+    return;
+  }
   // populate the voice filter once from the cards present
   const sel = $("#pipeVoiceFilter");
   const voices = new Set();
@@ -1345,16 +1427,21 @@ function setPerfKind(kind) {
 }
 
 async function refreshPerformance() {
+  const wrap = $("#perfTableWrap");
+  if (wrap) wrap.innerHTML = '<div class="col-empty shimmer" style="padding:24px; text-align:center;">Loading performance stats\u2026</div>';
   let data;
   try { data = await api(`/api/voice_stats?kind=${state.perfKind}`); }
-  catch (e) { toast(e.message, true); return; }
+  catch (e) {
+    if (wrap) wrap.innerHTML = `<div class="col-empty" style="padding:24px; text-align:center;"><p>${esc(e.message)}</p><button class="btn ghost small" onclick="refreshPerformance()">Retry</button></div>`;
+    toast(e.message, true);
+    return;
+  }
   const rows = data.voices || [];
   $("#perfEmpty").classList.toggle("hidden", rows.length > 0);
   const best = data.best;
   $("#perfSummary").innerHTML = best
     ? `Best (min n=${data.min_n}): <b>${esc(best.display_name)}</b> ${pctCI(best)}`
     : `<span class="nodata">Not enough data yet — every voice is below the ${data.min_n}-send minimum.</span>`;
-  const wrap = $("#perfTableWrap");
   if (!rows.length) { wrap.innerHTML = ""; return; }
   const body = rows.map(v => {
     const rate = v.enough_data ? pctCI(v) : `<span class="nodata">not enough data yet</span>`;
@@ -1385,8 +1472,14 @@ function editBar(intensity) {
 /* ================= TRIAGE (Phase 6a) ================= */
 
 async function refreshTriage() {
+  const list = $("#triageList");
+  if (list) list.innerHTML = '<div class="col-empty shimmer" style="padding:24px; text-align:center;">Loading triage items\u2026</div>';
   try { state.triageData = await api("/api/triage"); }
-  catch (e) { toast(e.message, true); return; }
+  catch (e) {
+    if (list) list.innerHTML = `<div class="col-empty" style="padding:24px; text-align:center;"><p>${esc(e.message)}</p><button class="btn ghost small" onclick="refreshTriage()">Retry</button></div>`;
+    toast(e.message, true);
+    return;
+  }
   const c = state.triageData.counts || {};
   $("#triageCountReplied").textContent = c.replied || "";
   $("#triageCountBounced").textContent = c.bounced || "";
