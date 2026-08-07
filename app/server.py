@@ -9,6 +9,8 @@ Security for a localhost server that holds the user's API key:
 """
 from __future__ import annotations
 
+import re
+import threading
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
