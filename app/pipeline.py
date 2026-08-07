@@ -145,11 +145,17 @@ def draft_one(provider: Provider, cs: CompanyState, voice_override: str | None =
         cs.company_size = company.get("company_size")
         cs.state = State.researched
 
-        dq, reason = validate_mod.is_disqualified(cache)
-        if dq:
-            cs.disqualified = True
-            cs.status_pill = f"Disqualified: {reason}"
-            raise RuntimeError(f"disqualified: {reason}")
+        # Fit is advisory, never a refusal. The cache was already saved above, so
+        # the research is paid for either way -- raising here only threw away work
+        # already bought, and did it using one person's commute radius as the test
+        # even for organisation-audience voices.
+        _vdef = store.get_custom_voice(cs.voice) if cs.voice else None
+        _audience = getattr(_vdef, "audience", "self") if _vdef else "self"
+        _notes = validate_mod.fit_notes(cache, audience=_audience)
+        if _notes:
+            cs.disqualified = False
+            cs.status_pill = f"Check fit: {_notes[0]}"
+            cs.notes = ((cs.notes + "\n") if cs.notes else "") + "\n".join(_notes)
         if _is_unusable_cache(cache):
             raise RuntimeError("research incomplete — could not gather enough to draft "
                                "(likely a rate limit or search cutoff); review and re-run this target")

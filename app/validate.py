@@ -65,6 +65,39 @@ def contact_unverified(cache: dict) -> bool:
     return False
 
 
+def fit_notes(cache: dict, audience: str = "self") -> list[str]:
+    """Advisory notes about how well a target fits. NEVER blocks a draft.
+
+    This replaces a hard is_disqualified() gate that raised RuntimeError and
+    discarded a completed, already-paid-for research cache. Two problems with
+    that gate:
+
+      1. The research is saved before the check runs, so refusing could never
+         save money -- it only threw away work already bought.
+      2. It judged every company against one person's commute radius
+         ("paris_office | remote_english | disqualify"), including for
+         organisation-audience voices where a target company's location is the
+         investment thesis, not an obstacle.
+
+    Geographic and language fit only make sense for a self-audience voice (a
+    person deciding whether they could actually take the role). For an
+    organisation-audience voice they are meaningless and are skipped entirely.
+    """
+    company = (cache or {}).get("company") or {}
+    notes: list[str] = []
+    if audience != "self":
+        return notes
+
+    if company.get("disqualified") or company.get("work_mode") == "disqualify":
+        reason = company.get("disqualify_reason") or "location or working-mode mismatch"
+        notes.append(f"Location/mode: {reason}")
+
+    lang = (company.get("working_language") or "").strip()
+    if lang and not any(k in lang.lower() for k in ("english", "en-", "bilingual")):
+        notes.append(f"Working language appears to be {lang}, not English-dominant")
+    return notes
+
+
 def is_disqualified(cache: dict) -> tuple[bool, str]:
     """The hard work-mode / language mismatch. Returns (disqualified, reason)."""
     company = (cache or {}).get("company") or {}
