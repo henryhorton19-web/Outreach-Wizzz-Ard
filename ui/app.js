@@ -576,6 +576,45 @@ async function draft5() {
   }
 }
 
+async function draftAllInQueue() {
+  if (state.status && needsKey(state.status)) { openStartup(); return; }
+  const list_id = state.activeListId || "default";
+  const slugs = state.queue.map(r => r.slug);
+  if (!slugs.length) { toast("Queue is empty", true); return; }
+
+  const btn = $("#draftAllBtn");
+  const label = btn ? btn.textContent : "";
+  if (btn) { btn.disabled = true; btn.textContent = `Drafting all (${slugs.length})\u2026`; }
+
+  const promoted = [];
+  const failures = [];
+  for (const slug of slugs) {
+    try {
+      const r = await api(`/api/queue/${slug}/draft?list_id=${encodeURIComponent(list_id)}`,
+                          { method: "POST" });
+      state.queue = r.queue;
+      ingestCompany(r.company);
+      promoted.push(slug);
+    } catch (e) {
+      failures.push(`${slug}: ${e.message}`);
+    }
+  }
+  renderQueue(); renderDrafts();
+  if (btn) { btn.disabled = false; btn.textContent = label; }
+
+  if (failures.length) {
+    console.warn("draftAllInQueue could not stage:", failures);
+    toast(`${failures.length} of ${slugs.length} could not be staged \u2014 ${failures[0]}`, true);
+  }
+  if (!promoted.length) return;
+  const r = await api("/api/draft", { method: "POST", body: { reuse_cache: true, slugs: promoted } });
+  if (r && r.job_id) {
+    trackDraftJob(r.job_id);
+  } else {
+    await Promise.all(promoted.map(runDraft));
+  }
+}
+
 let activeDraftJobId = null;
 let draftJobPollTimer = null;
 
@@ -2300,6 +2339,7 @@ function wire() {
   $("#ingestBannerClose").onclick = () => $("#ingestBanner").classList.add("hidden");
 
   $("#draft5Btn").onclick = draft5;
+  if ($("#draftAllBtn")) $("#draftAllBtn").onclick = draftAllInQueue;
   $("#clearQueueBtn").onclick = clearQueue;
   $("#clearDraftsBtn").onclick = clearDrafts;
 

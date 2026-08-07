@@ -77,6 +77,7 @@ SOURCING_PROMPTS_DIR = DATA_DIR / "sourcing_prompts"
 ATTACH_DIR = DATA_DIR / "attachments"
 OUTBOX_DIR = _default_outbox_dir()      # staged .eml files; defaults to DATA_DIR/outbox
 SETTINGS_FILE = DATA_DIR / "settings.json"
+DRAFT_JOBS_FILE = DATA_DIR / "draft_jobs.json"
 
 for _d in (DATA_DIR, CACHE_DIR, BATCH_DIR, AUDIT_DIR, VOICES_DIR, VOICE_HISTORY_DIR,
            SOURCING_PROMPTS_DIR, ATTACH_DIR, OUTBOX_DIR):

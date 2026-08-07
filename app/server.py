@@ -9,8 +9,10 @@ Security for a localhost server that holds the user's API key:
 """
 from __future__ import annotations
 
+import random
 import re
 import threading
+import time
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -1682,7 +1684,7 @@ _DRAFT_JOBS: dict[str, dict] = {}
 
 
 def _run_draft_job(job_id: str, provider: Any, todo_slugs: list[str], reuse: bool, voice_override: str | None, settings_snapshot: Any):
-    job = _DRAFT_JOBS.get(job_id)
+    job = _DRAFT_JOBS.get(job_id) or store.load_draft_jobs().get(job_id)
     if not job:
         return
     workers = max(1, min(settings_snapshot.research_concurrency, len(todo_slugs) or 1))
@@ -1695,20 +1697,49 @@ def _run_draft_job(job_id: str, provider: Any, todo_slugs: list[str], reuse: boo
             if not cs:
                 continue
             job["current_slug"] = slug
-            try:
-                pipeline.draft_one(provider, cs, voice_override=voice_override, reuse_cache=reuse)
-                _persist()
-            except Exception as e:
-                job.setdefault("errors", []).append({"slug": slug, "error": str(e)})
+            attempts = 0
+            last_err = None
+            while attempts < 3:
+                try:
+                    pipeline.draft_one(provider, cs, voice_override=voice_override, reuse_cache=reuse)
+                    _persist()
+                    last_err = None
+                    break
+                except Exception as e:
+                    last_err = e
+                    attempts += 1
+                    if attempts < 3:
+                        # Exponential backoff with jitter: 1s, 2s (+/- up to 0.5s).
+                        # draft_one is idempotent -- redrafting overwrites -- so a
+                        # retry is always safe.
+                        time.sleep((2 ** (attempts - 1)) + random.random() * 0.5)
+            if last_err is not None:
+                job.setdefault("errors", []).append({"slug": slug, "error": str(last_err),
+                                                     "attempts": attempts})
             job["done"] += 1
+            # Checkpoint after every company. A draft costs seconds and real provider
+            # tokens, so one small JSON write per company is negligible against
+            # re-running even one draft after a crash.
+            job.setdefault("completed", []).append(slug)
+            try:
+                jobs = store.load_draft_jobs()
+                jobs[job_id] = job
+                store.save_draft_jobs(jobs)
+            except Exception:
+                pass          # a checkpoint failure must never abort the run itself
 
     if job.get("state") != "cancelled":
         job["state"] = "done"
+    try:
+        jobs = store.load_draft_jobs()
+        jobs[job_id] = job
+        store.save_draft_jobs(jobs)
+    except Exception:
+        pass
 
 
 @app.post("/api/draft")
 def draft_all(payload: dict = Body(default={})):
-    import uuid
     batch = _batch()
     if not batch:
         raise HTTPException(status_code=400, detail="ingest target names first")
@@ -1744,11 +1775,25 @@ def draft_all(payload: dict = Body(default={})):
         "errors": [],
         "state": "running",
         "cancelled": False,
+        "all_slugs": [cs.slug for cs in todo],
+        "completed": [],
     }
     _DRAFT_JOBS[job_id] = job
+    try:
+        jobs = store.load_draft_jobs()
+        jobs[job_id] = job
+        store.save_draft_jobs(jobs)
+    except Exception:
+        pass
 
     if not todo:
         job["state"] = "done"
+        try:
+            jobs = store.load_draft_jobs()
+            jobs[job_id] = job
+            store.save_draft_jobs(jobs)
+        except Exception:
+            pass
         return {"job_id": job_id, "total": 0, "state": "done", "done": 0, "skipped": skipped}
 
     _ov = _STATE.get("voice")
@@ -1764,7 +1809,7 @@ def draft_all(payload: dict = Body(default={})):
 
 @app.get("/api/draft/job/{job_id}")
 def get_draft_job(job_id: str):
-    job = _DRAFT_JOBS.get(job_id)
+    job = _DRAFT_JOBS.get(job_id) or store.load_draft_jobs().get(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="job not found")
     return job
@@ -1772,12 +1817,51 @@ def get_draft_job(job_id: str):
 
 @app.post("/api/draft/job/{job_id}/cancel")
 def cancel_draft_job(job_id: str):
-    job = _DRAFT_JOBS.get(job_id)
+    job = _DRAFT_JOBS.get(job_id) or store.load_draft_jobs().get(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="job not found")
     job["cancelled"] = True
     job["state"] = "cancelled"
+    _DRAFT_JOBS[job_id] = job
+    try:
+        jobs = store.load_draft_jobs()
+        jobs[job_id] = job
+        store.save_draft_jobs(jobs)
+    except Exception:
+        pass
     return {"ok": True, "job": job}
+
+
+@app.post("/api/draft/job/{job_id}/resume")
+def resume_draft_job(job_id: str):
+    """Restart from the last checkpoint, skipping companies already done.
+
+    A run that died at company 40 of 60 resumes at 41 rather than re-running --
+    and re-paying for -- the first 40.
+    """
+    job = _DRAFT_JOBS.get(job_id) or store.load_draft_jobs().get(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="unknown job")
+    completed = set(job.get("completed") or [])
+    remaining = [s for s in (job.get("all_slugs") or []) if s not in completed]
+    if not remaining:
+        return {"job_id": job_id, "remaining": 0, "state": job.get("state", "done")}
+    provider = _provider()
+    st = S.load_settings()
+    job["state"] = "running"
+    job["cancelled"] = False
+    _DRAFT_JOBS[job_id] = job
+    try:
+        jobs = store.load_draft_jobs()
+        jobs[job_id] = job
+        store.save_draft_jobs(jobs)
+    except Exception:
+        pass
+    t = threading.Thread(target=_run_draft_job,
+                         args=(job_id, provider, remaining, True, _STATE.get("voice"), st),
+                         daemon=True)
+    t.start()
+    return {"job_id": job_id, "remaining": len(remaining), "state": "running"}
 
 
 # ---- edit ------------------------------------------------------------------

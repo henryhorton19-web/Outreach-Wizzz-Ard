@@ -929,3 +929,19 @@ def get_profile(profile_id: str) -> dict | None:
 def delete_profile(profile_id: str) -> bool:
     return ProfileStore.delete_profile(profile_id)
 
+
+def load_draft_jobs() -> dict:
+    """Persisted draft-job state. Survives a restart so a long run can resume."""
+    if not S.DRAFT_JOBS_FILE.exists():
+        return {}
+    try:
+        data = json.loads(S.DRAFT_JOBS_FILE.read_text(encoding="utf-8"))
+        return data.get("jobs", {})
+    except Exception:
+        return {}
+
+
+def save_draft_jobs(jobs: dict) -> None:
+    with _MUTEX:
+        safe_write_text(S.DRAFT_JOBS_FILE, json.dumps({"jobs": jobs}, indent=2))
+
