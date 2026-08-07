@@ -909,10 +909,13 @@ function buildDrawer(cs) {
           if (cs.cache && cs.cache.company) cs.cache.company.resolved_domain = newDomain;
         }
       }
-      if (cs.cache && cs.cache.contact) {
-        cs.cache.contact.email = newEmail;
-      }
-      const updated = await api(`/api/companies/${cs.slug}/email`, { method: "PUT", body: { subject: subjectInput.value, email: emailEdit.value } });
+      // Send the edited address. Previously this mutated the LOCAL copy only and the
+      // PUT carried just subject + body, so the server never saw it -- and the drawer
+      // showed the new address while approve sent to the old one.
+      const updated = await api(`/api/companies/${cs.slug}/email`, {
+        method: "PUT",
+        body: { subject: subjectInput.value, email: emailEdit.value, contact_email: newEmail },
+      });
       updated.recipient_domain = cs.recipient_domain;
       companies.set(cs.slug, updated); toast("Edit saved"); renderDrafts();
     } catch (e) { toast(e.message, true); }

@@ -1754,6 +1754,30 @@ def edit_email(slug: str, payload: dict = Body(...)):
         raise HTTPException(status_code=404, detail="unknown target")
     if cs.machine_email is None:
         raise HTTPException(status_code=400, detail="draft this target first")
+
+    # A manually-corrected recipient must persist. Previously this endpoint read only
+    # subject and email (the body), so an edited address was discarded -- and because
+    # approve derives send_to from cs.cache.contact.email, the .eml went to the
+    # ORIGINAL address while the drawer showed the edited one.
+    new_to = str(payload.get("contact_email") or "").strip()
+    if new_to:
+        import re as _re
+        if not _re.match(r"^[^@\s]+@[^@\s]+\.[a-z]{2,}$", new_to, _re.IGNORECASE):
+            raise HTTPException(status_code=400, detail=f"not a valid email address: {new_to}")
+        cache = cs.cache or {}
+        contact = dict(cache.get("contact") or {})
+        contact["email"] = new_to.lower()
+        # A human typing an address outranks anything research inferred.
+        contact["email_confidence"] = "high"
+        contact["contact_verified"] = True
+        contact["email_method"] = "manual"
+        contact["email_source_url"] = ""
+        cache["contact"] = contact
+        cs.cache = cache
+        if cs.spec is not None and isinstance(cs.spec, dict):
+            cs.spec["send_to"] = new_to.lower()
+        cs.recipient_domain = new_to.rsplit("@", 1)[1].lower()
+
     pipeline.apply_edit(cs, subject=payload.get("subject"), email=payload.get("email", ""))
     _persist()
     return _cs_public(cs)
