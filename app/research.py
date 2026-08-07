@@ -145,35 +145,46 @@ def apply_pattern(pattern: str, full_name: str, domain: str) -> str:
 
 
 def resolve_company_domain(name: str, given_website: str | None,
-                           provider: Provider | None = None) -> tuple[str, str]:
+                           provider: Provider | None = None) -> tuple[str, str, str, dict]:
     """Resolve ONE domain for this company, before any person-lookup happens.
 
-    Returns (domain, source): source is "given" when the operator supplied a
-    website (the strongest signal — [R1]: Clearbit's whole model is that a domain
-    is unique where a company name is not), or "resolved" when a dedicated search
-    found it. Never returns a domain the person-lookup call invented itself —
-    that ordering is the entire fix. Pinning it once means a retry cannot
-    re-hallucinate a different domain (review R4: a fix can create a defect if
-    a later step is allowed to override an earlier one).
+    Returns (domain, source, confidence, identity_info): source is "given" when the operator
+    supplied a website, or "resolved" when a dedicated search found it. Never returns a
+    domain the person-lookup call invented itself.
     """
     given = _extract_domain(given_website or "")
     if given:
-        return given, "given"
+        return given, "given", "high", {"domain": given, "confidence": "high", "why": "given by operator", "other_candidates": []}
 
     if provider is None or getattr(provider, "is_stub", False):
-        return "", "unresolved"
+        return "", "unresolved", "low", {"domain": "", "confidence": "low", "why": "unresolved", "other_candidates": []}
 
-    system = ("Find the single official website domain for the company named below. "
-             "Return ONLY the bare domain (e.g. 'example-saas.test'), nothing else. "
-             "If you cannot confirm one real, currently-live domain for a company of "
-             "this name, return exactly: UNKNOWN")
+    system = (
+        "Find the official website domain for the company named below.\n"
+        "Return ONLY strict JSON, no prose:\n"
+        '{"domain": "example-saas.test", "confidence": "high|medium|low", "why": "one short line", '
+        '"other_candidates": ["otherco.com"]}\n'
+        "Use 'high' only when one company of this name is clearly dominant; "
+        "use 'low' when several distinct companies share it."
+    )
     try:
         res = provider.generate(system=system, user=f"Company name: {name}",
                                 use_web=True, max_web=3, temperature=0.0, timeout_s=30)
-        domain = _extract_domain((res.text or "").strip())
-        return (domain, "resolved") if domain else ("", "unresolved")
+        data = extract_json(res.text or "") or {}
+        dom = _extract_domain(str(data.get("domain") or "").strip())
+        conf = str(data.get("confidence") or "medium").strip().lower()
+        if conf not in ("high", "medium", "low"):
+            conf = "medium"
+        others = [str(x).strip() for x in (data.get("other_candidates") or []) if str(x).strip()]
+        info = {
+            "domain": dom,
+            "confidence": conf,
+            "why": str(data.get("why") or "").strip(),
+            "other_candidates": others,
+        }
+        return (dom, "resolved", conf, info) if dom else ("", "unresolved", "low", info)
     except Exception:
-        return "", "unresolved"
+        return "", "unresolved", "low", {"domain": "", "confidence": "low", "why": "error", "other_candidates": []}
 
 
 def resolve_contact_email(name: str, company: str, domain: str,
@@ -349,7 +360,19 @@ def _identity_anchor(name: str, website: str | None, contact_hint: str | None) -
     The app carries no Dealroom identity metadata, so the anchor is whatever the operator gave us:
     the website domain and/or a contact hint."""
     if not (website or contact_hint):
-        return ""
+        return (
+            f"\n\n--- IDENTITY CHECK ---\nThe target is the company named \"{name}\". "
+            "No website was supplied, so establish WHICH company this is BEFORE profiling it:\n"
+            "  1. Search for the company by name and identify its official site.\n"
+            "  2. If several distinct companies share this name, say so in research_failures "
+            "and profile the one that best matches any other context in this request -- do not "
+            "silently pick one.\n"
+            "  3. Put the site you settled on in company.website. Everything else you report "
+            "must come from THAT company.\n"
+            "If you cannot confidently identify one company of this name, return what you can "
+            "and say why in research_failures. A sparse, honest result is better than a "
+            "confident profile of the wrong company."
+        )
     lines = []
     if website:
         lines.append(f"Official site given by the operator: {website}")
@@ -495,6 +518,39 @@ def _contact_gaps(cache: dict, resolved_domain: str = "") -> list[str]:
     if not source and not gaps and email_method != "pattern_guess":
         gaps.append("contact.email has no email_source_url — it is an unverified "
                    "pattern guess and must be labelled as one")
+    return gaps
+
+
+def identity_gaps(cache: dict, target_name: str, resolved_domain: str = "") -> list[str]:
+    """Did research profile the company we asked for?
+
+    _completeness_gaps checks that fields are POPULATED and never that the entity
+    matches the target, so a complete, well-sourced profile of the wrong company
+    passed every check.
+
+    Deliberately loose: this flags a probable mismatch for the existing retry to
+    address, it does not adjudicate. A false alarm on a legitimate name variant
+    ("Acme" vs "Acme Technologies SA") costs a wasted research call.
+    """
+    company = (cache or {}).get("company") or {}
+    found_name = str(company.get("name") or "").strip()
+    found_site = str(company.get("website") or "").strip()
+    gaps: list[str] = []
+
+    if found_name and target_name:
+        a = "".join(ch for ch in found_name.lower() if ch.isalnum())
+        b = "".join(ch for ch in target_name.lower() if ch.isalnum())
+        if a and b and a not in b and b not in a:
+            gaps.append(
+                f"company.name is '{found_name}' but the target is '{target_name}' -- "
+                "confirm this is the same company, or say so in research_failures")
+
+    if resolved_domain and found_site:
+        site_dom = _extract_domain(found_site)
+        if site_dom and site_dom != resolved_domain.lower():
+            gaps.append(
+                f"company.website resolves to '{site_dom}' but the pinned domain is "
+                f"'{resolved_domain}' -- these may be different companies")
     return gaps
 
 
@@ -834,8 +890,13 @@ def research_company(provider: Provider, name: str, website: str | None,
     today = _today.isoformat()
     recency_floor = (_today - datetime.timedelta(days=365)).isoformat()  # ~12-month proof-staleness floor
 
-    resolved_domain, domain_source = resolve_company_domain(name, website, provider)
-    system, user = build_research_prompt(name, website, contact_hint, max_web, recency_floor, today)
+    resolved_domain, domain_source, domain_confidence, identity_info = resolve_company_domain(name, website, provider)
+    # Pass the RESOLVED domain, not the operator-supplied one. resolve_company_domain
+    # ran on the line above; its result reached only the system prompt (for email
+    # validation) while the identity anchor in the USER prompt still received the
+    # original `website`, empty for a pasted name.
+    system, user = build_research_prompt(name, website or resolved_domain, contact_hint,
+                                         max_web, recency_floor, today)
     system = system.replace("{confirmed_domain}", resolved_domain or "UNKNOWN — leave contact.email blank")
 
     last_text, last_urls, last_err, feedback = "", [], None, ""
@@ -869,6 +930,8 @@ def research_company(provider: Provider, name: str, website: str | None,
             cache.setdefault("company", {})
             cache["company"]["resolved_domain"] = resolved_domain
             cache["company"]["domain_source"] = domain_source
+            if domain_confidence == "low" or (identity_info and identity_info.get("other_candidates")):
+                cache["identity"] = identity_info
             _validate(cache)
         except Exception as e:                                 # parse/schema failure -> retry with the error
             last_err = e
@@ -877,7 +940,7 @@ def research_company(provider: Provider, name: str, website: str | None,
             continue
 
         # Valid JSON. Completeness gate: is it actually draftable AND showable?
-        gaps = _completeness_gaps(cache, resolved_domain=resolved_domain)
+        gaps = _completeness_gaps(cache, resolved_domain=resolved_domain) + identity_gaps(cache, name, resolved_domain)
         if gaps and attempt == 0:                              # one targeted retry naming the gaps
             feedback = ("\n\n--- YOUR PREVIOUS OUTPUT WAS INCOMPLETE ---\n"
                         "It parsed but left these routing-critical fields empty or wrong: "

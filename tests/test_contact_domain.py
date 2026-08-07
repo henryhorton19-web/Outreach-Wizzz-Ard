@@ -48,7 +48,7 @@ def test_matching_domain_with_a_real_source_passes():
 
 
 def test_resolve_domain_prefers_an_explicitly_given_website():
-    dom, source = research.resolve_company_domain(name="Example SaaS", given_website="https://example-saas.test/about")
+    dom, source = research.resolve_company_domain(name="Example SaaS", given_website="https://example-saas.test/about")[:2]
     assert dom == "example-saas.test"
     assert source == "given"
 
