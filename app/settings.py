@@ -96,6 +96,12 @@ def get_outbox_dir() -> Path:
     return OUTBOX_DIR
 
 
+def get_outbox_helper_dir() -> Path:
+    d = get_outbox_dir().parent / "outbox helper"
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
 def ensure_seeded() -> None:
     """Bootstrap-once PER KIND: if the store has ZERO items of a given kind, insert that kind's
     shipped starter items.

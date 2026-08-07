@@ -29,6 +29,7 @@ def test_build_eml():
 
 def test_save_to_outbox(tmp_path, monkeypatch):
     monkeypatch.setattr(S, "OUTBOX_DIR", tmp_path / "outbox")
+    monkeypatch.setattr(S, "get_outbox_helper_dir", lambda: tmp_path / "outbox")
 
     cs = CompanyState(
         slug="test-company",
@@ -54,6 +55,7 @@ def test_save_to_outbox(tmp_path, monkeypatch):
 def test_sync_historical_outbox(tmp_path, monkeypatch):
     outbox_dir = tmp_path / "outbox"
     monkeypatch.setattr(S, "OUTBOX_DIR", outbox_dir)
+    monkeypatch.setattr(S, "get_outbox_helper_dir", lambda: outbox_dir)
 
     # Set up mock archive records
     archive_data = [
