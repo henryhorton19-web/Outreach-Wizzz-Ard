@@ -1715,8 +1715,25 @@ def draft_all(payload: dict = Body(default={})):
     provider = _provider()
     st = S.load_settings()
     reuse = bool(payload.get("reuse_cache", True))
-    todo = [cs for cs in batch.ordered()
-            if cs.state in (State.input, State.error) or not cs.machine_email]
+    # An explicit slugs list scopes the run to exactly those companies. Without it,
+    # fall back to "every undrafted company in the batch" -- which is what Draft all
+    # wants, and what Draft 5 was accidentally getting: it promoted 5 specific slugs
+    # then called this endpoint with no reference to them, so a run of 5 swept in
+    # every other undrafted company too (reported as 0/9 for 5 requested).
+    requested = payload.get("slugs")
+    skipped: list[str] = []
+    if requested:
+        by_slug = {cs.slug: cs for cs in batch.ordered()}
+        todo = []
+        for slug in requested:
+            cs = by_slug.get(slug)
+            if cs is None:
+                skipped.append(slug)
+            else:
+                todo.append(cs)
+    else:
+        todo = [cs for cs in batch.ordered()
+                if cs.state in (State.input, State.error) or not cs.machine_email]
 
     job_id = str(uuid.uuid4())
     job = {
@@ -1732,7 +1749,7 @@ def draft_all(payload: dict = Body(default={})):
 
     if not todo:
         job["state"] = "done"
-        return {"job_id": job_id, "total": 0, "state": "done", "done": 0}
+        return {"job_id": job_id, "total": 0, "state": "done", "done": 0, "skipped": skipped}
 
     _ov = _STATE.get("voice")
     todo_slugs = [cs.slug for cs in todo]
@@ -1742,7 +1759,7 @@ def draft_all(payload: dict = Body(default={})):
         daemon=True
     )
     t.start()
-    return {"job_id": job_id, "total": len(todo), "state": "running", "done": 0}
+    return {"job_id": job_id, "total": len(todo), "state": "running", "done": 0, "skipped": skipped}
 
 
 @app.get("/api/draft/job/{job_id}")

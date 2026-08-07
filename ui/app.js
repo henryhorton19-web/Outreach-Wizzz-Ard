@@ -565,8 +565,10 @@ async function draft5() {
   // Only run the pipeline for rows that actually reached the drafts store.
   // Previously every slug was passed to runDraft regardless, so a failed
   // promotion produced a second 404 ("unknown target") for the same row.
-  if (!promoted.length) return;
-  const r = await api("/api/draft", { method: "POST", body: { reuse_cache: true } });
+  // Send the slugs we actually promoted. Without this the server rebuilt its own
+  // work set from the whole batch, so "Draft 5" with 4 already-drafted companies
+  // produced a 9-company run.
+  const r = await api("/api/draft", { method: "POST", body: { reuse_cache: true, slugs: promoted } });
   if (r && r.job_id) {
     trackDraftJob(r.job_id);
   } else {
