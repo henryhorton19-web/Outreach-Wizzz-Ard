@@ -591,9 +591,45 @@ def get_voice_history(voice_id: str):
 
 # ---- candidate profile endpoints -------------------------------------------
 
+@app.get("/api/profiles")
+def get_profiles():
+    return {
+        "active": C.ProfileStore.active_profile_id(),
+        "profiles": C.ProfileStore.list_profiles()
+    }
+
+
+@app.post("/api/profiles")
+def create_profile_endpoint(payload: dict = Body(...)):
+    pid = payload.get("id") or ""
+    name = payload.get("name") or pid
+    copy_from = payload.get("copy_from")
+    try:
+        prof = C.ProfileStore.create_profile(pid, name, copy_from=copy_from)
+        return {"ok": True, "active": C.ProfileStore.active_profile_id(), "profiles": C.ProfileStore.list_profiles()}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/api/profiles/{id}/activate")
+def activate_profile_endpoint(id: str):
+    ok = C.ProfileStore.set_active_profile(id)
+    if not ok:
+        raise HTTPException(status_code=404, detail=f"profile '{id}' not found")
+    return {"ok": True, "active": C.ProfileStore.active_profile_id(), "profile": C.ProfileStore.load()}
+
+
+@app.delete("/api/profiles/{id}")
+def delete_profile_endpoint(id: str):
+    ok = C.ProfileStore.delete_profile(id)
+    if not ok:
+        raise HTTPException(status_code=400, detail=f"cannot delete profile '{id}' (active or default)")
+    return {"ok": True, "active": C.ProfileStore.active_profile_id(), "profiles": C.ProfileStore.list_profiles()}
+
+
 @app.get("/api/profile")
-def get_candidate_profile():
-    return C.ProfileStore.load()
+def get_candidate_profile(id: str | None = None):
+    return C.ProfileStore.load(profile_id=id)
 
 
 @app.post("/api/profile")

@@ -2401,6 +2401,38 @@ function wire() {
     renderProfileProofList(exps);
   };
 
+  // profile switcher
+  if ($("#profileSelect")) {
+    $("#profileSelect").onchange = async () => {
+      const pid = $("#profileSelect").value;
+      try {
+        await api(`/api/profiles/${encodeURIComponent(pid)}/activate`, { method: "POST" });
+        state.activeProfileId = pid;
+        await refreshProfileTab();
+        toast(`Active profile changed to ${pid}`);
+      } catch (e) {
+        toast(e.message, true);
+      }
+    };
+  }
+
+  if ($("#newProfileBtn")) {
+    $("#newProfileBtn").onclick = async () => {
+      const name = prompt("Enter new profile name (e.g. Personal / Firm):");
+      if (!name || !name.trim()) return;
+      const pid = name.trim().toLowerCase().replace(/[^a-z0-9_-]/g, "_").slice(0, 30) || "profile_" + Date.now();
+      try {
+        await api("/api/profiles", { method: "POST", body: { id: pid, name: name.trim() } });
+        await api(`/api/profiles/${encodeURIComponent(pid)}/activate`, { method: "POST" });
+        await fetchProfiles();
+        await refreshProfileTab();
+        toast(`Created and activated profile '${name.trim()}'`);
+      } catch (e) {
+        toast("Failed to create profile: " + e.message, true);
+      }
+    };
+  }
+
   // pipeline filters
   if ($("#pipeListFilter")) $("#pipeListFilter").onchange = refreshPipeline;
   $("#pipeVoiceFilter").onchange = renderPipeline;
@@ -3029,7 +3061,24 @@ async function resetProfile() {
   }
 }
 
+async function fetchProfiles() {
+  const sel = $("#profileSelect");
+  if (!sel) return;
+  try {
+    const res = await api("/api/profiles");
+    state.profiles = res.profiles || [];
+    state.activeProfileId = res.active || "default";
+    sel.innerHTML = state.profiles.map(p => 
+      `<option value="${esc(p.id)}">${esc(p.name || p.id)}</option>`
+    ).join("");
+    sel.value = state.activeProfileId;
+  } catch (e) {
+    /* fallback */
+  }
+}
+
 async function refreshProfileTab() {
+  await fetchProfiles();
   try {
     const p = await api("/api/profile");
     state.profile = p;

@@ -890,3 +890,42 @@ def is_excluded(slug: str) -> bool:
         return False
     return slug in excluded_slugs()
 
+
+# ---------------------------------------------------------------------------
+# Stage D: Multi-Profile store forwarding
+# ---------------------------------------------------------------------------
+
+from engine.config import ProfileStore, validate_profile_id
+
+
+def load_candidate_profile(profile_id: str | None = None) -> dict:
+    return ProfileStore.load(profile_id=profile_id)
+
+
+def save_candidate_profile(profile: dict, profile_id: str | None = None) -> None:
+    ProfileStore.save(profile, profile_id=profile_id)
+
+
+def list_profiles() -> list[dict]:
+    return ProfileStore.list_profiles()
+
+
+def active_profile_id() -> str:
+    return ProfileStore.active_profile_id()
+
+
+def set_active_profile(profile_id: str) -> bool:
+    return ProfileStore.set_active_profile(profile_id)
+
+
+def create_profile(profile_id: str, name: str, copy_from: str | None = None):
+    return ProfileStore.create_profile(profile_id, name, copy_from=copy_from)
+
+
+def get_profile(profile_id: str) -> dict | None:
+    return ProfileStore.get_profile(profile_id)
+
+
+def delete_profile(profile_id: str) -> bool:
+    return ProfileStore.delete_profile(profile_id)
+

@@ -56,38 +56,170 @@ DEFAULT_PROFILE_TEMPLATE = {
 _PLACEHOLDER_PROFILE = DEFAULT_PROFILE_TEMPLATE
 
 
+import re
+
+_PROFILE_ID_RE = re.compile(r"^[a-zA-Z0-9_-]{1,64}$")
+_WINDOWS_RESERVED_NAMES = {
+    "CON", "PRN", "AUX", "NUL",
+    "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9",
+    "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9"
+}
+
+def validate_profile_id(pid: str) -> str:
+    pid = (pid or "").strip()
+    if not pid or not _PROFILE_ID_RE.match(pid):
+        raise ValueError(f"Invalid profile ID '{pid}': must be 1-64 alphanumeric, dash, or underscore characters")
+    if pid.upper() in _WINDOWS_RESERVED_NAMES:
+        raise ValueError(f"Invalid profile ID '{pid}': reserved Windows filename")
+    return pid
+
+
 class ProfileStore:
-    """Manages reading and persisting candidate profiles."""
-    @staticmethod
-    def profile_path() -> Path:
+    """Manages reading and persisting candidate profiles (keyed multi-profile support)."""
+
+    @classmethod
+    def _data_dir(cls) -> Path:
         try:
             custom_dir = os.environ.get("WIZZARD_DATA_DIR") or os.environ.get("PARIS_DATA_DIR")
             if custom_dir:
-                return Path(custom_dir) / "candidate_profile.json"
+                return Path(custom_dir)
             from app import settings as S
-            return S.DATA_DIR / "candidate_profile.json"
+            return S.DATA_DIR
         except Exception:
-            return Path.home() / ".outreach_wizzard" / "candidate_profile.json"
+            return Path.home() / ".outreach_wizzard"
 
     @classmethod
-    def load(cls) -> dict:
+    def profiles_dir(cls) -> Path:
+        d = cls._data_dir() / "profiles"
+        d.mkdir(parents=True, exist_ok=True)
+        return d
+
+    @classmethod
+    def manifest_path(cls) -> Path:
+        return cls._data_dir() / "profiles.json"
+
+    @classmethod
+    def active_profile_id(cls) -> str:
+        mp = cls.manifest_path()
+        if mp.exists():
+            try:
+                import json
+                data = json.loads(mp.read_text(encoding="utf-8"))
+                if isinstance(data, dict) and data.get("active"):
+                    return str(data["active"])
+            except Exception:
+                pass
+        return "default"
+
+    @classmethod
+    def list_profiles(cls) -> list[dict]:
+        cls._ensure_migrated()
+        mp = cls.manifest_path()
+        if mp.exists():
+            try:
+                import json
+                data = json.loads(mp.read_text(encoding="utf-8"))
+                if isinstance(data, dict) and "profiles" in data:
+                    return data["profiles"]
+            except Exception:
+                pass
+        return [{"id": "default", "name": "Default Profile"}]
+
+    @classmethod
+    def set_active_profile(cls, profile_id: str) -> bool:
+        pid = validate_profile_id(profile_id)
+        if not cls.profile_path(pid).exists():
+            return False
+        profs = cls.list_profiles()
+        if not any(p["id"] == pid for p in profs):
+            profs.append({"id": pid, "name": pid})
+        import json
+        manifest = {"active": pid, "profiles": profs}
+        cls.manifest_path().write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+        return True
+
+    @classmethod
+    def profile_path(cls, profile_id: str | None = None) -> Path:
+        pid = validate_profile_id(profile_id or cls.active_profile_id())
+        return cls.profiles_dir() / f"{pid}.json"
+
+    @classmethod
+    def _ensure_migrated(cls):
+        d = cls._data_dir()
+        legacy_file = d / "candidate_profile.json"
+        default_file = cls.profiles_dir() / "default.json"
+        if legacy_file.exists() and not default_file.exists():
+            try:
+                import json
+                text = legacy_file.read_text(encoding="utf-8")
+                default_file.write_text(text, encoding="utf-8")
+            except Exception:
+                pass
+        if not default_file.exists():
+            import json
+            default_file.write_text(json.dumps(DEFAULT_PROFILE_TEMPLATE, indent=2), encoding="utf-8")
+        if not cls.manifest_path().exists():
+            import json
+            cls.manifest_path().write_text(json.dumps({"active": "default", "profiles": [{"id": "default", "name": "Default Profile"}]}, indent=2), encoding="utf-8")
+
+    @classmethod
+    def load(cls, profile_id: str | None = None) -> dict:
         if os.environ.get("WIZZARD_PROFILE_SOURCE") == "fixture":
             from tests.fixtures.profile import FIXTURE_PROFILE
             return dict(FIXTURE_PROFILE)
-        p = cls.profile_path()
+        cls._ensure_migrated()
+        p = cls.profile_path(profile_id)
         if p.exists():
             try:
                 import json
-                return json.loads(p.read_text(encoding="utf-8"))
+                data = json.loads(p.read_text(encoding="utf-8"))
+                data.setdefault("id", p.stem)
+                return data
             except Exception:
                 pass
-        return dict(CANDIDATE_PROFILE)
+        data = dict(CANDIDATE_PROFILE)
+        data["id"] = profile_id or cls.active_profile_id()
+        return data
 
     @classmethod
-    def save(cls, profile: dict) -> None:
+    def get_profile(cls, profile_id: str) -> dict | None:
+        p = cls.profile_path(profile_id)
+        if not p.exists():
+            return None
+        return cls.load(profile_id)
+
+    @classmethod
+    def create_profile(cls, profile_id: str, name: str, copy_from: str | None = None):
+        pid = validate_profile_id(profile_id)
+        cls._ensure_migrated()
+        base = cls.load(copy_from) if (copy_from and cls.profile_path(copy_from).exists()) else dict(DEFAULT_PROFILE_TEMPLATE)
+        base["id"] = pid
+        base["full_name"] = name
+        base["name"] = name
+        cls.save(base, profile_id=pid)
+
+        profs = cls.list_profiles()
+        if not any(p["id"] == pid for p in profs):
+            profs.append({"id": pid, "name": name})
+            import json
+            manifest = {"active": cls.active_profile_id(), "profiles": profs}
+            cls.manifest_path().write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+
+        from types import SimpleNamespace
+        import json
+        res = json.loads(json.dumps(base))
+        res["id"] = pid
+        res["full_name"] = name
+        return SimpleNamespace(**res)
+
+    @classmethod
+    def save(cls, profile: dict, profile_id: str | None = None) -> None:
         if os.environ.get("WIZZARD_PROFILE_SOURCE") == "fixture":
             return
-        p = cls.profile_path()
+        cls._ensure_migrated()
+        pid = validate_profile_id(profile_id or profile.get("id") or cls.active_profile_id())
+        profile["id"] = pid
+        p = cls.profile_path(pid)
         p.parent.mkdir(parents=True, exist_ok=True)
         import json
         p.write_text(json.dumps(profile, indent=2), encoding="utf-8")
@@ -97,9 +229,26 @@ class ProfileStore:
                 setattr(sys.modules[mod_name], "CANDIDATE_PROFILE", profile)
 
     @classmethod
-    def reset_to_default(cls) -> dict:
-        cls.save(DEFAULT_PROFILE_TEMPLATE)
-        return DEFAULT_PROFILE_TEMPLATE
+    def delete_profile(cls, profile_id: str) -> bool:
+        pid = validate_profile_id(profile_id)
+        if pid == "default" or pid == cls.active_profile_id():
+            return False
+        p = cls.profile_path(pid)
+        if p.exists():
+            p.unlink()
+        profs = [x for x in cls.list_profiles() if x["id"] != pid]
+        import json
+        manifest = {"active": cls.active_profile_id(), "profiles": profs}
+        cls.manifest_path().write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+        return True
+
+    @classmethod
+    def reset_to_default(cls, profile_id: str | None = None) -> dict:
+        pid = profile_id or cls.active_profile_id()
+        data = dict(DEFAULT_PROFILE_TEMPLATE)
+        data["id"] = pid
+        cls.save(data, profile_id=pid)
+        return data
 
 
 if os.environ.get("WIZZARD_PROFILE_SOURCE") == "fixture":
