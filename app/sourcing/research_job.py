@@ -83,12 +83,13 @@ def start_sourcing_job(settings: Any,
     _ACTIVE_JOBS[job_id] = job
 
     # Run execution synchronous for clean predictability
-    _execute_job(job, settings, recency_days, max_candidates, custom_prompt, fixture_harvest)
+    _execute_job(job, settings, recency_days, max_candidates, custom_prompt, fixture_harvest, target_n=target_n)
     return job
 
 
 def _execute_job(job: dict, settings: Any, recency_days: int, max_candidates: int,
-                  custom_prompt: Any | None, fixture_harvest: list[dict] | None = None) -> None:
+                  custom_prompt: Any | None, fixture_harvest: list[dict] | None = None,
+                  target_n: int = 0) -> None:
     global _LAST_RUN
     sources = job["sources"]
     harvested_raw: list[dict] = []
@@ -139,6 +140,9 @@ def _execute_job(job: dict, settings: Any, recency_days: int, max_candidates: in
     for raw in candidates_to_verify:
         if job["status"] == "cancelled":
             break
+        if target_n > 0 and job["counts"]["accepted"] >= target_n:
+            job["stopped_because"] = "target_met"
+            break
 
         verified = verify_candidate(raw, custom_prompt=custom_prompt)
         screened = screen_candidate(verified)
@@ -164,10 +168,19 @@ def _execute_job(job: dict, settings: Any, recency_days: int, max_candidates: in
                 "ref": screened.get("website", ""),
                 "meta": meta,
             })
+            if target_n > 0 and job["counts"]["accepted"] >= target_n:
+                job["stopped_because"] = "target_met"
+                break
         elif verdict == "needs_review" or screened.get("tier") == "Tier 2":
             job["counts"]["held"] += 1
         else:
             job["counts"]["rejected"] += 1
+
+    if "stopped_because" not in job:
+        if target_n > 0 and job["counts"]["accepted"] >= target_n:
+            job["stopped_because"] = "target_met"
+        else:
+            job["stopped_because"] = "budget_exhausted"
             
     # 4. AUTO-QUEUE (If sourcing_enabled)
     sourcing_enabled = getattr(settings, "sourcing_enabled", True)

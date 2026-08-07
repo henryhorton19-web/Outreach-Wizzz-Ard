@@ -403,6 +403,7 @@ class CustomSourcingPrompt(BaseModel):
     criteria_text: str = ""
     sources: list[str] = Field(default_factory=lambda: ["techeu_funding_feed", "grounded_search"])
     recency_days: int = 120
+    target_n: int = 0                            # accepted-candidate goal for a run; 0 = use global setting
     exclude_notes: str = ""
 
     # ---- Stage F / G1: local screening gates (typed, all optional) ----

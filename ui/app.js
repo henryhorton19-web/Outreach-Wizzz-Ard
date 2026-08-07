@@ -2641,6 +2641,8 @@ async function openPresetEditor(promptId) {
   $("#presetNameInput").value = p ? p.display_name : "";
   $("#presetCriteriaInput").value = p ? (p.criteria_text || "") : "";
   $("#presetRecencyInput").value = p ? (p.recency_days || 120) : 120;
+  if ($("#presetTargetNInput")) $("#presetTargetNInput").value = p ? (p.target_n || 0) : 0;
+  if ($("#presetMaxCandidatesInput")) $("#presetMaxCandidatesInput").value = p ? (p.max_candidates || 40) : 40;
   $("#presetExcludeInput").value = p ? (p.exclude_notes || "") : "";
 
   const activeSrcs = p ? (p.sources || ["grounded_search"]) : ["grounded_search"];
@@ -2690,6 +2692,8 @@ async function savePreset() {
     criteria_text: criteria,
     sources: $$(".preset-src-chk:checked").map(c => c.value),
     recency_days: parseInt($("#presetRecencyInput").value, 10) || 120,
+    target_n: $("#presetTargetNInput") ? (parseInt($("#presetTargetNInput").value, 10) || 0) : 0,
+    max_candidates: $("#presetMaxCandidatesInput") ? (parseInt($("#presetMaxCandidatesInput").value, 10) || 40) : 40,
     exclude_notes: $("#presetExcludeInput").value.trim(),
   };
   if (editingPresetId) {
@@ -2892,6 +2896,11 @@ function renderSourcingReport(job) {
   const presetName = presetObj ? presetObj.display_name : (job.sourcing_prompt_id || "Default");
 
   const unresWeb = counts.unresolved_website || 0;
+  if (job.stopped_because === "target_met") {
+    notes.unshift(`${counts.accepted || 0} of ${job.target_n || 'target'} companies accepted — target met (${counts.checked || 0} examined)`);
+  } else if (job.stopped_because === "budget_exhausted") {
+    notes.unshift(`${counts.accepted || 0} of ${job.target_n || 'target'} companies accepted — attempt budget exhausted (${counts.checked || 0} examined)`);
+  }
   if (unresWeb > 0) {
     notes.push(`${counts.queued || 0} queued, ${unresWeb} with no confirmed website yet`);
   }

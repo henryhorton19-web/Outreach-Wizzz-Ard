@@ -145,6 +145,8 @@ class ProfileStore:
 
     @classmethod
     def _ensure_migrated(cls):
+        if os.environ.get("WIZZARD_PROFILE_SOURCE") == "fixture":
+            return
         d = cls._data_dir()
         legacy_file = d / "candidate_profile.json"
         default_file = cls.profiles_dir() / "default.json"
@@ -166,6 +168,10 @@ class ProfileStore:
     def load(cls, profile_id: str | None = None) -> dict:
         if os.environ.get("WIZZARD_PROFILE_SOURCE") == "fixture":
             from tests.fixtures.profile import FIXTURE_PROFILE
+            import sys
+            for mod_name in ("config", "engine.config"):
+                if mod_name in sys.modules:
+                    setattr(sys.modules[mod_name], "CANDIDATE_PROFILE", FIXTURE_PROFILE)
             return dict(FIXTURE_PROFILE)
         cls._ensure_migrated()
         p = cls.profile_path(profile_id)
@@ -215,6 +221,11 @@ class ProfileStore:
     @classmethod
     def save(cls, profile: dict, profile_id: str | None = None) -> None:
         if os.environ.get("WIZZARD_PROFILE_SOURCE") == "fixture":
+            from tests.fixtures.profile import FIXTURE_PROFILE
+            import sys
+            for mod_name in ("config", "engine.config"):
+                if mod_name in sys.modules:
+                    setattr(sys.modules[mod_name], "CANDIDATE_PROFILE", FIXTURE_PROFILE)
             return
         cls._ensure_migrated()
         pid = validate_profile_id(profile_id or profile.get("id") or cls.active_profile_id())

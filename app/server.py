@@ -1032,11 +1032,13 @@ def import_sourcing_prompts(payload: dict = Body(...)):
 @app.post("/api/source/research")
 def start_sourcing_research(payload: dict = Body(...)):
     st = S.load_settings()
-    target_n = payload.get("target_n", st.sourcing_target_n)
+    prompt_id = payload.get("sourcing_prompt_id")
+    custom_prompt = store.get_custom_sourcing_prompt(prompt_id) if prompt_id else None
+    preset_target = getattr(custom_prompt, "target_n", 0) if custom_prompt else 0
+    target_n = payload.get("target_n") or preset_target or st.sourcing_target_n
     max_candidates = payload.get("max_candidates", st.sourcing_max_candidates)
     recency_days = payload.get("recency_days", st.sourcing_recency_days)
     sources = payload.get("sources") or st.sourcing_sources
-    prompt_id = payload.get("sourcing_prompt_id")
 
     job = sourcing_job_mod.start_sourcing_job(
         settings=st,

@@ -83,6 +83,10 @@ def derive_tokens(spec: dict, variables: dict | None = None) -> dict:
         "situation_read": spec.get("situation_read", "") or "",
         "recent": recent.get("detail", "") if recent.get("present") else "",
         "recent_short": (recent.get("detail", "").split(",")[0] if recent.get("present") else ""),
+        # Which kind of recent point research found (raise | funding | launch | hire |
+        # expansion | other), or "" when none. Drives CustomVoice.recent_point_templates:
+        # a voice can swap a fixed block's standing text for a kind-specific opener.
+        "recent_kind": (recent.get("kind", "") if recent.get("present") else ""),
         "proof_1": proofs[0] if len(proofs) > 0 else "",
         "proof_2": proofs[1] if len(proofs) > 1 else "",
         "city": spec.get("city", "") or "",
@@ -136,8 +140,27 @@ def _relevant_anchor(provider: Provider, point_text: str, shortlist: list, regis
         return shortlist[0]["anchor"]
 
 
-def resolve_fixed(provider: Provider, block, tokens: dict, shortlist: list, register: str = "") -> str:
-    text = render(block.text, tokens)
+def resolve_fixed(provider: Provider, block, tokens: dict, shortlist: list, register: str = "",
+                  voice=None) -> str:
+    """Render a fixed block's text.
+
+    If the voice declares a recent_point_templates entry matching the kind of recent
+    point research found, that template replaces the block's standing text. This is
+    the "raise-swap" the original migrated voices documented in their opening-block
+    guidance ("if research reports a recent capital raise, this line is replaced by
+    'Congratulations on your recent {detail}.'") but which this app never
+    implemented -- the field existed on CustomVoice and was read by nothing.
+
+    Generic by design: keyed on any recent_point.kind, applied to any fixed block,
+    configured per voice. A voice with an empty map (every voice today) is
+    completely unaffected.
+    """
+    templates = getattr(voice, "recent_point_templates", None) or {}
+    kind = (tokens.get("recent_kind") or "").strip()
+    source = block.text
+    if kind and templates.get(kind):
+        source = templates[kind]
+    text = render(source, tokens)
     if "{relevant}" in text:
         anchor = _relevant_anchor(provider, text.replace("{relevant}", "").strip(), shortlist, register)
         text = text.replace("{relevant}", anchor)
@@ -399,7 +422,7 @@ def produce_email(provider: Provider, voice, spec: dict, tokens: dict, shortlist
     parts = {}
     for b in voice.blocks:
         if b.mode == "fixed" and not _skip(b, spec):
-            parts[b.id] = resolve_fixed(provider, b, tokens, shortlist, voice.style.notes)
+            parts[b.id] = resolve_fixed(provider, b, tokens, shortlist, voice.style.notes, voice=voice)
     if ai_blocks:
         parts.update(compose_voice(provider, voice, ai_blocks, spec, tokens, shortlist,
                                    followup=followup))

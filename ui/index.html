@@ -613,6 +613,16 @@
           <input type="number" id="presetRecencyInput" value="120" min="1" max="3650" style="width:120px;" />
         </div>
         <div class="field" style="margin-top:12px;">
+          <label>Target companies (accepted goal)</label>
+          <div class="desc">Stop harvesting once this many candidates pass screening (0 = use global setting).</div>
+          <input type="number" id="presetTargetNInput" value="10" min="0" max="500" style="width:120px;" />
+        </div>
+        <div class="field" style="margin-top:12px;">
+          <label>Attempt budget (hard cap)</label>
+          <div class="desc">Maximum candidates to examine, even if target is not met.</div>
+          <input type="number" id="presetMaxCandidatesInput" value="40" min="1" max="500" style="width:120px;" />
+        </div>
+        <div class="field" style="margin-top:12px;">
           <label>Exclude notes</label>
           <div class="desc">One phrase per line, or separated by semicolons. Phrases are matched against the company name, sector and funding signal.</div>
           <textarea id="presetExcludeInput" rows="2" placeholder="e.g. staffing agency; recruitment consultancy"></textarea>

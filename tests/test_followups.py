@@ -310,10 +310,11 @@ def test_settings_endpoint_persists_followup_fields(clean_data_dir):
     silently unconfigurable from the UI (a bug the HTTP smoke test caught)."""
     import asyncio
     from app import server, settings as S
-    asyncio.run(
-        server.update_settings({"follow_up_enabled": False,
-                                "follow_up_max_steps": 3,
-                                "follow_up_delay_days": [2, 5, 9]}))
+    res = server.update_settings({"follow_up_enabled": False,
+                             "follow_up_max_steps": 3,
+                             "follow_up_delay_days": [2, 5, 9]})
+    if asyncio.iscoroutine(res):
+        asyncio.run(res)
     st = S.load_settings()
     assert st.follow_up_enabled is False
     assert st.follow_up_max_steps == 3
