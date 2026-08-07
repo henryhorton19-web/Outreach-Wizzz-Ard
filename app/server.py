@@ -1120,7 +1120,9 @@ def queue_to_draft(slug: str, list_id: str = ""):
         raise HTTPException(status_code=409,
                             detail=f"Drafts full ({store.DRAFTS_CAP} active). Approve or clear one first.")
     store.remove_from_queue(slug, list_id=list_id)
-    cs = CompanyState(slug=record["slug"], name=record["name"],
+    meta = record.get("meta") or {}
+    src_list = record.get("source_list_id") or meta.get("source_list_id") or list_id
+    cs = CompanyState(slug=record["slug"], name=record["name"], source_list_id=src_list,
                       ref=record.get("crm_id") or record.get("ref") or None, state=State.input)
     store.upsert_draft(cs)
     if not _batch():
@@ -1233,8 +1235,8 @@ def reset_cost():
 # ---- pipeline board (Phase 2) ----------------------------------------------
 
 @app.get("/api/pipeline")
-def get_pipeline():
-    return pipeline_view.assemble()
+def get_pipeline(list_id: str = ""):
+    return pipeline_view.assemble(list_id=list_id)
 
 
 @app.post("/api/pipeline/{slug}/mark")
@@ -1848,6 +1850,7 @@ def _approve_rows(rows: list[CompanyState], batch: BatchState | None) -> dict:
                 subject=cs.subject or "", approved_at=cs.approved_at,
                 approved_subject=cs.subject or "",
                 approved_body=cs.final_email or "",   # the exact edited/approved text — reused on a retry
+                source_list_id=getattr(cs, "source_list_id", ""),
                 reply_state=ReplyState.awaiting,
                 cost_estimate=float(getattr(cs, "cost_estimate", 0.0) or 0.0),
             )

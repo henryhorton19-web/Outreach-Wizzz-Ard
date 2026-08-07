@@ -1316,13 +1316,26 @@ async function openCostPopover() {
 async function refreshPipeline() {
   const cols = $("#pipelineCols");
   if (cols) cols.innerHTML = '<div class="col-empty shimmer" style="padding:24px; text-align:center;">Loading pipeline board\u2026</div>';
+  const listFilter = $("#pipeListFilter");
+  const listId = listFilter ? listFilter.value : "";
   try {
-    state.pipeline = await api("/api/pipeline");
+    state.pipeline = await api(`/api/pipeline?list_id=${encodeURIComponent(listId)}`);
   } catch (e) {
     state.pipeline = null;
     if (cols) cols.innerHTML = `<div class="col-empty" style="padding:24px; text-align:center;"><p>${esc(e.message)}</p><button class="btn ghost small" onclick="refreshPipeline()">Retry</button></div>`;
     toast(e.message, true);
     return;
+  }
+  if (listFilter) {
+    const currentListVal = listFilter.value;
+    const lists = state.lists || [];
+    let opts = '<option value="">All lists</option>';
+    lists.forEach(l => {
+      opts += `<option value="${esc(l.id)}">${esc(l.name || l.id)}</option>`;
+    });
+    opts += '<option value="unassigned">Unassigned</option>';
+    listFilter.innerHTML = opts;
+    listFilter.value = currentListVal;
   }
   // populate the voice filter once from the cards present
   const sel = $("#pipeVoiceFilter");
@@ -2389,6 +2402,7 @@ function wire() {
   };
 
   // pipeline filters
+  if ($("#pipeListFilter")) $("#pipeListFilter").onchange = refreshPipeline;
   $("#pipeVoiceFilter").onchange = renderPipeline;
   $("#pipeStaleOnly").onchange = renderPipeline;
 

@@ -261,6 +261,7 @@ class SentItem(BaseModel):
     approved_subject: str = ""                       # the subject as approved (reused on a bounce retry)
     approved_body: str = ""                          # the EXACT approved (edited) email text — reused
     approved_at: str = ""                            #   verbatim on a bounce retry, not recomposed
+    source_list_id: str = ""                         # which sourcing list this item entered through
 
     reply_state: ReplyState = ReplyState.awaiting
     bounce_retry_count: int = 0
@@ -284,6 +285,7 @@ class TargetState(BaseModel):
     name: str
     website: Optional[str] = None
     recipient_domain: str = ""
+    source_list_id: str = ""          # which sourcing list this target entered through; "" = pre-migration
     ref: Optional[str] = None         # display/audit only (e.g. tracker source / category tag)
 
     state: State = State.input

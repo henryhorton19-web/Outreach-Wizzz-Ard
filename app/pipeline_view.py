@@ -74,22 +74,34 @@ def _quiet_days(ts: str | None) -> int:
     return max(0, int((_now() - dt).total_seconds() // 86400))
 
 
-def assemble() -> dict:
+def assemble(list_id: str = "") -> dict:
     """Return {columns: {stage: [cards]}, summary: {...}}. A card is a compact dict the board
-    renders with the existing row idiom."""
+    renders with the existing row idiom. list_id="" means every list (all).
+    """
     st = S.load_settings()
     stale_days = int(getattr(st, "pipeline_stale_days", 7) or 7)
 
     cols: dict[str, list] = {c: [] for c in COLUMNS}
 
+    def _matches_list(item_list: str) -> bool:
+        if not list_id:
+            return True
+        if list_id == "unassigned":
+            return not item_list
+        return item_list == list_id
+
     # queued (pre-pipeline) + active drafts → Researching / Drafted / Sent(ready)
     seen_slugs: set[str] = set()
     for cs in store.load_drafts():
         seen_slugs.add(cs.slug)
+        item_list = getattr(cs, "source_list_id", "")
+        if not _matches_list(item_list):
+            continue
         stage = _draft_stage(cs)
         contact = (cs.cache or {}).get("contact") or {}
         cols[stage].append({
             "slug": cs.slug, "name": cs.name, "voice": cs.voice or "",
+            "source_list_id": item_list,
             "contact": contact.get("name", "") or ((cs.spec or {}).get("send_to", "")),
             "stage": stage, "kind": "draft",
             "quiet_days": _quiet_days(cs.updated_at),
@@ -97,11 +109,16 @@ def assemble() -> dict:
             "actions": _draft_actions(cs, stage),
         })
 
-    for rec in store.load_queue():
+    queue_recs = store.load_queue(list_id=list_id) if (list_id and list_id != "unassigned") else store.load_queue()
+    for rec in queue_recs:
         if rec["slug"] in seen_slugs:
+            continue
+        item_list = rec.get("source_list_id") or list_id
+        if not _matches_list(item_list):
             continue
         cols["researching"].append({
             "slug": rec["slug"], "name": rec["name"], "voice": "", "contact": "",
+            "source_list_id": item_list,
             "stage": "researching", "kind": "queued", "quiet_days": 0, "stale": False,
             "actions": ["draft"],
         })
@@ -113,11 +130,17 @@ def assemble() -> dict:
         if si.slug not in latest_sents:
             latest_sents[si.slug] = si
 
+    filtered_sents_count = 0
     for si in latest_sents.values():
+        item_list = getattr(si, "source_list_id", "")
+        if not _matches_list(item_list):
+            continue
+        filtered_sents_count += 1
         stage = _sent_stage(si)
         quiet = _quiet_days(si.approved_at)
         cols[stage].append({
             "slug": si.slug, "sent_id": si.id, "name": si.name, "voice": si.voice or "",
+            "source_list_id": item_list,
             "contact": si.sent_to, "stage": stage, "kind": "sent",
             "quiet_days": quiet,
             "stale": stage == "sent" and quiet >= stale_days,
@@ -126,7 +149,7 @@ def assemble() -> dict:
         })
 
     # summary funnel
-    total_sent = len(latest_sents)
+    total_sent = filtered_sents_count
     replied = len(cols["replied"])
     bounced = len(cols["bounced"])
     denom = max(0, total_sent - bounced)
