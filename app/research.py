@@ -50,6 +50,100 @@ def _extract_domain(url_or_domain: str) -> str:
     return m.group(1).lower() if m else ""
 
 
+# Corporate email formats, most common first. The previous fallback emitted only
+# {first}@ and {first}.{last}@, so {f}{last} -- among the most common formats --
+# was unreachable. That is the exact miss on Ada Lovelace at example-fintech.test,
+# whose real address is alovelace@ and which a single search returns as its first
+# result.
+EMAIL_PATTERNS = [
+    "{first}.{last}",
+    "{f}{last}",
+    "{first}",
+    "{first}{last}",
+    "{f}.{last}",
+    "{last}",
+    "{first}_{last}",
+    "{last}.{first}",
+]
+
+
+def _name_parts(full_name: str) -> tuple[str, str]:
+    """(first, last), lowercased and stripped of non-letters. ('', '') if unusable."""
+    import re as _re
+    parts = [_re.sub(r"[^a-z]", "", p.lower())
+             for p in (full_name or "").split() if p.strip()]
+    parts = [p for p in parts if p]
+    if not parts:
+        return "", ""
+    if len(parts) == 1:
+        return parts[0], ""
+    return parts[0], parts[-1]
+
+
+def email_candidates(full_name: str, domain: str) -> list[str]:
+    """Every plausible address for this person at this domain, most likely first.
+
+    Ordering matters: the first entry becomes the labelled pattern guess when no
+    real address could be found, so it should be the format most likely to be
+    right rather than merely the simplest to construct.
+    """
+    first, last = _name_parts(full_name)
+    dom = (domain or "").strip().lower().lstrip("@")
+    if not first or not dom:
+        return []
+    out: list[str] = []
+    for pat in EMAIL_PATTERNS:
+        if "{last}" in pat and not last:
+            continue
+        local = (pat.replace("{first}", first)
+                    .replace("{last}", last)
+                    .replace("{f}", first[0]))
+        addr = f"{local}@{dom}"
+        if addr not in out:
+            out.append(addr)
+    return out
+
+
+def infer_pattern(observed_email: str, observed_name: str) -> str:
+    """Given ONE real address and whose it is, return the domain's format.
+
+    This is the step the app was missing entirely. Hunter's Domain Search returns
+    a `pattern` for a domain derived from observed addresses; theHarvester's
+    documented workflow is the same -- discover real addresses, infer the format,
+    then construct for other names. Guessing from a name alone, without first
+    establishing the domain's format, is guessing when the answer was available.
+
+    Returns "" when the address does not match any known pattern.
+    """
+    first, last = _name_parts(observed_name)
+    local = (observed_email or "").split("@")[0].strip().lower()
+    if not first or not local:
+        return ""
+    for pat in EMAIL_PATTERNS:
+        if "{last}" in pat and not last:
+            continue
+        built = (pat.replace("{first}", first)
+                    .replace("{last}", last)
+                    .replace("{f}", first[0]))
+        if built == local:
+            return pat
+    return ""
+
+
+def apply_pattern(pattern: str, full_name: str, domain: str) -> str:
+    """Apply a known domain pattern to a name. "" if it cannot be built."""
+    first, last = _name_parts(full_name)
+    dom = (domain or "").strip().lower().lstrip("@")
+    if not pattern or not first or not dom:
+        return ""
+    if "{last}" in pattern and not last:
+        return ""
+    local = (pattern.replace("{first}", first)
+                    .replace("{last}", last)
+                    .replace("{f}", first[0]))
+    return f"{local}@{dom}"
+
+
 def resolve_company_domain(name: str, given_website: str | None,
                            provider: Provider | None = None) -> tuple[str, str]:
     """Resolve ONE domain for this company, before any person-lookup happens.
@@ -80,6 +174,81 @@ def resolve_company_domain(name: str, given_website: str | None,
         return (domain, "resolved") if domain else ("", "unresolved")
     except Exception:
         return "", "unresolved"
+
+
+def resolve_contact_email(name: str, company: str, domain: str,
+                          provider: Provider | None = None) -> dict:
+    """One dedicated search for THIS person's real, published email.
+
+    Runs after the domain is pinned and separately from the main research call.
+    Contact discovery previously had no search of its own: it competed for a
+    4-search budget under an ECONOMY directive telling the model to stop as soon
+    as it had "a contact" -- which is not the same as a correct one. Domain
+    resolution already gets exactly this treatment; contact discovery is harder
+    and got none of it.
+
+    Source types below are the ones that reliably carry a work address, adapted
+    from theHarvester's public-source list (search engines, PGP key servers,
+    certificate transparency, code search, conference and press pages) -- the
+    same method expressed as instructions rather than API calls.
+
+    Returns {email, source_url, method, observed_pattern}. method is one of
+    found_on_page | pattern_from_observed | not_found.
+    """
+    if not name or not domain or provider is None or getattr(provider, "is_stub", False):
+        return {"email": "", "source_url": "", "method": "not_found", "observed_pattern": ""}
+
+    system = (
+        "Find ONE published work email address. Search specifically; do not stop at a "
+        "general company page.\n\n"
+        "Check these source types, which reliably carry work addresses:\n"
+        "  - the company's team / about / people page\n"
+        "  - the person's name together with the bare domain\n"
+        "  - press releases and news quoting this person\n"
+        "  - conference speaker bios and podcast show-notes\n"
+        "  - GitHub commits or profile, and any public code search\n"
+        "  - PGP key servers and certificate-transparency records for the domain\n"
+        "  - LinkedIn or a personal site linked from it\n\n"
+        "TWO acceptable outcomes, in order of preference:\n"
+        "1. You find THIS person's literal address printed on a page. Return it with the "
+        "exact page URL.\n"
+        "2. You cannot find theirs, but you find ANY OTHER real address at the same domain "
+        "(any employee). Return that address and whose it is -- the format it reveals is "
+        "more useful than a guess.\n\n"
+        "Return ONLY strict JSON, no prose:\n"
+        '{"email": "...", "source_url": "...", "belongs_to": "Full Name", '
+        '"is_target_person": true|false}\n'
+        'If you find nothing real, return {"email": "", "source_url": "", '
+        '"belongs_to": "", "is_target_person": false}. '
+        "NEVER invent or guess an address here -- guessing is handled separately, and an "
+        "invented address here would be indistinguishable from a found one."
+    )
+    user = f"Person: {name}\nCompany: {company}\nDomain: {domain}"
+    try:
+        res = provider.generate(system=system, user=user, use_web=True, max_web=4,
+                                temperature=0.0, timeout_s=45)
+        data = extract_json(res.text or "") or {}
+    except Exception:
+        return {"email": "", "source_url": "", "method": "not_found", "observed_pattern": ""}
+
+    email = str(data.get("email") or "").strip().lower()
+    if not email or "@" not in email:
+        return {"email": "", "source_url": "", "method": "not_found", "observed_pattern": ""}
+    if email.rsplit("@", 1)[1] != domain.lower():
+        # Wrong domain -- discard rather than trust. Same rule the main path applies.
+        return {"email": "", "source_url": "", "method": "not_found", "observed_pattern": ""}
+
+    if data.get("is_target_person"):
+        return {"email": email, "source_url": str(data.get("source_url") or ""),
+                "method": "found_on_page", "observed_pattern": ""}
+
+    # Someone else's real address: infer the domain's format and apply it.
+    pattern = infer_pattern(email, str(data.get("belongs_to") or ""))
+    derived = apply_pattern(pattern, name, domain) if pattern else ""
+    if derived:
+        return {"email": derived, "source_url": "", "method": "pattern_from_observed",
+                "observed_pattern": pattern}
+    return {"email": "", "source_url": "", "method": "not_found", "observed_pattern": ""}
 
 
 _OUTPUT_CONTRACT = """
@@ -144,8 +313,8 @@ FILL, and do not leave any of these empty:
 
 For any OPTIONAL field you cannot fill, OMIT the key or use "" — NEVER null.
 
-ECONOMY. You have at most {max_web} web searches; fewer is better. STOP as soon as you have: the
-size verdict with evidence, the role decision, two proof points, a contact, and the work-mode /
+BUDGET. You have at most {max_web} web searches. Spend them where they change the answer. STOP as soon as you have: the
+size verdict with evidence, the role decision, two proof points, a contact NAME (the address is found separately -- do not spend searches on it here), and the work-mode /
 language read. Do NOT spend searches confirming things you already have or chasing marginal proof
 points. If you approach the limit before finishing, STOP and return the best schema-valid JSON you
 have with a short research_failures note. NEVER return prose, an apology, or an empty response
@@ -478,7 +647,7 @@ def salvage_partial_cache(name, website, source_urls, raw_text, reason) -> dict:
 
 
 def _post_process(cache: dict, name: str, website: str | None, source_urls: list[str],
-                  resolved_domain: str = "") -> dict:
+                  resolved_domain: str = "", provider: Provider | None = None) -> dict:
     cache = _sanitize_cache(cache)
     from .ingest import _display_name          # local import: avoids a top-level ingest<->research cycle
     cache.setdefault("company", {})
@@ -500,6 +669,9 @@ def _post_process(cache: dict, name: str, website: str | None, source_urls: list
         first = parts[0]
         if len(parts) >= 2:
             last = parts[-1]
+            cands = email_candidates(c_name, clean_dom)
+            if cands:
+                return cands[0], (cands[1] if len(cands) > 1 else f"contact@{clean_dom}")
             return f"{first}@{clean_dom}", f"{first}.{last}@{clean_dom}"
         return f"{first}@{clean_dom}", f"contact@{clean_dom}"
 
@@ -516,6 +688,23 @@ def _post_process(cache: dict, name: str, website: str | None, source_urls: list
                         f"(company domain is '{company_domain}')")
             cache["research_failures"] = fails
             email = ""
+
+    if not email and c_name and company_domain and provider:
+        rc = resolve_contact_email(c_name, name, company_domain, provider)
+        cache["contact_search"] = {
+            "attempted": True,
+            "domain": company_domain,
+            "method": rc["method"],
+            "observed_pattern": rc.get("observed_pattern", ""),
+            "source_url": rc.get("source_url", ""),
+        }
+        if rc.get("email"):
+            email = rc["email"]
+            contact["email"] = email
+            contact["email_method"] = rc["method"]
+            contact["email_source_url"] = rc.get("source_url", "")
+            contact["email_confidence"] = "high" if rc["method"] == "found_on_page" else "medium"
+            contact["contact_verified"] = (rc["method"] == "found_on_page")
 
     if not email and c_name:
         primary_fb, alt_fb = _generate_fallback_emails(c_name, company_domain)
@@ -676,7 +865,7 @@ def research_company(provider: Provider, name: str, website: str | None,
 
         try:
             cache = extract_json(last_text)
-            cache = _post_process(cache, name, website, last_urls, resolved_domain=resolved_domain)
+            cache = _post_process(cache, name, website, last_urls, resolved_domain=resolved_domain, provider=provider)
             cache.setdefault("company", {})
             cache["company"]["resolved_domain"] = resolved_domain
             cache["company"]["domain_source"] = domain_source

@@ -66,7 +66,7 @@ def test_the_fabrication_instruction_is_gone_from_the_prompt():
 def test_post_process_discards_wrong_domain_email():
     bad_cache = _cache(email="chandler@example-saas-alt.test")
     processed = research._post_process(bad_cache, "Example SaaS", "https://example-saas.test", [], resolved_domain="example-saas.test")
-    assert processed["contact"]["email"] == "jamie@example-saas.test"
+    assert processed["contact"]["email"] == "jamie.someone@example-saas.test"
     assert processed["contact"]["email_method"] == "pattern_guess"
     assert any("Discarded contact.email at wrong domain" in f for f in processed.get("research_failures", []))
 
@@ -92,10 +92,10 @@ def test_pipeline_populates_recipient_domain_and_reuses_on_redraft():
 def test_pattern_fallback_email_generated_when_scraped_email_missing():
     raw_cache = _cache(email="", email_source_url="")
     processed = research._post_process(raw_cache, "Example SaaS", "https://example-saas.test", [], resolved_domain="example-saas.test")
-    assert processed["contact"]["email"] == "jamie@example-saas.test"
+    assert processed["contact"]["email"] == "jamie.someone@example-saas.test"
     assert processed["contact"]["email_method"] == "pattern_guess"
     assert processed["contact"]["email_confidence"] == "low"
-    assert processed["contacts_alt"][0]["email"] == "jamie.someone@example-saas.test"
+    assert processed["contacts_alt"][0]["email"] == "jsomeone@example-saas.test"
     assert any("generated pattern fallback" in f for f in processed.get("research_failures", []))
 
 
@@ -105,7 +105,7 @@ def test_address_ladder_contains_primary_fallback_first_and_alt_second():
     processed = research._post_process(raw_cache, "Example SaaS", "https://example-saas.test", [], resolved_domain="example-saas.test")
     ladder = rank_address_candidates(processed)
     emails = [c["email"] for c in ladder]
-    assert "jamie@example-saas.test" in emails
     assert "jamie.someone@example-saas.test" in emails
-    assert emails.index("jamie@example-saas.test") < emails.index("jamie.someone@example-saas.test")
+    assert "jsomeone@example-saas.test" in emails
+    assert emails.index("jamie.someone@example-saas.test") < emails.index("jsomeone@example-saas.test")
 
