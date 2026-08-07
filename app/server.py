@@ -250,7 +250,7 @@ def _persist():
 # ---- static UI -------------------------------------------------------------
 
 @app.get("/", response_class=HTMLResponse)
-async def index():
+def index():
     html = (UI_DIR / "index.html").read_text(encoding="utf-8")
     html = html.replace('window.__WIZZARD_TOKEN__ = "__WIZZARD_TOKEN__";',
                         f'window.__WIZZARD_TOKEN__ = "{S.SESSION_TOKEN}";')
@@ -273,7 +273,7 @@ def _attachments_public() -> dict:
 
 
 @app.get("/api/attachments")
-async def get_attachments():
+def get_attachments():
     return _attachments_public()
 
 
@@ -288,7 +288,7 @@ async def upload_attachment(file: UploadFile = File(...)):
 
 
 @app.delete("/api/attachments/{name}")
-async def delete_attachment(name: str):
+def delete_attachment(name: str):
     ok = attach_mod.delete_attachment(name)
     st = S.load_settings()
     if name in st.default_attachments:               # drop it if it was the default
@@ -302,7 +302,7 @@ async def delete_attachment(name: str):
 # ---- keys + settings -------------------------------------------------------
 
 @app.get("/api/status")
-async def status():
+def status():
     st = S.load_settings()
     provider = st.provider
     return {
@@ -323,7 +323,7 @@ async def status():
 
 
 @app.post("/api/keys")
-async def set_key(payload: dict = Body(...)):
+def set_key(payload: dict = Body(...)):
     provider = payload.get("provider")
     key = payload.get("key", "")
     remember = bool(payload.get("remember", True))
@@ -335,7 +335,7 @@ async def set_key(payload: dict = Body(...)):
 
 
 @app.delete("/api/keys/{provider}")
-async def del_key(provider: str):
+def del_key(provider: str):
     try:
         keys.clear_key(provider)
     except ValueError as e:
@@ -344,7 +344,7 @@ async def del_key(provider: str):
 
 
 @app.post("/api/settings")
-async def update_settings(payload: dict = Body(...)):
+def update_settings(payload: dict = Body(...)):
     st = S.load_settings()
     for k in ("provider", "default_voice", "gemini_model", "anthropic_model", "compose_model",
               "research_temperature", "compose_temperature", "max_web_searches",
@@ -375,7 +375,7 @@ async def update_settings(payload: dict = Body(...)):
 
 
 @app.post("/api/tracker_path")
-async def set_tracker_path(payload: dict = Body(...)):
+def set_tracker_path(payload: dict = Body(...)):
     """Point the app at the Outreach_Tracker workbook for write-back on approve."""
     p = (payload.get("path") or "").strip()
     _STATE["tracker_path"] = p or None
@@ -385,7 +385,7 @@ async def set_tracker_path(payload: dict = Body(...)):
 # ---- session identity ------------------------------------------------------
 
 @app.post("/api/session")
-async def set_session(payload: dict = Body(...)):
+def set_session(payload: dict = Body(...)):
     voice = (payload.get("voice") or "").lower()
     if voice and voice not in S.VALID_VOICES and not store.get_custom_voice(voice):
         raise HTTPException(status_code=400, detail="unknown voice")
@@ -448,7 +448,7 @@ def _validate_voice(v: CustomVoice) -> None:
 
 
 @app.get("/api/voices")
-async def get_voices(kind: str = "outreach"):
+def get_voices(kind: str = "outreach"):
     """Voices of one kind. kind='outreach' (default) for the initial-email set, kind='followup' for
     the follow-up set, kind='all' for everything. The two sets are edited with the same editor."""
     k = None if kind == "all" else kind
@@ -457,7 +457,7 @@ async def get_voices(kind: str = "outreach"):
 
 
 @app.post("/api/voices/import")
-async def import_voices(payload: dict = Body(...)):
+def import_voices(payload: dict = Body(...)):
     """Import and migrate a batch of custom voice dictionaries."""
     from .voice_import import migrate_voice_dict
     raw_list = payload.get("voices")
@@ -479,7 +479,7 @@ async def import_voices(payload: dict = Body(...)):
 
 
 @app.get("/api/meta")
-async def get_meta():
+def get_meta():
     """Editor metadata derived from the live profile + schema: the per-experience tokens, the full
     token palette, the fact scopes, block lengths, and situations. Keeps the UI in sync with code."""
     from .engine_bridge import engine_config as EC
@@ -506,14 +506,14 @@ async def get_meta():
 
 
 @app.post("/api/voices")
-async def create_voice(vdef: CustomVoice = Body(...)):
+def create_voice(vdef: CustomVoice = Body(...)):
     _validate_voice(vdef)
     store.save_custom_voice(vdef)
     return {"ok": True, "voice": vdef.model_dump()}
 
 
 @app.put("/api/voices/{voice_id}")
-async def update_voice(voice_id: str, vdef: CustomVoice = Body(...)):
+def update_voice(voice_id: str, vdef: CustomVoice = Body(...)):
     if voice_id != vdef.id:
         raise HTTPException(status_code=400, detail="ID mismatch")
     _validate_voice(vdef)
@@ -522,7 +522,7 @@ async def update_voice(voice_id: str, vdef: CustomVoice = Body(...)):
 
 
 @app.delete("/api/voices/{voice_id}")
-async def delete_voice(voice_id: str):
+def delete_voice(voice_id: str):
     # Any voice can be deleted — nothing is protected. Routing stays safe because resolve_voice
     # falls back to default_voice (and re-seeds an empty store), so a situation is never orphaned.
     store.delete_custom_voice(voice_id)
@@ -532,12 +532,12 @@ async def delete_voice(voice_id: str):
 
 
 @app.get("/api/default_voice")
-async def get_default_voice():
+def get_default_voice():
     return {"default_voice": S.load_settings().default_voice}
 
 
 @app.post("/api/default_voice")
-async def set_default_voice(payload: dict = Body(...)):
+def set_default_voice(payload: dict = Body(...)):
     vid = (payload.get("voice") or "").strip()
     if vid and not store.get_custom_voice(vid):
         raise HTTPException(status_code=400, detail="unknown voice")
@@ -552,14 +552,14 @@ async def set_default_voice(payload: dict = Body(...)):
 # handler tolerates missing data and never mutates a voice without first snapshotting it.
 
 @app.get("/api/voices/{voice_id}/learning")
-async def get_voice_learning(voice_id: str):
+def get_voice_learning(voice_id: str):
     """Status for the Voices editor's Learning panel: mode, edits-since, pending proposal(s),
     version history, and any live A/B challenger with both reply rates."""
     return voice_learning.learning_status(voice_id)
 
 
 @app.post("/api/voices/{voice_id}/learn")
-async def learn_voice_now(voice_id: str):
+def learn_voice_now(voice_id: str):
     """Manually run a learning cycle now and return a proposal (does NOT apply it). Works offline
     (deterministic heuristic) and online (reflection call)."""
     if not store.get_custom_voice(voice_id):
@@ -572,7 +572,7 @@ async def learn_voice_now(voice_id: str):
 
 
 @app.post("/api/voices/{voice_id}/proposals/{proposal_id}/apply")
-async def apply_voice_proposal(voice_id: str, proposal_id: str):
+def apply_voice_proposal(voice_id: str, proposal_id: str):
     res = voice_learning.apply_proposal(proposal_id)
     if not res.get("ok"):
         raise HTTPException(status_code=400, detail=res.get("error", "apply failed"))
@@ -580,19 +580,19 @@ async def apply_voice_proposal(voice_id: str, proposal_id: str):
 
 
 @app.post("/api/voices/{voice_id}/proposals/{proposal_id}/reject")
-async def reject_voice_proposal(voice_id: str, proposal_id: str):
+def reject_voice_proposal(voice_id: str, proposal_id: str):
     return {"ok": voice_learning.reject_proposal(proposal_id)}
 
 
 @app.get("/api/voices/{voice_id}/history")
-async def get_voice_history(voice_id: str):
+def get_voice_history(voice_id: str):
     return {"voice_id": voice_id, "versions": store.list_voice_versions(voice_id)}
 
 
 # ---- candidate profile endpoints -------------------------------------------
 
 @app.get("/api/profile")
-async def get_candidate_profile():
+def get_candidate_profile():
     return C.ProfileStore.load()
 
 
@@ -628,7 +628,7 @@ async def save_candidate_profile(request: Request):
 
 
 @app.get("/api/profile/export_resume")
-async def export_candidate_resume():
+def export_candidate_resume():
     prof = C.ProfileStore.load()
     exps = prof.get("experiences", {})
     work = []
@@ -715,13 +715,13 @@ async def import_candidate_resume(request: Request):
 
 
 @app.post("/api/profile/reset")
-async def reset_candidate_profile():
+def reset_candidate_profile():
     prof = C.ProfileStore.reset_to_default()
     return {"ok": True, "profile": prof}
 
 
 @app.post("/api/voices/{voice_id}/rollback")
-async def rollback_voice(voice_id: str, payload: dict = Body(...)):
+def rollback_voice(voice_id: str, payload: dict = Body(...)):
     ts = (payload.get("ts") or "").strip()
     if not ts:
         raise HTTPException(status_code=400, detail="a snapshot ts is required")
@@ -732,7 +732,7 @@ async def rollback_voice(voice_id: str, payload: dict = Body(...)):
 
 
 @app.post("/api/voices/{voice_id}/optimize")
-async def optimize_voice(voice_id: str):
+def optimize_voice(voice_id: str):
     """Phase C: offline batch optimise over the voice's full edit corpus; spawns the best candidate
     as an A/B challenger (never a blind overwrite)."""
     res = voice_optimize.optimize(_provider_optional(), voice_id)
@@ -742,7 +742,7 @@ async def optimize_voice(voice_id: str):
 
 
 @app.post("/api/voices/arbitrate")
-async def arbitrate_voices():
+def arbitrate_voices():
     """Phase C: resolve any live A/B — promote a challenger whose reply rate separates above its
     champion, retire one that clearly loses, else keep testing. Uses the existing reply-rate bandit."""
     return {"ok": True, "decisions": voice_learning.arbitrate()}
@@ -799,7 +799,7 @@ def _ingest_to_queue(rows: list[dict], list_id: str = "default") -> dict:
 
 
 @app.post("/api/ingest")
-async def ingest(payload: dict = Body(...)):
+def ingest(payload: dict = Body(...)):
     rows = ingest_mod.parse_names(payload.get("text", ""))
     list_id = payload.get("list_id", "default")
     if not rows:
@@ -823,12 +823,12 @@ async def ingest_file(file: UploadFile = File(...), list_id: str = ""):
 # ---- Custom Sourcing Prompts -----------------------------------------------
 
 @app.get("/api/sourcing_prompts")
-async def get_sourcing_prompts():
+def get_sourcing_prompts():
     return {"prompts": [sp.model_dump() for sp in store.list_custom_sourcing_prompts()]}
 
 
 @app.post("/api/sourcing_prompts")
-async def create_sourcing_prompt(pdef: CustomSourcingPrompt = Body(...)):
+def create_sourcing_prompt(pdef: CustomSourcingPrompt = Body(...)):
     if not (pdef.display_name or "").strip():
         raise HTTPException(status_code=400, detail="prompt needs a display name")
     store.save_custom_sourcing_prompt(pdef)
@@ -836,7 +836,7 @@ async def create_sourcing_prompt(pdef: CustomSourcingPrompt = Body(...)):
 
 
 @app.put("/api/sourcing_prompts/{prompt_id}")
-async def update_sourcing_prompt(prompt_id: str, pdef: CustomSourcingPrompt = Body(...)):
+def update_sourcing_prompt(prompt_id: str, pdef: CustomSourcingPrompt = Body(...)):
     if prompt_id != pdef.id:
         raise HTTPException(status_code=400, detail="ID mismatch")
     if not (pdef.display_name or "").strip():
@@ -846,13 +846,13 @@ async def update_sourcing_prompt(prompt_id: str, pdef: CustomSourcingPrompt = Bo
 
 
 @app.delete("/api/sourcing_prompts/{prompt_id}")
-async def delete_sourcing_prompt(prompt_id: str):
+def delete_sourcing_prompt(prompt_id: str):
     store.delete_custom_sourcing_prompt(prompt_id)
     return {"ok": True}
 
 
 @app.post("/api/sourcing_prompts/{prompt_id}/duplicate")
-async def duplicate_sourcing_prompt(prompt_id: str):
+def duplicate_sourcing_prompt(prompt_id: str):
     from app.sourcing.normalize import canonicalize_name
     existing = store.get_custom_sourcing_prompt(prompt_id)
     if not existing:
@@ -879,7 +879,7 @@ async def duplicate_sourcing_prompt(prompt_id: str):
 
 
 @app.post("/api/sourcing_prompts/{prompt_id}/reset")
-async def reset_sourcing_prompt(prompt_id: str):
+def reset_sourcing_prompt(prompt_id: str):
     import json
     existing = store.get_custom_sourcing_prompt(prompt_id)
     if not existing or not existing.seeded_from:
@@ -895,7 +895,7 @@ async def reset_sourcing_prompt(prompt_id: str):
 
 
 @app.get("/api/sourcing/sources")
-async def get_sourcing_sources():
+def get_sourcing_sources():
     labels = {
         "grounded_search": "Grounded Web Search",
         "techeu_funding_feed": "Tech.eu Funding Feed",
@@ -906,7 +906,7 @@ async def get_sourcing_sources():
 
 
 @app.post("/api/sourcing/preview_query")
-async def preview_sourcing_query(pdef: CustomSourcingPrompt = Body(...)):
+def preview_sourcing_query(pdef: CustomSourcingPrompt = Body(...)):
     from app.sourcing.harvest.grounded_search import GroundedSearchHarvester
     h = GroundedSearchHarvester()
     query = h.build_query(pdef, recency_days=pdef.recency_days)
@@ -914,7 +914,7 @@ async def preview_sourcing_query(pdef: CustomSourcingPrompt = Body(...)):
 
 
 @app.post("/api/source/research/dry_run")
-async def dry_run_sourcing_research(payload: dict = Body(...)):
+def dry_run_sourcing_research(payload: dict = Body(...)):
     from app.sourcing.harvest.grounded_search import GroundedSearchHarvester
     from app.sourcing.harvest import AVAILABLE_HARVESTERS
     from app.sourcing.verify import verify_candidate
@@ -952,13 +952,13 @@ async def dry_run_sourcing_research(payload: dict = Body(...)):
 
 
 @app.get("/api/sourcing_prompts/export")
-async def export_sourcing_prompts():
+def export_sourcing_prompts():
     prompts = store.list_custom_sourcing_prompts()
     return {"prompts": [p.model_dump() for p in prompts]}
 
 
 @app.post("/api/sourcing_prompts/import")
-async def import_sourcing_prompts(payload: dict = Body(...)):
+def import_sourcing_prompts(payload: dict = Body(...)):
     items = payload.get("prompts") or []
     if not isinstance(items, list):
         raise HTTPException(status_code=400, detail="Invalid import payload: 'prompts' array expected")
@@ -994,7 +994,7 @@ async def import_sourcing_prompts(payload: dict = Body(...)):
     }
 
 @app.post("/api/source/research")
-async def start_sourcing_research(payload: dict = Body(...)):
+def start_sourcing_research(payload: dict = Body(...)):
     st = S.load_settings()
     target_n = payload.get("target_n", st.sourcing_target_n)
     max_candidates = payload.get("max_candidates", st.sourcing_max_candidates)
@@ -1014,13 +1014,13 @@ async def start_sourcing_research(payload: dict = Body(...)):
 
 
 @app.get("/api/source/research/last")
-async def get_last_sourcing_research():
+def get_last_sourcing_research():
     last = sourcing_job_mod.get_last_run()
     return {"last_run": last}
 
 
 @app.get("/api/source/research/{job_id}")
-async def get_sourcing_research_job(job_id: str):
+def get_sourcing_research_job(job_id: str):
     job = sourcing_job_mod.get_active_job(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="sourcing job not found")
@@ -1028,13 +1028,13 @@ async def get_sourcing_research_job(job_id: str):
 
 
 @app.post("/api/source/research/{job_id}/cancel")
-async def cancel_sourcing_research_job(job_id: str):
+def cancel_sourcing_research_job(job_id: str):
     ok = sourcing_job_mod.cancel_job(job_id)
     return {"ok": ok}
 
 
 @app.post("/api/source/research/{job_id}/add")
-async def add_held_sourcing_candidates(job_id: str, payload: dict = Body(...)):
+def add_held_sourcing_candidates(job_id: str, payload: dict = Body(...)):
     slugs = payload.get("slugs") or []
     job = sourcing_job_mod.get_active_job(job_id) or sourcing_job_mod.get_last_run()
     if not job:
@@ -1059,7 +1059,7 @@ async def add_held_sourcing_candidates(job_id: str, payload: dict = Body(...)):
 
 
 @app.post("/api/source/research/{job_id}/undo")
-async def undo_sourcing_research_job(job_id: str):
+def undo_sourcing_research_job(job_id: str):
     res = sourcing_job_mod.undo_sourcing_job(job_id)
     return {"ok": True, "undo": res}
 
@@ -1067,12 +1067,12 @@ async def undo_sourcing_research_job(job_id: str):
 # ---- lists & queue ---------------------------------------------------------
 
 @app.get("/api/lists")
-async def get_lists():
+def get_lists():
     return {"active": store.active_list_id(), "lists": store.load_lists()}
 
 
 @app.post("/api/lists/active")
-async def set_active_list(payload: dict = Body(...)):
+def set_active_list(payload: dict = Body(...)):
     lid = (payload.get("id") or payload.get("list_id") or "").strip()
     if not any(l["id"] == lid for l in store.load_lists()):
         raise HTTPException(status_code=404, detail="List not found")
@@ -1081,7 +1081,7 @@ async def set_active_list(payload: dict = Body(...)):
 
 
 @app.post("/api/lists")
-async def create_list(payload: dict = Body(...)):
+def create_list(payload: dict = Body(...)):
     name = (payload.get("name") or "").strip()
     if not name:
         raise HTTPException(status_code=422, detail="List name is required")
@@ -1091,7 +1091,7 @@ async def create_list(payload: dict = Body(...)):
 
 
 @app.delete("/api/lists/{list_id}")
-async def delete_list(list_id: str):
+def delete_list(list_id: str):
     if list_id == "default":
         raise HTTPException(status_code=400, detail="Cannot delete default list")
     if not store.delete_list(list_id):
@@ -1100,14 +1100,14 @@ async def delete_list(list_id: str):
 
 
 @app.get("/api/queue")
-async def get_queue(list_id: str = ""):
+def get_queue(list_id: str = ""):
     # An omitted list_id must degrade to the ACTIVE list, not the literal "default".
     list_id = list_id or store.active_list_id()
     return {"queue": store.load_queue(list_id=list_id)}
 
 
 @app.post("/api/queue/{slug}/draft")
-async def queue_to_draft(slug: str, list_id: str = ""):
+def queue_to_draft(slug: str, list_id: str = ""):
     # An omitted list_id must degrade to the ACTIVE list, not the literal "default".
     list_id = list_id or store.active_list_id()
     items = store.load_queue(list_id=list_id)
@@ -1131,7 +1131,7 @@ async def queue_to_draft(slug: str, list_id: str = ""):
 
 
 @app.delete("/api/queue/{slug}")
-async def remove_from_queue(slug: str, list_id: str = ""):
+def remove_from_queue(slug: str, list_id: str = ""):
     # An omitted list_id must degrade to the ACTIVE list, not the literal "default".
     list_id = list_id or store.active_list_id()
     if not store.remove_from_queue(slug, list_id=list_id):
@@ -1140,7 +1140,7 @@ async def remove_from_queue(slug: str, list_id: str = ""):
 
 
 @app.post("/api/queue/clear")
-async def clear_queue(list_id: str = ""):
+def clear_queue(list_id: str = ""):
     # An omitted list_id must degrade to the ACTIVE list, not the literal "default".
     list_id = list_id or store.active_list_id()
     return {"ok": True, "cleared": store.clear_queue(list_id=list_id)}
@@ -1149,17 +1149,17 @@ async def clear_queue(list_id: str = ""):
 # ---- drafts + archive ------------------------------------------------------
 
 @app.get("/api/drafts")
-async def get_drafts():
+def get_drafts():
     return {"drafts": [_cs_public(cs) for cs in store.load_drafts()]}
 
 
 @app.post("/api/drafts/clear")
-async def clear_drafts():
+def clear_drafts():
     return {"ok": True, "cleared": store.clear_drafts()}
 
 
 @app.get("/api/archive")
-async def get_archive():
+def get_archive():
     # Join each Sent card to its SentItem so the card can show + change the outcome inline.
     # Prefer the exact stored sent_id; fall back to the newest SentItem for that slug (covers
     # archive records saved before sent_id existed). Never mutates the stored archive.
@@ -1184,7 +1184,7 @@ async def get_archive():
 
 
 @app.post("/api/archive/clear")
-async def clear_archive():
+def clear_archive():
     return {"ok": True, "cleared": store.clear_archive()}
 
 
@@ -1194,7 +1194,7 @@ import datetime as _dt
 
 
 @app.get("/api/export")
-async def export(fmt: str = "csv", scope: str = "drafts"):
+def export(fmt: str = "csv", scope: str = "drafts"):
     fmt = (fmt or "csv").lower()
     scope = scope if scope in ("drafts", "archive") else "drafts"
     date = _dt.date.today().isoformat()
@@ -1212,7 +1212,7 @@ async def export(fmt: str = "csv", scope: str = "drafts"):
 
 
 @app.get("/api/export/count")
-async def export_count(scope: str = "drafts"):
+def export_count(scope: str = "drafts"):
     scope = scope if scope in ("drafts", "archive") else "drafts"
     return {"scope": scope, "count": store.export_count(scope)}
 
@@ -1220,12 +1220,12 @@ async def export_count(scope: str = "drafts"):
 # ---- cost meter (Phase 1e) -------------------------------------------------
 
 @app.get("/api/cost")
-async def get_cost():
+def get_cost():
     return store.load_session_stats()
 
 
 @app.post("/api/cost/reset")
-async def reset_cost():
+def reset_cost():
     store.reset_session_stats()
     return {"ok": True}
 
@@ -1233,12 +1233,12 @@ async def reset_cost():
 # ---- pipeline board (Phase 2) ----------------------------------------------
 
 @app.get("/api/pipeline")
-async def get_pipeline():
+def get_pipeline():
     return pipeline_view.assemble()
 
 
 @app.post("/api/pipeline/{slug}/mark")
-async def mark_pipeline(slug: str, payload: dict = Body(...)):
+def mark_pipeline(slug: str, payload: dict = Body(...)):
     flag = (payload.get("flag") or "").strip()
     if flag not in ("no_response", "reopen"):
         raise HTTPException(status_code=400, detail="flag must be no_response or reopen")
@@ -1251,7 +1251,7 @@ async def mark_pipeline(slug: str, payload: dict = Body(...)):
 # ---- voice performance (Phase 3) -------------------------------------------
 
 @app.get("/api/voice_stats")
-async def get_voice_stats(kind: str = "outreach"):
+def get_voice_stats(kind: str = "outreach"):
     k = None if kind == "all" else kind
     buckets = voice_stats_mod.rebuild_all(kind=k)
     st = S.load_settings()
@@ -1266,13 +1266,13 @@ async def get_voice_stats(kind: str = "outreach"):
 # ---- Stage E: exclusion management endpoints ------------------------------
 
 @app.get("/api/exclusion")
-async def get_exclusion():
+def get_exclusion():
     from app.sourcing.exclude import exclusion_info
     return exclusion_info()
 
 
 @app.post("/api/exclusion")
-async def add_exclusion(payload: dict = Body(...)):
+def add_exclusion(payload: dict = Body(...)):
     slugs = payload.get("slugs") or []
     if isinstance(slugs, str):
         slugs = [slugs]
@@ -1284,7 +1284,7 @@ async def add_exclusion(payload: dict = Body(...)):
 # ---- Stage F: bulk export ingestion and screened import --------------------
 
 @app.post("/api/source/import")
-async def source_import(payload: dict = Body(...)):
+def source_import(payload: dict = Body(...)):
     """Import raw pre-parsed rows directly into the queue (no gate screening)."""
     rows = payload.get("rows") or []
     list_id = payload.get("list_id", "default")
@@ -1303,7 +1303,7 @@ async def source_import(payload: dict = Body(...)):
 
 
 @app.post("/api/source/import_screened")
-async def source_import_screened(payload: dict = Body(...)):
+def source_import_screened(payload: dict = Body(...)):
     """Import rows after applying local gate screening before adding to the queue."""
     from app.sourcing.bulk_export import evaluate_local_gates
     from app.slugs import slug as make_slug
@@ -1330,12 +1330,12 @@ async def source_import_screened(payload: dict = Body(...)):
 # ---- suppression / do-not-contact (Phase 4a) -------------------------------
 
 @app.get("/api/suppressions")
-async def get_suppressions():
+def get_suppressions():
     return {"suppressions": store.load_suppressions()}
 
 
 @app.post("/api/suppressions")
-async def add_suppression(payload: dict = Body(...)):
+def add_suppression(payload: dict = Body(...)):
     value = (payload.get("value") or "").strip()
     if not value:
         raise HTTPException(status_code=400, detail="value required")
@@ -1345,7 +1345,7 @@ async def add_suppression(payload: dict = Body(...)):
 
 
 @app.delete("/api/suppressions")
-async def remove_suppression(payload: dict = Body(...)):
+def remove_suppression(payload: dict = Body(...)):
     value = (payload.get("value") or "").strip()
     ok = suppression_mod.remove(value)
     if not ok:
@@ -1354,19 +1354,19 @@ async def remove_suppression(payload: dict = Body(...)):
 
 
 @app.post("/api/suppressions/clear")
-async def clear_suppressions():
+def clear_suppressions():
     return {"ok": True, "cleared": store.clear_suppressions()}
 
 
 # ---- snippets (Phase 4b) ---------------------------------------------------
 
 @app.get("/api/snippets")
-async def get_snippets():
+def get_snippets():
     return {"snippets": store.load_snippets()}
 
 
 @app.post("/api/snippets")
-async def save_snippet(payload: dict = Body(...)):
+def save_snippet(payload: dict = Body(...)):
     name = (payload.get("name") or "").strip()
     text = payload.get("text") or ""
     if not name:
@@ -1380,7 +1380,7 @@ async def save_snippet(payload: dict = Body(...)):
 
 
 @app.delete("/api/snippets/{sid}")
-async def delete_snippet(sid: str):
+def delete_snippet(sid: str):
     items = [s for s in store.load_snippets() if s.get("id") != sid]
     store.save_snippets(items)
     return {"ok": True, "snippets": items}
@@ -1389,13 +1389,13 @@ async def delete_snippet(sid: str):
 # ---- inbox reply/bounce detection (Phase 5) --------------------------------
 
 @app.post("/api/inbox/test")
-async def inbox_test():
+def inbox_test():
     from . import inbox as inbox_mod
     return inbox_mod.test_connection()
 
 
 @app.post("/api/inbox/sweep")
-async def inbox_sweep():
+def inbox_sweep():
     """Read-only sweep: fetch recent mail, detect replies/bounces, apply effects (pause cadence,
     record stats, auto-suppress bounces, stage bounce retries). Never sends. Returns a summary."""
     from . import inbox as inbox_mod
@@ -1504,7 +1504,7 @@ async def set_sent_outcome(sent_id: str, payload: dict = Body(...)):
 
 
 @app.post("/api/sent/{sent_id}/retarget")
-async def retarget_send(sent_id: str, payload: dict = Body(default={})):
+def retarget_send(sent_id: str, payload: dict = Body(default={})):
     """Stage a bounce re-draft to a DIFFERENT address/person. With {email} (+ optional name/title)
     it targets exactly that person — the backstop when the ladder has no known alternate. Without a
     body it auto-picks the next ladder rung (same as the bounce path). Never sends."""
@@ -1537,7 +1537,7 @@ async def retarget_send(sent_id: str, payload: dict = Body(default={})):
 # ---- send-window advisory (Phase 6c) ---------------------------------------
 
 @app.get("/api/send_window")
-async def send_window():
+def send_window():
     """Non-blocking advisory: is now a good time to stage? Suggests waiting for a weekday morning.
     The client shows this as a dismissible hint in the approve dialog; it never blocks."""
     st = S.load_settings()
@@ -1559,13 +1559,13 @@ async def send_window():
 # ---- follow-ups ------------------------------------------------------------
 
 @app.get("/api/followups")
-async def get_followups():
+def get_followups():
     """The Work Queue: pending/drafted follow-ups, sorted oldest original-approval first."""
     return {"followups": followups_mod.list_public()}
 
 
 @app.post("/api/followups/{fid}/draft")
-async def draft_followup_row(fid: str, payload: dict = Body(default={})):
+def draft_followup_row(fid: str, payload: dict = Body(default={})):
     """Lazily generate the follow-up email as a normal CompanyState draft, then link it to the
     FollowUp. The generated draft appears in Drafts and is approved via the existing approve path."""
     fu = store.get_followup(fid)
@@ -1583,7 +1583,7 @@ async def draft_followup_row(fid: str, payload: dict = Body(default={})):
 
 
 @app.post("/api/followups/{fid}/dismiss")
-async def dismiss_followup(fid: str):
+def dismiss_followup(fid: str):
     fu = store.get_followup(fid)
     if not fu:
         raise HTTPException(status_code=404, detail="unknown follow-up")
@@ -1598,14 +1598,14 @@ async def dismiss_followup(fid: str):
 
 
 @app.post("/api/followups/clear")
-async def clear_followups():
+def clear_followups():
     return {"ok": True, "cleared": store.clear_followups()}
 
 
 # ---- drafting --------------------------------------------------------------
 
 @app.post("/api/draft/{slug}")
-async def draft_one_row(slug: str, payload: dict = Body(default={})):
+def draft_one_row(slug: str, payload: dict = Body(default={})):
     batch = _batch()
     if not batch or slug not in batch.companies:
         raise HTTPException(status_code=404, detail="unknown target")
@@ -1618,8 +1618,37 @@ async def draft_one_row(slug: str, payload: dict = Body(default={})):
     return _cs_public(cs)
 
 
+_DRAFT_JOBS: dict[str, dict] = {}
+
+
+def _run_draft_job(job_id: str, provider: Any, todo_slugs: list[str], reuse: bool, voice_override: str | None, settings_snapshot: Any):
+    job = _DRAFT_JOBS.get(job_id)
+    if not job:
+        return
+    workers = max(1, min(settings_snapshot.research_concurrency, len(todo_slugs) or 1))
+    with ThreadPoolExecutor(max_workers=workers) as ex:
+        for slug in todo_slugs:
+            if job.get("cancelled"):
+                job["state"] = "cancelled"
+                break
+            cs = store.get_draft(slug) or (_batch().companies.get(slug) if _batch() else None)
+            if not cs:
+                continue
+            job["current_slug"] = slug
+            try:
+                pipeline.draft_one(provider, cs, voice_override=voice_override, reuse_cache=reuse)
+                _persist()
+            except Exception as e:
+                job.setdefault("errors", []).append({"slug": slug, "error": str(e)})
+            job["done"] += 1
+
+    if job.get("state") != "cancelled":
+        job["state"] = "done"
+
+
 @app.post("/api/draft")
-async def draft_all(payload: dict = Body(default={})):
+def draft_all(payload: dict = Body(default={})):
+    import uuid
     batch = _batch()
     if not batch:
         raise HTTPException(status_code=400, detail="ingest target names first")
@@ -1628,19 +1657,56 @@ async def draft_all(payload: dict = Body(default={})):
     reuse = bool(payload.get("reuse_cache", True))
     todo = [cs for cs in batch.ordered()
             if cs.state in (State.input, State.error) or not cs.machine_email]
-    workers = max(1, min(st.research_concurrency, len(todo) or 1))
-    with ThreadPoolExecutor(max_workers=workers) as ex:
-        _ov = _STATE.get("voice")
-        list(ex.map(lambda cs: pipeline.draft_one(provider, cs, voice_override=_ov,
-                                                  reuse_cache=reuse), todo))
-    _persist()
-    return _batch_public(batch)
+
+    job_id = str(uuid.uuid4())
+    job = {
+        "job_id": job_id,
+        "done": 0,
+        "total": len(todo),
+        "current_slug": "",
+        "errors": [],
+        "state": "running",
+        "cancelled": False,
+    }
+    _DRAFT_JOBS[job_id] = job
+
+    if not todo:
+        job["state"] = "done"
+        return {"job_id": job_id, "total": 0, "state": "done", "done": 0}
+
+    _ov = _STATE.get("voice")
+    todo_slugs = [cs.slug for cs in todo]
+    t = threading.Thread(
+        target=_run_draft_job,
+        args=(job_id, provider, todo_slugs, reuse, _ov, st),
+        daemon=True
+    )
+    t.start()
+    return {"job_id": job_id, "total": len(todo), "state": "running", "done": 0}
+
+
+@app.get("/api/draft/job/{job_id}")
+def get_draft_job(job_id: str):
+    job = _DRAFT_JOBS.get(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="job not found")
+    return job
+
+
+@app.post("/api/draft/job/{job_id}/cancel")
+def cancel_draft_job(job_id: str):
+    job = _DRAFT_JOBS.get(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="job not found")
+    job["cancelled"] = True
+    job["state"] = "cancelled"
+    return {"ok": True, "job": job}
 
 
 # ---- edit ------------------------------------------------------------------
 
 @app.put("/api/companies/{slug}/email")
-async def edit_email(slug: str, payload: dict = Body(...)):
+def edit_email(slug: str, payload: dict = Body(...)):
     cs = store.get_draft(slug) or (_batch().companies.get(slug) if _batch() else None)
     if not cs:
         raise HTTPException(status_code=404, detail="unknown target")
@@ -1652,7 +1718,7 @@ async def edit_email(slug: str, payload: dict = Body(...)):
 
 
 @app.post("/api/companies/{slug}/reset")
-async def reset_email(slug: str):
+def reset_email(slug: str):
     cs = store.get_draft(slug) or (_batch().companies.get(slug) if _batch() else None)
     if not cs:
         raise HTTPException(status_code=404, detail="unknown target")
@@ -1662,7 +1728,7 @@ async def reset_email(slug: str):
 
 
 @app.put("/api/companies/{slug}/attachments")
-async def set_company_attachments(slug: str, payload: dict = Body(...)):
+def set_company_attachments(slug: str, payload: dict = Body(...)):
     cs = store.get_draft(slug) or (_batch().companies.get(slug) if _batch() else None)
     if not cs:
         raise HTTPException(status_code=404, detail="unknown target")
@@ -1678,7 +1744,7 @@ async def set_company_attachments(slug: str, payload: dict = Body(...)):
 
 
 @app.delete("/api/companies/{slug}")
-async def delete_draft(slug: str):
+def delete_draft(slug: str):
     cs = store.get_draft(slug) or (_batch().companies.get(slug) if _batch() else None)
     if not cs:
         raise HTTPException(status_code=404, detail="unknown target")
@@ -1847,7 +1913,7 @@ def _approve_rows(rows: list[CompanyState], batch: BatchState | None) -> dict:
 
 
 @app.post("/api/companies/{slug}/approve")
-async def approve_one(slug: str):
+def approve_one(slug: str):
     cs = store.get_draft(slug) or (_batch().companies.get(slug) if _batch() else None)
     if not cs:
         raise HTTPException(status_code=404, detail="unknown target")
@@ -1858,7 +1924,7 @@ async def approve_one(slug: str):
 # ---- batch -----------------------------------------------------------------
 
 @app.get("/api/batch")
-async def get_batch():
+def get_batch():
     b = _batch()
     if not b:
         return {"batch_id": None, "voice": _STATE["voice"], "companies": []}

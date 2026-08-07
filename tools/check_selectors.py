@@ -81,9 +81,32 @@ def check_list_scoping() -> list[tuple[int, str]]:
     return bad
 
 
+def check_blocking_handlers() -> list[str]:
+    """Route handlers declared `async def` that never await. Each one holds the
+    event loop for its full duration, freezing every other request -- the cause of
+    'Pipeline/Triage/Follow-ups/Performance render blank while emails draft'.
+    """
+    src = (ROOT / "app" / "server.py").read_text(encoding="utf-8")
+    out = []
+    for b in re.split(r"(?=@app\.(?:get|post|put|delete|patch)\()", src):
+        if not b.startswith("@app."):
+            continue
+        if "async def" in b and "await" not in b:
+            m = re.search(r"async def (\w+)", b)
+            if m:
+                out.append(m.group(1))
+    return out
+
+
 def main():
     fails, warns = check_selectors()
     scoping = check_list_scoping()
+    blocking = check_blocking_handlers()
+
+    if blocking:
+        print(f"=== FAIL ({len(blocking)} blocking async route handlers in server.py) ===")
+        for name in blocking:
+            print(f"  [FAIL] blocking handler: {name}")
 
     if scoping:
         print(f"=== FAIL ({len(scoping)} queue/ingest calls missing list_id) ===")
@@ -100,10 +123,10 @@ def main():
         for elem_id, line_num, snippet in fails:
             print(f"  [FAIL] Line {line_num}: #{elem_id} -> {snippet}")
         sys.exit(1)
-    elif scoping:
+    elif scoping or blocking:
         sys.exit(1)
     else:
-        print("=== PASS (0 unguarded references to missing IDs, all queue calls scoped) ===")
+        print("=== PASS (0 unguarded references to missing IDs, all queue calls scoped, 0 blocking handlers) ===")
         sys.exit(0)
 
 
