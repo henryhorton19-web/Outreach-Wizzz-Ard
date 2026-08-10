@@ -1,0 +1,26 @@
+name: CI
+on: [push, pull_request]
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - uses: actions/setup-node@v4
+        with: { node-version: "20" }
+      - run: pip install -r requirements.txt pytest httpx
+      - name: tests
+        run: python -m pytest tests/ -q
+      - name: markup gate
+        run: python tools/check_markup.py
+      - name: selectors gate
+        run: python tools/check_selectors.py
+      - name: contrast gate
+        run: python tools/check_contrast.py
+      - name: style purity gate
+        run: python tools/check_style_purity.py
+      - name: vocabulary gate
+        run: python tools/check_vocabulary.py
+      - name: js syntax
+        run: node --check ui/app.js
