@@ -160,16 +160,21 @@ def link_score(exp: dict, tags: list[str], doms: list[str]) -> int:
     return score
 
 
-def link_strength(short: list[dict], doms: list[str]) -> str:
-    """Recall-stage link strength: 'strong' if domain overlap, 'weak' if tag overlap, else 'none'."""
-    if not doms or not short:
+def link_strength(short: list[dict], doms: list[str], target_tags: list[str] = None) -> str:
+    """Recall-stage link strength: 'strong' if domain overlap, 'weak' if specific bridge tag overlap, else 'none'."""
+    if not short:
         return "none"
-    for e in short:
-        if domain_overlap(e, doms):
-            return "strong"
-    for e in short:
-        if e.get("_score", 0) > 0 or e.get("bridges"):
-            return "weak"
+    if doms:
+        for e in short:
+            if domain_overlap(e, doms):
+                return "strong"
+    # Specific bridge tags: ignore fallback ['analytical', 'builds'] when no specific keywords matched
+    specific_tags = [t for t in (target_tags or []) if t not in ("analytical", "builds")]
+    if specific_tags:
+        tt_set = set(specific_tags)
+        for e in short:
+            if (e.get("_score", 0) > 0) or (set(e.get("bridges") or []) & tt_set):
+                return "weak"
     return "none"
 
 

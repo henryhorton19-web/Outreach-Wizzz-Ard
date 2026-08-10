@@ -1,0 +1,114 @@
+[
+  {
+    "company": "Example SaaS",
+    "cache": {
+      "company": {"name": "Example SaaS", "what_they_do": "SaaS platform for private market funds to automate deal flow and sourcing"},
+      "situation_read": "Scaling platform to onboard more private markets funds"
+    },
+    "expected_strength": "strong"
+  },
+  {
+    "company": "ExampleFintech",
+    "cache": {
+      "company": {"name": "ExampleFintech", "what_they_do": "No-code KYC and onboarding automation for fintechs and financial institutions"},
+      "situation_read": "Expanding compliance automation across Europe"
+    },
+    "expected_strength": "strong"
+  },
+  {
+    "company": "Qonto",
+    "cache": {
+      "company": {"name": "Qonto", "what_they_do": "Business banking and financial management for SMEs and freelancers"},
+      "situation_read": "Scaling B2B financial services and unit economics"
+    },
+    "expected_strength": "strong"
+  },
+  {
+    "company": "Authologic",
+    "cache": {
+      "company": {"name": "Authologic", "what_they_do": "KYC orchestration layer unifying digital identity verification"},
+      "situation_read": "Expanding API integrations for financial clients"
+    },
+    "expected_strength": "strong"
+  },
+  {
+    "company": "Pigment",
+    "cache": {
+      "company": {"name": "Pigment", "what_they_do": "Business planning and financial forecasting platform for finance teams"},
+      "situation_read": "Growing enterprise revenue metrics and planning tools"
+    },
+    "expected_strength": "strong"
+  },
+  {
+    "company": "Alan",
+    "cache": {
+      "company": {"name": "Alan", "what_they_do": "Digital health insurance and healthcare super-app for companies"},
+      "situation_read": "Expanding health tech offerings and team operations"
+    },
+    "expected_strength": "weak"
+  },
+  {
+    "company": "Payfit",
+    "cache": {
+      "company": {"name": "Payfit", "what_they_do": "Payroll and HR management software for small and medium businesses"},
+      "situation_read": "Streamlining HR workflows for SME operations"
+    },
+    "expected_strength": "weak"
+  },
+  {
+    "company": "Jutro Medical",
+    "cache": {
+      "company": {"name": "Jutro Medical", "what_they_do": "Hybrid primary care telemedicine clinics and mobile app"},
+      "situation_read": "Opening new physical clinic locations"
+    },
+    "expected_strength": "none"
+  },
+  {
+    "company": "Dust",
+    "cache": {
+      "company": {"name": "Dust", "what_they_do": "AI assistants and enterprise knowledge management platform"},
+      "situation_read": "Building custom AI agents for enterprise internal search"
+    },
+    "expected_strength": "strong"
+  },
+  {
+    "company": "Boulangerie Patisserie Artisanal",
+    "cache": {
+      "company": {"name": "Boulangerie Patisserie Artisanal", "what_they_do": "Artisan bakery chain crafting sourdough bread and pastries"},
+      "situation_read": "Opening new retail storefronts across Paris"
+    },
+    "expected_strength": "none"
+  },
+  {
+    "company": "Atelier Couture",
+    "cache": {
+      "company": {"name": "Atelier Couture", "what_they_do": "Bespoke high fashion dressmaking and tailoring atelier"},
+      "situation_read": "Exhibiting new summer fashion collection"
+    },
+    "expected_strength": "none"
+  },
+  {
+    "company": "Le Bistro Parisien",
+    "cache": {
+      "company": {"name": "Le Bistro Parisien", "what_they_do": "Traditional French restaurant and wine bar in Montmartre"},
+      "situation_read": "Expanding outdoor terrace dining capacity"
+    },
+    "expected_strength": "none"
+  },
+  {
+    "company": "Garage Auto Express",
+    "cache": {
+      "company": {"name": "Garage Auto Express", "what_they_do": "Auto repair shop specializing in tire changes and brake service"},
+      "situation_read": "Hiring additional mechanic staff"
+    },
+    "expected_strength": "none"
+  },
+  {
+    "company": "Ferme Bio Normandy",
+    "cache": {
+      "company": {"name": "Ferme Bio Normandy", "what_they_do": "Organic dairy farm producing raw milk, butter and artisan cheese"},
+      "situation_read": "Distributing organic cheese to local markets"
+    },
+    "expected_strength": "none"
+  }
+]

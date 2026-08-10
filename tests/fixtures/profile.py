@@ -24,6 +24,7 @@ FIXTURE_PROFILE = {
             "anchor": "I am an analyst at Anchor Co working on growth software.",
             "facts": ["Built a cohort model covering 40 logos."],
             "bridges": ["analytical", "builds", "fintech_ai"],
+            "domains": ["private_markets", "saas_metrics", "growth_equity"],
         },
         "fund_co": {
             "name": "Fund Co", "title": "Intern", "when": "Jan 2026 - Apr 2026",
@@ -31,6 +32,7 @@ FIXTURE_PROFILE = {
             "anchor": "I worked on a fundraise at Fund Co.",
             "facts": ["Supported a 160m raise."],
             "bridges": ["fundraising", "investor_adjacent", "analytical", "builds"],
+            "domains": ["private_markets", "sourcing_automation", "fundraising"],
         },
         "tech_co": {
             "name": "Tech Co", "title": "Engineer", "when": "Feb 2026 - Mar 2026",
@@ -38,6 +40,7 @@ FIXTURE_PROFILE = {
             "anchor": "I built a credit model at Tech Co.",
             "facts": ["Shipped a scoring pipeline."],
             "bridges": ["ai_native", "fintech_ai", "technical", "builds", "research"],
+            "domains": ["fintech_ai", "automation", "saas_metrics"],
         },
         "side_co": {
             "name": "Side Co", "title": "Co-founder", "when": "2023 - 2025",
@@ -45,6 +48,7 @@ FIXTURE_PROFILE = {
             "anchor": "I co-founded Side Co and ran operations.",
             "facts": ["Grew it to 100 users."],
             "bridges": ["ownership", "zero_to_one", "ops", "builds"],
+            "domains": ["ops", "zero_to_one"],
         },
     },
     "signals": ["A credibility signal."],

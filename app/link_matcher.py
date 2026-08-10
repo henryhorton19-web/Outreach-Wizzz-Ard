@@ -55,7 +55,8 @@ def shortlist(experiences: list[dict], cache: dict, limit: int = SHORTLIST_LIMIT
 def _keyword_result(short: list[dict], cache: dict) -> dict:
     """The recall-stage answer, used whenever the precision stage is unavailable."""
     doms = de.target_domains(cache)
-    strength = de.link_strength(short, doms)
+    tags = de._target_bridge_tags(cache)
+    strength = de.link_strength(short, doms, tags)
     keys = [e.get("_key") for e in short if de.domain_overlap(e, doms)] if strength == "strong" else []
     shared = sorted(set(doms) & {d for e in short for d in (e.get("domains") or [])})
     return {"link_strength": strength, "experience_keys": keys,
