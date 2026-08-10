@@ -120,6 +120,59 @@ def _target_bridge_tags(cache: dict) -> list[str]:
     return out
 
 
+def target_domains(cache: dict) -> list[str]:
+    """Extract domain keywords from company what_they_do, situation_read, proof_points."""
+    text = " ".join([
+        (cache.get("company") or {}).get("what_they_do", ""),
+        (cache.get("situation_read") or ""),
+        " ".join(p.get("fact", "") for p in (cache.get("proof_points") or []) if isinstance(p, dict)),
+    ]).lower()
+    doms = []
+    def has(*words):
+        return any(re.search(r"\b" + re.escape(w) + r"\b", text) for w in words)
+
+    if has("private markets", "private market", "private equity", "growth equity", "venture capital", "deal flow", "fund", "funds"):
+        doms.append("private_markets")
+    if has("sourcing", "outreach", "deal sourcing", "pipeline", "dealflow"):
+        doms.append("sourcing_automation")
+    if has("saas", "arr", "metrics", "financial", "valuation", "diligence"):
+        doms.append("saas_metrics")
+    if has("policy", "think tank", "research", "governance"):
+        doms.append("policy")
+    if has("ai", "llm", "automation", "genai"):
+        doms.append("automation")
+    return doms
+
+
+def domain_overlap(exp: dict, doms: list[str]) -> bool:
+    """True if experience's domains overlap with target domains."""
+    exp_doms = set(exp.get("domains") or [])
+    return bool(exp_doms & set(doms))
+
+
+def link_score(exp: dict, tags: list[str], doms: list[str]) -> int:
+    """Score experience against bridge tags and domain keywords."""
+    score = 0
+    bridges = set(exp.get("bridges") or [])
+    exp_doms = set(exp.get("domains") or [])
+    score += len(bridges & set(tags or []))
+    score += 2 * len(exp_doms & set(doms or []))
+    return score
+
+
+def link_strength(short: list[dict], doms: list[str]) -> str:
+    """Recall-stage link strength: 'strong' if domain overlap, 'weak' if tag overlap, else 'none'."""
+    if not doms or not short:
+        return "none"
+    for e in short:
+        if domain_overlap(e, doms):
+            return "strong"
+    for e in short:
+        if e.get("_score", 0) > 0 or e.get("bridges"):
+            return "weak"
+    return "none"
+
+
 def rank_evidence(cache: dict, prefer=(), pin=(), exclude=(), weights=None) -> list[dict]:
     """Full voice-tilted ranking of candidate experiences. Deterministic: bridge-tag overlap with
     the target, HPE's standing nudge, plus voice tilts (prefer +2, category_weights per bridge);
@@ -243,6 +296,8 @@ def prepare(cache: dict, voice_name: str = None) -> dict:
         "proof_points": [p.get("fact", "") for p in (cache.get("proof_points") or []) if isinstance(p, dict)],
         "allowed_facts": allowed_facts,
         "candidate_name": C.CANDIDATE_PROFILE["name"],
+        "link": cache.get("candidate_link") or {},
+        "link_strength": (cache.get("candidate_link") or {}).get("link_strength", "none"),
     }
     return spec
 

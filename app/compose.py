@@ -93,6 +93,9 @@ def derive_tokens(spec: dict, variables: dict | None = None) -> dict:
         "candidate_name": name,
         "profile_first": (name.split(" ")[0] if name else ""),
         "candidate_first": (name.split(" ")[0] if name else ""),   # backward-compat alias
+        "link_strength": spec.get("link_strength") or (spec.get("link") or {}).get("link_strength", "none"),
+        "shared_subject": (spec.get("link") or {}).get("shared_subject", ""),
+        "why": (spec.get("link") or {}).get("why", ""),
     }
     # one token per candidate experience -> its anchor (derived, not hardcoded)
     for k, e in EC.CANDIDATE_PROFILE.get("experiences", {}).items():

@@ -961,6 +961,16 @@ def research_company(provider: Provider, name: str, website: str | None,
         cache.setdefault("company", {})
         cache["company"]["resolved_domain"] = resolved_domain
         cache["company"]["domain_source"] = domain_source
+        try:
+            from .link_matcher import resolve_link
+            from . import store
+            import config as EC
+            vdef = store.load_voice(S.load_settings().default_voice)
+            exps = EC.CANDIDATE_PROFILE.get("experiences", {})
+            exps_list = [dict(v, _key=k) for k, v in exps.items()]
+            cache["candidate_link"] = resolve_link(cache, exps_list, provider=provider, voice=vdef)
+        except Exception:
+            pass          # a matcher failure must never break research
         return cache
 
     # both attempts hard-failed to parse/validate
