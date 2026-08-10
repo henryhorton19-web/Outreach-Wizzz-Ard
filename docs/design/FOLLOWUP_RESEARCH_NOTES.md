@@ -1,5 +1,3 @@
-> Historical build note ? kept for provenance, not maintained.
-
 # Research notes — automated follow-up cadence
 
 ## Canonical architecture patterns (what mature/OSS tools do)

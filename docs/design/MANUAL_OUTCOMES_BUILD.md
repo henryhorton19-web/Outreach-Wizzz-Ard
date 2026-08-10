@@ -1,5 +1,3 @@
-> Historical build note ? kept for provenance, not maintained.
-
 # Manual Outcome Control + Person-Aware Bounce Re-Targeting — Build Summary
 
 Two capabilities layered onto the outcome-aware app, additive and opt-in. With no `contacts_alt`

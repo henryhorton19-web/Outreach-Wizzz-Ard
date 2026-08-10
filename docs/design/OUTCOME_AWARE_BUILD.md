@@ -1,5 +1,3 @@
-> Historical build note ? kept for provenance, not maintained.
-
 # Outcome-Aware Outreach — Build Summary
 
 This implements the full Master Implementation Plan (Phases 0–7) plus the Frontend/UX spec, on top
