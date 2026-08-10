@@ -227,7 +227,7 @@ Design constraints baked into the prompt (per Section 2 rules):
   inference step exists precisely to avoid over-fitting a single sample). Encode as: `notes_add`/
   slider deltas require the rationale to cite ≥2 rows; else drop them.
 - **Never touch the honesty floor.** The learner may not add examples/notes that invent numbers,
-  drop the Sciences-Po-once rule, flip present-tense HPE, etc. Run the patch's new examples through
+  drop the Sciences-Po-once rule, flip present-tense firm, etc. Run the patch's new examples through
   the same advisory guard `validate.py`/compose already apply; reject offending examples.
 - Prefer **replied, low-effort** bodies as promoted exemplars (they're the proof the style lands).
 

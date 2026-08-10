@@ -336,7 +336,7 @@ class TargetState(BaseModel):
         return self.edited_email is not None and self.edited_email != (self.machine_email or "")
 
 
-# Back-compat alias so ported HPE app code that says CompanyState keeps working unchanged.
+# Back-compat alias so code that says CompanyState keeps working unchanged.
 CompanyState = TargetState
 
 

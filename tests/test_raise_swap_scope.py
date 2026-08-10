@@ -17,7 +17,7 @@ import pytest
 from app.models import CustomVoice
 
 
-def _voice(name="Colleague1"):
+def _voice(name="example_organisation"):
     root = pathlib.Path(__file__).parent.parent
     return CustomVoice.model_validate(
         json.loads((root / "app" / "seed_voices" / f"{name}.json").read_text(encoding="utf-8")))
@@ -44,7 +44,7 @@ def _produce(voice, cache):
     return compose.produce_email(prov, voice, spec, tokens, [])
 
 
-@pytest.mark.parametrize("vname", ["Colleague1", "Colleague2", "Colleague3"])
+@pytest.mark.parametrize("vname", ["example_organisation"])
 def test_only_the_opening_block_is_swapped(vname):
     voice = _voice(vname)
     _, parts, _ = _produce(voice, _cache())

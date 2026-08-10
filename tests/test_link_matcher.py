@@ -26,9 +26,9 @@ def _cache():
 
 def _exps():
     return [
-        {"_key": "hpe_app", "name": "Shipped sourcing app", "anchor": "a",
+        {"_key": "org_app", "name": "Shipped sourcing app", "anchor": "a",
          "bridges": ["builds"], "domains": ["private_markets", "sourcing_automation"]},
-        {"_key": "hpe_dd", "name": "Diligence", "anchor": "b",
+        {"_key": "org_dd", "name": "Diligence", "anchor": "b",
          "bridges": ["analytical"], "domains": ["private_markets", "saas_metrics"]},
         {"_key": "policy", "name": "Bright Blue", "anchor": "c",
          "bridges": ["analytical"], "domains": ["policy"]},
@@ -44,17 +44,17 @@ def test_shortlist_is_capped_at_three():
 
 def test_the_shortlist_is_ordered_by_the_domain_matcher():
     short = lm.shortlist(_exps(), _cache(), limit=3)
-    assert short[0]["_key"] in ("hpe_app", "hpe_dd"), \
+    assert short[0]["_key"] in ("org_app", "org_dd"), \
         f"recall stage did not put a private-markets experience first: {short[0]['_key']}"
 
 
 def test_matcher_returns_a_structured_link():
-    prov = _StubProvider('{"link_strength":"strong","experience_keys":["hpe_app"],'
+    prov = _StubProvider('{"link_strength":"strong","experience_keys":["org_app"],'
                          '"shared_subject":"sourcing automation for private markets",'
                          '"why":"built the same thing inside a fund","confidence":0.9}')
     out = lm.resolve_link(_cache(), _exps(), provider=prov)
     assert out["link_strength"] == "strong"
-    assert out["experience_keys"] == ["hpe_app"]
+    assert out["experience_keys"] == ["org_app"]
     assert out["shared_subject"]
     assert prov.calls == 1
 
@@ -92,7 +92,7 @@ def test_the_reranker_cannot_promote_above_the_recall_stage():
     returned "strong" because the model asserted it, despite zero domain overlap."""
     unrelated = {"company": {"name": "Crust", "what_they_do": "artisan bakery chain"},
                  "situation_read": "opening new sites"}
-    prov = _StubProvider('{"link_strength":"strong","experience_keys":["hpe_app"],'
+    prov = _StubProvider('{"link_strength":"strong","experience_keys":["org_app"],'
                          '"shared_subject":"baking","why":"both involve process","confidence":0.95}')
     out = lm.resolve_link(unrelated, _exps(), provider=prov)
     assert out["link_strength"] != "strong", \
@@ -100,7 +100,7 @@ def test_the_reranker_cannot_promote_above_the_recall_stage():
 
 
 def test_low_confidence_is_downgraded():
-    prov = _StubProvider('{"link_strength":"strong","experience_keys":["hpe_app"],'
+    prov = _StubProvider('{"link_strength":"strong","experience_keys":["org_app"],'
                          '"shared_subject":"x","why":"y","confidence":0.2}')
     out = lm.resolve_link(_cache(), _exps(), provider=prov)
     assert out["link_strength"] != "strong", \
@@ -109,7 +109,7 @@ def test_low_confidence_is_downgraded():
 
 def test_second_draft_reuses_cached_candidate_link():
     c = _cache()
-    prov = _StubProvider('{"link_strength":"strong","experience_keys":["hpe_app"],'
+    prov = _StubProvider('{"link_strength":"strong","experience_keys":["org_app"],'
                          '"shared_subject":"x","why":"y","confidence":0.9}')
     c["candidate_link"] = lm.resolve_link(c, _exps(), provider=prov)
     assert prov.calls == 1

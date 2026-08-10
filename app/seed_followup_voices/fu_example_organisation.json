@@ -1,0 +1,76 @@
+{
+  "id": "fu_example_organisation",
+  "display_name": "Follow-up · Example Organisation",
+  "seeded_from": "builtin",
+  "kind": "followup",
+  "situations": [
+    "b2b_software",
+    "climate_tech"
+  ],
+  "subject": "",
+  "length_min": 40,
+  "length_max": 80,
+  "allow_dashes": false,
+  "variables": {},
+  "blocks": [
+    {
+      "id": "greeting",
+      "label": "Greeting",
+      "mode": "fixed",
+      "text": "Hi {contact_first},"
+    },
+    {
+      "id": "reanchor",
+      "label": "Re-anchor",
+      "mode": "fixed",
+      "length": "one_line",
+      "text": "Following up on my note about a potential growth partnership, in case it slipped past."
+    },
+    {
+      "id": "body",
+      "label": "Body",
+      "mode": "ai",
+      "length": "body",
+      "fact_scope": [
+        "recent",
+        "target_proofs",
+        "profile_evidence",
+        "situation_read",
+        "custom_facts"
+      ],
+      "guidance": "A follow-up re-opens the conversation; it NEVER repeats the pitch and never re-states the fund or the original thesis. Add exactly ONE new, specific point that was not in the first email."
+    },
+    {
+      "id": "close",
+      "label": "Ask",
+      "mode": "fixed",
+      "length": "one_line",
+      "text": "Worth a short call over the coming weeks?"
+    }
+  ],
+  "style": {
+    "formality": 3,
+    "warmth": 3,
+    "directness": 4,
+    "sentence_length": "short",
+    "hedging": "assertive",
+    "humor": "none",
+    "person_focus": "recipient_first",
+    "proof_density": "single",
+    "register": "Compressed register for a follow-up: warm, firm-plural, one new reason to reply and one clear ask. Frame the new point as the fund's read.",
+    "examples": []
+  },
+  "evidence": {
+    "prefer": [],
+    "pin": [],
+    "exclude": [],
+    "category_weights": {},
+    "count": 1,
+    "custom_facts": [],
+    "identity_note": ""
+  },
+  "audience": "organisation",
+  "origin": "user",
+  "challenger_of": "",
+  "learning_meta": {}
+}

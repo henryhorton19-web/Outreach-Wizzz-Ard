@@ -1,5 +1,5 @@
 """A voice may swap a fixed block's text when research reports a recent point of a
-given kind -- the "raise-swap" the original HPE voices documented but this app
+given kind -- the "raise-swap" the original seed voices documented but this app
 never implemented.
 
 Before this stage: CustomVoice.recent_point_templates is declared and read by

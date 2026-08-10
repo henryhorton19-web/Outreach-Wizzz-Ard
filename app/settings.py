@@ -7,7 +7,7 @@ time rather than trusted from a hardcoded string), search caps, concurrency, and
 Precedence for any setting: environment variable  >  settings.json in the user data dir  >
 the documented default below. Model IDs in particular are meant to be changed in Settings.
 
-Model choices below are carried over verbatim from the Example Capital app (same standing policy):
+# Model choices below define standard standing policy:
 research on 2.5 Flash, compose on 2.5 Pro; Claude available as the optional provider.
 """
 from __future__ import annotations
@@ -162,7 +162,7 @@ def ensure_seeded() -> None:
 ensure_seeded()
 
 
-# ---- provider / model defaults (verbatim from HPE app) ---------------------
+# ---- provider / model defaults ---------------------
 # Standing policy (2026-07): research on 2.5 Flash, compose on 2.5 Pro.
 # IDs are DEFAULTS ONLY — verify current IDs against the provider docs and override in Settings:
 #   Gemini : https://ai.google.dev/gemini-api/docs/models

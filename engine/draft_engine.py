@@ -1,6 +1,6 @@
 """Paris outreach draft engine (deterministic core).
 
-Mirrors the HPE engine's contract and discipline, re-aimed for candidate outreach:
+Mirrors standard deterministic engine contract and discipline, re-aimed for candidate outreach:
   * prepare(cache, voice_name)      -> spec (frame slots + the profile TIE + provenance)
   * writer_brief(spec)              -> the slim brief handed to compose
   * finalize(spec, parts)           -> {email, report, ...} assembled machine draft
@@ -180,7 +180,7 @@ def link_strength(short: list[dict], doms: list[str], target_tags: list[str] = N
 
 def rank_evidence(cache: dict, prefer=(), pin=(), exclude=(), weights=None) -> list[dict]:
     """Full voice-tilted ranking of candidate experiences. Deterministic: bridge-tag overlap with
-    the target, HPE's standing nudge, plus voice tilts (prefer +2, category_weights per bridge);
+    the target, standing nudge, plus voice tilts (prefer +2, category_weights per bridge);
     pinned float to the top; excluded and signal-gated optionals drop out. Each returned exp dict
     carries _key, _score, _pinned. The tie (select_evidence) and the {relevant} shortlist read this."""
     weights = weights or {}
@@ -200,7 +200,7 @@ def rank_evidence(cache: dict, prefer=(), pin=(), exclude=(), weights=None) -> l
             if not (tags & {"ownership", "zero_to_one", "ops"}):
                 continue
         score = len(tags & bridges)
-        standing = C.CANDIDATE_PROFILE.get("standing_key", "hpe")
+        standing = C.CANDIDATE_PROFILE.get("standing_key", "anchor_co")
         if key == standing:
             score += 1
         if key in prefer:

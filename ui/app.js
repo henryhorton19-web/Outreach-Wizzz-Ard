@@ -3131,7 +3131,7 @@ function renderProfileProofList(experiences) {
         <div class="identity-grid-3col" style="flex:1;">
           <div class="field" style="margin-bottom:0;">
             <label for="exp_name_${esc(key)}">Company / Entity</label>
-            <input type="text" id="exp_name_${esc(key)}" class="exp-name" value="${esc(exp.name || key)}" placeholder="e.g. Example Capital" />
+            <input type="text" id="exp_name_${esc(key)}" class="exp-name" value="${esc(exp.name || key)}" placeholder="e.g. Acme Capital" />
           </div>
           <div class="field" style="margin-bottom:0;">
             <label for="exp_title_${esc(key)}">Title / Role</label>

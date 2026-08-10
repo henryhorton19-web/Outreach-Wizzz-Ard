@@ -1,0 +1,116 @@
+{
+  "id": "example_organisation",
+  "display_name": "Example: Organisation Outreach",
+  "created_at": "2026-08-10T12:00:00.000000+00:00",
+  "updated_at": "2026-08-10T12:00:00.000000+00:00",
+  "seeded_from": "builtin",
+  "kind": "outreach",
+  "situations": [
+    "b2b_software",
+    "climate_tech"
+  ],
+  "subject": "Exploring a EUR 5 to 20m+ growth investment in {company}",
+  "recent_point_templates": {
+    "raise": "Congratulations on your recent {recent}.",
+    "funding": "Congratulations on your recent {recent}."
+  },
+  "blocks": [
+    {
+      "id": "greeting",
+      "label": "Greeting",
+      "mode": "fixed",
+      "text": "Hi {contact_first},",
+      "guidance": "",
+      "fact_scope": [],
+      "length": "short",
+      "optional": false
+    },
+    {
+      "id": "opening",
+      "label": "Opening",
+      "mode": "fixed",
+      "text": "I am reaching out to explore a potential investment in {company}.",
+      "guidance": "Standing opener, shipped verbatim unless the voice's recent_point_templates has an entry matching the kind of recent point research found.",
+      "fact_scope": [],
+      "length": "one_line",
+      "optional": false
+    },
+    {
+      "id": "body",
+      "label": "Body",
+      "mode": "ai",
+      "text": "",
+      "guidance": "Write ONE short paragraph, about three to five sentences, in Northwind Capital's warm professional firm-plural voice. Frame your read as the fund's hypothesis ('In our eyes you...', 'we see you...'), never as an asserted fact. THE SHAPE: 1) A category observation as its own sentence. 2) The founder tied into that shift with qualitative signals. 3) A soft statement of interest ending on a wish to learn more about growth ambitions.",
+      "fact_scope": [
+        "recent",
+        "target_proofs",
+        "situation_read"
+      ],
+      "length": "body",
+      "optional": false
+    },
+    {
+      "id": "recent_context",
+      "label": "Recent context (conditional)",
+      "mode": "fixed",
+      "text": "Given your recent milestone, we would be particularly interested in exploring growth options alongside primary expansion capital.",
+      "guidance": "Appears only when research found a recent point; dropped otherwise by _skip().",
+      "fact_scope": [
+        "recent"
+      ],
+      "length": "short",
+      "optional": true
+    },
+    {
+      "id": "fund_paragraph",
+      "label": "Fund paragraph (verbatim)",
+      "mode": "fixed",
+      "text": "To provide you with some background on Northwind Capital, we are a European growth investor focused on scaling software businesses across Europe. We partner with ambitious management teams to accelerate international expansion.",
+      "guidance": "",
+      "fact_scope": [],
+      "length": "short",
+      "optional": false
+    },
+    {
+      "id": "close",
+      "label": "House close (verbatim)",
+      "mode": "fixed",
+      "text": "I would love to connect for a short intro call. Is there a convenient time in the coming weeks to speak?",
+      "guidance": "",
+      "fact_scope": [],
+      "length": "short",
+      "optional": false
+    }
+  ],
+  "style": {
+    "formality": 3,
+    "warmth": 3,
+    "directness": 3,
+    "sentence_length": "flowing",
+    "hedging": "neutral",
+    "humor": "none",
+    "person_focus": "recipient_first",
+    "proof_density": "single",
+    "notes": "Example organisation outreach voice. Warm, professional, firm-plural 'we' throughout. Address the founder in the second person.",
+    "examples": [
+      "Supply chain software is transitioning rapidly to cloud-native platforms. In our eyes you directly address this shift, and we see you as well positioned given the calibre of your enterprise customers. These signals are key to our thesis as growth investors, and we would be keen to learn more about your expansion plans."
+    ]
+  },
+  "evidence": {
+    "prefer": [],
+    "pin": [],
+    "exclude": [],
+    "count": 1,
+    "category_weights": {},
+    "custom_facts": [],
+    "identity_note": ""
+  },
+  "length_min": 60,
+  "length_max": 160,
+  "variables": {},
+  "allow_dashes": false,
+  "origin": "user",
+  "challenger_of": "",
+  "learning_meta": {},
+  "audience": "organisation"
+}

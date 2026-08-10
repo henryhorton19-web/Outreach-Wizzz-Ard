@@ -1,4 +1,4 @@
-"""Example Capital Outreach App — orchestration + UI layer around the pure engine.
+"""Outreach Wizz-ard — orchestration + UI layer around the pure engine.
 
 The deterministic engine (engine/draft_engine.py) makes NO web or model calls, ever.
 Everything in this package is the thin layer that: takes pasted company names, makes the

@@ -25,7 +25,7 @@ One further rule is a *voice knob*, not floor: dashes (off by default, `allow_da
 
 Fixed blocks and guidance may use tokens. Research tokens (`{company}`, `{contact_first}`,
 `{recent}`, `{proof_1}`, `{situation_read}`, …) resolve from the research cache. Each candidate
-experience has its own token (`{hpe}`, `{bluefire}`, `{solano}`, `{innova}`, `{bright_blue}`) that
+experience has its own token (`{org_experience}`, `{bluefire}`, `{solano}`, `{innova}`, `{bright_blue}`) that
 expands to that experience's anchor line. `{relevant}` is resolved by the model (or, offline, to the
 top of the voice's evidence shortlist): it drops in the single experience that best fits the point.
 
