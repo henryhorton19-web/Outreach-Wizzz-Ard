@@ -4,15 +4,31 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Tests](https://img.shields.io/badge/tests-338%20passing-brightgreen.svg)](tests/)
 
-A fact-grounded desktop email drafting application built to research targets, resolve contacts, and compose personalized candidate outreach for operating seats during the Sciences Po Paris exchange year.
+Outreach Wizz-ard is an end-to-end outbound outreach system: it sources targets and verified contacts, researches and drafts fact-grounded emails, runs automated CRM-style follow-up sequences, tracks outcomes, and continuously tunes its own voice from your edits — without ever sending anything you haven't approved.
+
+It originated as Example Capital's deal-sourcing outreach engine and was re-aimed at a personal problem (finding a part-time seat during the Sciences Po Paris exchange year) by swapping the candidate profile and the sourcing target — the underlying engine, voice system, and pipeline are domain-agnostic; only `engine/config.py`'s `CANDIDATE_PROFILE` and the voices themselves are specific to this deployment.
 
 ---
 
-## Why This Exists
+## Capabilities
 
-Outreach Wizz-ard originated as a domain re-aim of an Example Capital deal-sourcing outreach engine, repointed at a personal candidate job search problem. Rather than using unconstrained LLM text generation, the application enforces a strict separation between web fact-gathering and email composition. Every statement, metric, and company fact in a generated draft is traceable back to audited research JSON caches or a verified candidate profile.
+- **Sourcing & enrichment** — paste targets, a CSV, or a tracker workbook (`app/ingest.py`, `app/tracker.py`); contacts are verified in bulk via Apollo (`app/apollo.py`) before a draft is ever staged.
+- **Fact-grounded drafting** — research (`app/research.py`) and composition (`app/compose.py`) run as separate stages so the model writing the email never has live web access (see How It Works).
+- **Self-learning voices** — every approved edit is captured (`app/edit_ledger.py`) and fed back into a bounded, auditable learning loop (`app/voice_learning.py`, `app/voice_optimize.py`) that proposes voice-style patches, A/B-tests them, and promotes only what measurably matches your own editing history. See [`docs/design/VOICE_LEARNING_PLAN.md`](docs/design/VOICE_LEARNING_PLAN.md).
+- **Automated follow-up** — approving a draft enrolls a CRM-style follow-up cadence (`app/followups.py`); bounces auto-suppress the dead address and escalate to a different contact at the same target (`app/sweep.py`, `app/detect.py`).
+- **Outcomes & pipeline tracking** — a 6-column Kanban view (`app/pipeline_view.py`) and per-voice reply/bounce statistics with Wilson confidence intervals (`app/voice_stats.py`) built entirely from existing state.
+- **Cost accounting** — live per-session and per-draft token cost (`app/cost.py`), shown in-app.
+- **Compliance** — a persistent do-not-contact list (`app/suppression.py`) and archive-aware dedup prevent double-contacting or re-queuing bounced addresses.
 
-> **Provenance is the product.** The engine enforces a strict honesty floor: no invented numbers, no unsourced claims, and no hallucinated background links.
+---
+
+## Screenshots
+
+![Pipeline board](docs/images/pipeline-board.png)
+*A 6-column Kanban view derived entirely from existing state (`app/pipeline_view.py`) — no separate state machine.*
+
+![Voice editor modal](docs/images/voice-editor.png)
+*The interactive voice editor — configure greetings, AI openers, body guidance, and live token previews.*
 
 ---
 
@@ -36,11 +52,21 @@ flowchart TD
 
 1. **Stage 1 — Web Research (`app/research.py`):** Fetches target company information, resolves official domain names, extracts stated plans and proof points, and identifies contact details via verified pattern lookup. Stores output as a schema-validated audit cache (`cache_<slug>.json`).
 2. **Two-Stage Link Matcher (`app/link_matcher.py`):** Combines a free domain recall matcher (`engine.draft_engine.target_domains`) with a single LLM precision reranker to evaluate whether a genuine connection exists between the candidate's background and the target company.
-3. **Stage 2 — Fact-Grounded Composition (`app/compose.py`):** Generates draft emails using only the extracted JSON cache and the user's candidate profile. Web tools are disabled during composition to prevent hallucination.
+3. **Stage 2 — Fact-Grounded Composition (`app/compose.py`, `app/pipeline.py`):** Generates draft emails using only the extracted JSON cache and the user's candidate profile. Web tools are disabled during composition to prevent hallucination.
 4. **Honesty Floor Critique (`engine/draft_engine.py`):** Audits completed drafts against numeric accuracy, em-dashes, forbidden hype phrases, and presumptuous openers. Critiques are advisory: no draft is silently discarded, keeping final editorial control with the human operator.
-5. **Review Queue & Triage (`ui/`, `app/outcomes.py`):** Presents drafts in a desktop interface for human review, manual edits, approval, and lifecycle outcome tracking (sent, replied, bounced, no-response).
+5. **Review Queue & Triage (`ui/`, `app/outcomes.py`, `app/pipeline_view.py`):** Presents drafts in a desktop interface for human review, manual edits, approval, and lifecycle outcome tracking (sent, replied, bounced, no-response).
 
-<!-- TODO(Henry): add 3 real screenshots — review queue, voice editor, Triage view -->
+---
+
+## Subsystems
+
+### Self-Learning Voices
+
+Every approved edit is captured as a before/after pair in `app/edit_ledger.py`. The system builds a 4-layer preference loop (`voice_stats.py` -> `edit_ledger.py` -> `voice_learning.py` -> `voice_optimize.py`). It operates in three configurable modes (`off`, `suggest`, `auto`), applying bounded style-slider and guidance patches clamped through the honesty floor. Batch optimization runs held-out scoring against past edits and promotes winning patches as A/B challenger voices rather than overwriting blind. For full details, see [`docs/design/VOICE_LEARNING_PLAN.md`](docs/design/VOICE_LEARNING_PLAN.md) and [`docs/design/VOICE_LEARNING_BUILD.md`](docs/design/VOICE_LEARNING_BUILD.md).
+
+### Sourcing & Follow-Up Automation
+
+Targets ingested from text, CSV, or `Outreach_Tracker.xlsx` (`app/ingest.py`, `app/tracker.py`) undergo bulk Apollo contact verification (`app/apollo.py`) before staging. Approving an initial outreach draft auto-enrolls a CRM-style follow-up sequence on a configurable delay cadence (`app/followups.py`). The automated inbox sweep (`app/sweep.py`, `app/inbox.py`, `app/detect.py`) pauses follow-up cadences on reply and auto-suppresses dead addresses on bounce (`app/suppression.py`), staging a re-draft to the next contact rung. For full details, see [`docs/design/FOLLOWUP_ARCHITECTURE.md`](docs/design/FOLLOWUP_ARCHITECTURE.md) and [`docs/design/MANUAL_OUTCOMES_BUILD.md`](docs/design/MANUAL_OUTCOMES_BUILD.md).
 
 ---
 
@@ -58,7 +84,7 @@ cd "<path-to-paris-outreach>"
 
 **macOS / Linux (Bash):**
 ```bash
-cd "/path/to/paris-outreach"
+cd "<path-to-paris-outreach>"
 ./run-wizzard.sh
 ```
 
@@ -73,7 +99,7 @@ cd "/path/to/paris-outreach"
 
 2. **Run Test Suite & Quality Gates:**
    ```bash
-   python -m pytest -q
+   PARIS_PROVIDER=stub python -m pytest -q
    python tools/check_style_purity.py
    ```
 
@@ -91,6 +117,9 @@ cd "/path/to/paris-outreach"
 ## Further Reading
 
 - [ARCHITECTURE.md](ARCHITECTURE.md) — Comprehensive technical system design, pipeline mechanics, state machines, and security architecture.
+- [docs/design/VOICE_LEARNING_PLAN.md](docs/design/VOICE_LEARNING_PLAN.md) — System design for continuous preference learning and GEPA-style voice optimization.
+- [docs/design/FOLLOWUP_ARCHITECTURE.md](docs/design/FOLLOWUP_ARCHITECTURE.md) — Architecture spec for automated follow-up cadences and bounce escalation.
+- [docs/design/MANUAL_OUTCOMES_BUILD.md](docs/design/MANUAL_OUTCOMES_BUILD.md) — Design spec for Triage outcomes, suppression lists, and email status state machines.
 - [docs/design/FIRST_TIME_SETUP.md](docs/design/FIRST_TIME_SETUP.md) — Initial environment configuration and provider API key setup.
 - [docs/design/SCHEMA.md](docs/design/SCHEMA.md) — Reference schemas for research caches, custom voices, and candidate profiles.
 - [docs/design/SYNC_SETUP.md](docs/design/SYNC_SETUP.md) — Two-repo synchronization architecture (public code vs. private data repository).
