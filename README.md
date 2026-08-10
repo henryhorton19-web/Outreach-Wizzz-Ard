@@ -52,7 +52,7 @@ Outreach Wizz-ard includes OS-agnostic launcher scripts that automatically handl
 
 **Windows (PowerShell):**
 ```powershell
-cd "C:\Users\HenryHorton\OneDrive\Documents\Internship\09 Personal Projects\paris-outreach"
+cd "<path-to-paris-outreach>"
 .\run-wizzard.ps1
 ```
 
