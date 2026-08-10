@@ -1,3 +1,5 @@
+> Historical build note ? kept for provenance, not maintained.
+
 # Candidate Profile & Header Navigation Diagnosis Record
 
 ## 1. Exception Ordering in Candidate Profile Modal

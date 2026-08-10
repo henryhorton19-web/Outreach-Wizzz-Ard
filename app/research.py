@@ -841,6 +841,12 @@ def _post_process(cache: dict, name: str, website: str | None, source_urls: list
     if isinstance(pts, list) and pts:
         cache["proof_points"] = sorted(pts, key=_rank)
 
+    try:
+        from .observation import resolve_observation
+        cache["observation"] = resolve_observation(cache, provider=provider, voice=voice)
+    except Exception:
+        pass
+
     return _prune_nulls(cache)
 
 
