@@ -57,8 +57,8 @@ def _extract_domain(url_or_domain: str) -> str:
 # result.
 EMAIL_PATTERNS = [
     "{first}.{last}",
-    "{f}{last}",
     "{first}",
+    "{f}{last}",
     "{first}{last}",
     "{f}.{last}",
     "{last}",

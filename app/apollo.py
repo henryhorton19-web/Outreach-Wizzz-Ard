@@ -316,8 +316,8 @@ def _pattern_permutations(first: str, last: str, domains: list[str]) -> list[str
             continue
         locals_: list[str] = []
         if first and last:
-            locals_ += [f"{first}.{last}", f"{first}{last}", f"{first[0]}{last}",
-                        f"{first}", f"{first}_{last}"]
+            locals_ += [f"{first}.{last}", f"{first}", f"{first}{last}",
+                        f"{first[0]}{last}", f"{first}_{last}"]
         elif first:
             locals_ += [first]
         for lp in locals_:

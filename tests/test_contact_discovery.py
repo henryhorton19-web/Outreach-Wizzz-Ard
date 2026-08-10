@@ -53,7 +53,8 @@ def test_an_observed_address_pins_the_pattern():
 
 def test_candidates_are_ordered_most_likely_first():
     cands = research.email_candidates("Jane Doe", "example.com")
-    assert cands[0].endswith("@example.com")
+    assert cands[0] == "jane.doe@example.com"
+    assert cands[1] == "jane@example.com", f"firstname@domain must be the primary pattern fallback; got {cands}"
     assert len(cands) >= 5
 
 

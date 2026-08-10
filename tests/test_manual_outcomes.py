@@ -237,3 +237,15 @@ def test_retry_reuse_stages_without_a_provider():
     retry = outcomes.retarget_after_bounce(None, store.get_sent_item("acme#0"), "jane@acme.com")
     assert retry is not None                            # relaxed gate: no provider needed to reuse
     assert store.get_draft("acme__b1").final_email.startswith("Hi Jane,")
+
+
+def test_first_pattern_fallback_on_bounce_is_firstname_at_domain():
+    """When first email (jane.doe@acme.com) bounces, the first pattern fallback candidate is firstname@domain (jane@acme.com)."""
+    cache = {"contact": {"name": "Jane Doe", "email": "jane.doe@acme.com", "email_confidence": "high"},
+             "company": {"website": "acme.com"}}
+    ladder = apollo.rank_address_candidates(cache)
+    emails = [c["email"] for c in ladder if c["tier"] == "primary_person"]
+    # Primary email is jane.doe@acme.com; the very next pattern fallback rung must be jane@acme.com (firstname@domain)
+    assert emails[0] == "jane.doe@acme.com"
+    assert emails[1] == "jane@acme.com", f"First pattern fallback after bounce must be firstname@domain; got {emails}"
+
