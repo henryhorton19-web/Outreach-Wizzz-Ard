@@ -703,7 +703,8 @@ def salvage_partial_cache(name, website, source_urls, raw_text, reason) -> dict:
 
 
 def _post_process(cache: dict, name: str, website: str | None, source_urls: list[str],
-                  resolved_domain: str = "", provider: Provider | None = None) -> dict:
+                  resolved_domain: str = "", provider: Provider | None = None,
+                  voice: Any = None) -> dict:
     cache = _sanitize_cache(cache)
     from .ingest import _display_name          # local import: avoids a top-level ingest<->research cycle
     cache.setdefault("company", {})

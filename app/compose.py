@@ -81,6 +81,7 @@ def derive_tokens(spec: dict, variables: dict | None = None) -> dict:
         "role_or_company": role or company,
         "what_they_do": spec.get("what_they_do", "") or "",
         "situation_read": spec.get("situation_read", "") or "",
+        "observation": spec.get("observation", "") or "",
         "recent": recent.get("detail", "") if recent.get("present") else "",
         "recent_short": (recent.get("detail", "").split(",")[0] if recent.get("present") else ""),
         # Which kind of recent point research found (raise | funding | launch | hire |
@@ -221,6 +222,8 @@ def _scoped_facts(scope, spec: dict, shortlist: list) -> list[str]:
         facts += [p for p in (spec.get("proof_points") or []) if p]
     if "situation_read" in scope and spec.get("situation_read"):
         facts.append(spec["situation_read"])
+    if ("situation_read" in scope or "target_proofs" in scope) and spec.get("observation"):
+        facts.append(f"Observation: {spec['observation']}")
     if "profile_evidence" in scope or "candidate_evidence" in scope:
         facts += [e["anchor"] for e in (spec.get("evidence") or [])]
     if ("profile_spine" in scope or "candidate_spine" in scope) and spec.get("spine"):

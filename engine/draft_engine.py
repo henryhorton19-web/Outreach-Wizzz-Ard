@@ -303,6 +303,7 @@ def prepare(cache: dict, voice_name: str = None) -> dict:
         "candidate_name": C.CANDIDATE_PROFILE["name"],
         "link": cache.get("candidate_link") or {},
         "link_strength": (cache.get("candidate_link") or {}).get("link_strength", "none"),
+        "observation": (cache.get("observation") or {}).get("observation", ""),
     }
     return spec
 
