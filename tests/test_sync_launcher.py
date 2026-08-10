@@ -164,15 +164,26 @@ def test_clean_and_up_to_date_is_a_no_op(repo):
     assert _ahead(work, env) == 0
 
 
+def _safe_rename(src, dst):
+    import time
+    for _ in range(5):
+        try:
+            src.rename(dst)
+            return
+        except PermissionError:
+            time.sleep(0.1)
+    src.rename(dst)
+
+
 def test_push_failure_is_reported_loudly(repo, tmp_path):
     """A failed push must not be a one-line aside -- that is how work goes missing."""
     work, env = repo
     (work / "WORK.md").write_text("# important\n", encoding="utf-8")
-    (tmp_path / "remote.git").rename(tmp_path / "remote.git.gone")
+    _safe_rename(tmp_path / "remote.git", tmp_path / "remote.git.gone")
     try:
         out = _launch(work, env)
     finally:
-        (tmp_path / "remote.git.gone").rename(tmp_path / "remote.git")
+        _safe_rename(tmp_path / "remote.git.gone", tmp_path / "remote.git")
 
     assert "PUSH FAILED" in out
     assert _ahead(work, env) >= 1, "the commit should still exist locally"
