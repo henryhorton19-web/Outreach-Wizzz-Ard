@@ -2116,7 +2116,9 @@ function addVarRow(k, v) {
 }
 function collectVars() {
   const o = {};
-  $$("#veVars > div").forEach(r => { const k=(r.querySelector(".var-k").value||"").trim(); const v=r.querySelector(".var-v").value; if (k) o[k]=v; });
+  $$("#veVars > div").forEach(r => { const k=(r.querySelector(".var-k").value||"").trim(); const v=r.querySelector(".var-v").value; if (k && k !== "link_matcher_prompt") o[k]=v; });
+  const lmp = ($("#veLinkMatcherPrompt") ? $("#veLinkMatcherPrompt").value : "").trim();
+  o["link_matcher_prompt"] = lmp;
   return o;
 }
 
@@ -2161,7 +2163,10 @@ function fillFromVoice(v) {
   veSet("veStyleNotes", (v.style || {}).notes || "");
   $("#veExamples").innerHTML = ""; ((v.style || {}).examples || []).forEach(x => addTextRow("#veExamples", x, "Example email", true));
   $("#veCustomFacts").innerHTML = ""; ((v.evidence || {}).custom_facts || []).forEach(x => addTextRow("#veCustomFacts", x, "A true claim I can make", true));
-  $("#veVars").innerHTML = ""; Object.entries(v.variables || {}).forEach(([k,val]) => addVarRow(k, val));
+  $("#veVars").innerHTML = ""; Object.entries(v.variables || {}).forEach(([k,val]) => {
+    if (k !== "link_matcher_prompt") addVarRow(k, val);
+  });
+  veSet("veLinkMatcherPrompt", (v.variables || {}).link_matcher_prompt || "");
   renderEvidence(v.evidence || {});
 }
 
