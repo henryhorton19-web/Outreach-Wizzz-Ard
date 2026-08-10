@@ -38,7 +38,7 @@ DRAFT_SLOT_STATES = frozenset({
 
 
 FACT_SCOPES = ("recent", "target_proofs", "situation_read", "profile_evidence",
-               "profile_spine", "custom_facts")
+               "profile_spine", "custom_facts", "earned_observation")
 BLOCK_LENGTHS = ("one_line", "short", "medium", "body")
 BLOCK_MODES = ("fixed", "ai")
 

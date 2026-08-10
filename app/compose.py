@@ -222,6 +222,8 @@ def _scoped_facts(scope, spec: dict, shortlist: list) -> list[str]:
         facts += [p for p in (spec.get("proof_points") or []) if p]
     if "situation_read" in scope and spec.get("situation_read"):
         facts.append(spec["situation_read"])
+    if "earned_observation" in scope and spec.get("observation"):
+        facts.append("Observation about this company: " + spec["observation"])
     if ("situation_read" in scope or "target_proofs" in scope) and spec.get("observation"):
         facts.append(f"Observation: {spec['observation']}")
     if "profile_evidence" in scope or "candidate_evidence" in scope:

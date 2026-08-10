@@ -298,12 +298,12 @@ def prepare(cache: dict, voice_name: str = None) -> dict:
         "recent": {"present": has_recent, "detail": recent.get("detail", ""),
                    "kind": recent.get("kind", "other")},
         "situation_read": cache.get("situation_read", ""),
-        "proof_points": [p.get("fact", "") for p in (cache.get("proof_points") or []) if isinstance(p, dict)],
-        "allowed_facts": allowed_facts,
-        "candidate_name": C.CANDIDATE_PROFILE["name"],
-        "link": cache.get("candidate_link") or {},
-        "link_strength": (cache.get("candidate_link") or {}).get("link_strength", "none"),
-        "observation": (cache.get("observation") or {}).get("observation", ""),
+        # The single sharpest sentence research produces. It had a schema entry, a
+        # default and salvage preservation, and was then discarded before writing.
+        "observation": ((cache.get("earned_observation") or {}).get("read", "")
+                        if (cache.get("earned_observation") or {}).get("present") else ""),
+        "observation_mood": ((cache.get("earned_observation") or {}).get("mood", "hypothesis")
+                             if (cache.get("earned_observation") or {}).get("present") else ""),
     }
     return spec
 

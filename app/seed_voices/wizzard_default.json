@@ -41,9 +41,10 @@
         "target_proofs",
         "profile_evidence",
         "profile_spine",
-        "situation_read"
+        "situation_read",
+        "earned_observation"
       ],
-      "guidance": "When {link_strength} is 'strong': state the direct connection between my experience in {shared_subject} and their mission. Use the reason '{why}' as the core argument for why my background matches their situation. Avoid parallel separate clauses or hedging offers. Combine analytical and building experience into one continuous thought.\n\nWhen {link_strength} is 'weak': share excitement for their growth phase and offer a flexible menu of ways I can be helpful as they scale.\n\nWhen {link_strength} is 'none': be honest and generic about my interest in their company without claiming shared subject experience."
+      "guidance": "Build the paragraph around {observation}. That sentence is the one thing you know about this company that you could not say about any other, so it is the reason the email exists. Say it plainly, in your own words, as something you noticed rather than a diagnosis you are delivering.\n\nThen connect it to your background in one continuous thought, not two parallel clauses. If nothing in your background genuinely connects, say why the observation interested you and stop there. That is a better email than a manufactured link."
     },
     {
       "id": "close",
