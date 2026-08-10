@@ -1,3 +1,5 @@
+> Historical build note ? kept for provenance, not maintained.
+
 # Paris Outreach — Consolidation Plan
 
 This document records the full difference analysis between the two source trees and the plan

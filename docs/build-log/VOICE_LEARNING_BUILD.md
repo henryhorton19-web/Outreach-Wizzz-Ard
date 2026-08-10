@@ -1,3 +1,5 @@
+> Historical build note ? kept for provenance, not maintained.
+
 # Continuous voice learning — build notes (Layer 4 + Phase C)
 
 Drafts now learn from the edits you make before sending. The app already had three layers of a

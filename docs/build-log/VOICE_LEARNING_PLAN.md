@@ -1,3 +1,5 @@
+> Historical build note ? kept for provenance, not maintained.
+
 # Continuous Voice Improvement — Implementation Plan
 
 **Feature:** voices that improve automatically from your manual edits — comparing every approved/sent

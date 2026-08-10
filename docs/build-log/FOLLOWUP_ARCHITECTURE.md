@@ -1,3 +1,5 @@
+> Historical build note ? kept for provenance, not maintained.
+
 # Automated Follow-Up — Architecture (as built)
 
 ## What was asked for

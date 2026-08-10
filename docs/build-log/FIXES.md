@@ -1,3 +1,5 @@
+> Historical build note ? kept for provenance, not maintained.
+
 # Fixes applied
 
 Two issues were addressed: the drawer layout bug from `error_report.md`, and a review +

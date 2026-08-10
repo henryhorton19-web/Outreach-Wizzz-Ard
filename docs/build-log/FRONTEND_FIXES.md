@@ -1,3 +1,5 @@
+> Historical build note ? kept for provenance, not maintained.
+
 # Frontend fixes — tappability, consistency, cross-platform
 
 Reported: buttons hard/impossible to tap, inconsistent behaviour, hard to navigate;
