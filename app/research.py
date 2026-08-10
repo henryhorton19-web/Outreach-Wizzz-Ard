@@ -702,6 +702,46 @@ def salvage_partial_cache(name, website, source_urls, raw_text, reason) -> dict:
         return _prune_nulls(minimal)
 
 
+# Shared inboxes. A message to one of these is not a message to the person named
+# in contact.name, so pairing them is a factual error rather than a style issue.
+_ROLE_LOCALS = {
+    "contact", "hello", "info", "support", "team", "sales", "admin", "help",
+    "office", "enquiries", "inquiries", "press", "jobs", "careers", "hr",
+    "bonjour", "nous-contacter", "kontakt", "hola", "ciao", "mail", "email",
+    "no-reply", "noreply", "donotreply",
+}
+
+
+def is_role_inbox(email: str) -> bool:
+    """True when the local part is a shared function rather than a person."""
+    local = (email or "").split("@")[0].strip().lower()
+    if not local:
+        return False
+    if local in _ROLE_LOCALS:
+        return True
+    # hyphenated compounds such as nous-contacter, get-in-touch
+    parts = {p for p in local.replace(".", "-").replace("_", "-").split("-") if p}
+    return bool(parts & _ROLE_LOCALS) and len(parts) <= 3
+
+
+def downgrade_role_inbox(cache: dict) -> dict:
+    """A role inbox paired with a named person cannot be that person's verified
+    address. Downgrade rather than delete: writing to the company inbox is still
+    a legitimate action, it just is not what it was labelled.
+    """
+    contact = (cache or {}).get("contact") or {}
+    email = contact.get("email") or ""
+    name = (contact.get("name") or "").strip()
+    if not email or not name or not is_role_inbox(email):
+        return cache
+    contact["email_confidence"] = "low"
+    contact["contact_verified"] = False
+    contact["email_note"] = (f"{email} is a shared inbox, not {name}'s address. "
+                             f"Send here only if you accept it may not reach them.")
+    cache["contact"] = contact
+    return cache
+
+
 def _post_process(cache: dict, name: str, website: str | None, source_urls: list[str],
                   resolved_domain: str = "", provider: Provider | None = None,
                   voice: Any = None) -> dict:
@@ -722,15 +762,15 @@ def _post_process(cache: dict, name: str, website: str | None, source_urls: list
         clean_dom = dom or f"{name.lower().replace(' ', '')}.com"
         parts = [p.lower() for p in re.findall(r"[a-z0-9]+", c_name, re.I)]
         if not parts:
-            return f"contact@{clean_dom}", f"hello@{clean_dom}"
+            return "", ""
         first = parts[0]
         if len(parts) >= 2:
             last = parts[-1]
             cands = email_candidates(c_name, clean_dom)
             if cands:
-                return cands[0], (cands[1] if len(cands) > 1 else f"contact@{clean_dom}")
+                return cands[0], (cands[1] if len(cands) > 1 else "")
             return f"{first}@{clean_dom}", f"{first}.{last}@{clean_dom}"
-        return f"{first}@{clean_dom}", f"contact@{clean_dom}"
+        return f"{first}@{clean_dom}", ""
 
     # Hard stop domain drift check for primary contact & fallback generation
     contact = cache.get("contact") or {}
@@ -874,6 +914,7 @@ def _post_process(cache: dict, name: str, website: str | None, source_urls: list
     except Exception:
         pass
 
+    cache = downgrade_role_inbox(cache)
     return _prune_nulls(cache)
 
 

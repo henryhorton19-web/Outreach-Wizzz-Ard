@@ -856,7 +856,9 @@ function buildDrawer(cs) {
   const domSource = cs.domain_source || (cs.cache || {}).company?.domain_source || (resolvedDom ? "given" : "unresolved");
 
   let badgeHtml = "";
-  if (emailMethod === "found_on_page") {
+  if (contact.email_note) {
+    badgeHtml = `<span class="tag badge-warn" title="${esc(contact.email_note)}">Shared Inbox</span>`;
+  } else if (emailMethod === "found_on_page") {
     badgeHtml = `<a class="tag pill-ok" href="${esc(sourceUrl || "#")}" target="_blank" rel="noopener" title="Source: ${esc(sourceUrl || "Confirmed on page")}">Verified</a>`;
   } else if (emailMethod === "pattern_guess") {
     badgeHtml = `<span class="tag badge-warn" title="Pattern guess at ${esc(resolvedDom || "domain")} — not confirmed on a page">Guessed</span>`;
