@@ -62,9 +62,30 @@ def followup_floor_preamble() -> str:
     )
 
 
-# ---------------------------------------------------------------------------
-# Tokens (the vocabulary): research + profile + per-experience anchors + variables
-# ---------------------------------------------------------------------------
+TOKEN_HELP = {
+    "observation": "the one thing true of this company and no other",
+    "link_strength": "strong, weak or none: whether a real background overlap was found",
+    "shared_subject": "the subject you and they both worked on, when one exists",
+    "why": "one sentence explaining the link, in the matcher's words",
+    "recent_kind": "raise, funding, launch, hire, expansion or other",
+    "profile_first": "your first name",
+    "candidate_first": "your first name (legacy alias)",
+    "candidate_name": "your full name",
+    "contact_first": "recipient's first name",
+    "contact_full": "recipient's full name",
+    "name": "recipient's first name (legacy alias)",
+    "company": "target company name",
+    "role": "target open role title",
+    "role_or_company": "target role title or company name fallback",
+    "what_they_do": "one line description of target company",
+    "situation_read": "research read of target situation",
+    "recent": "detail of recent company event",
+    "recent_short": "short summary of recent company event",
+    "proof_1": "first sourced proof point",
+    "proof_2": "second sourced proof point",
+    "city": "target city location",
+}
+
 
 def derive_tokens(spec: dict, variables: dict | None = None) -> dict:
     company = spec.get("company", "")

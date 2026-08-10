@@ -508,13 +508,22 @@ def get_meta():
     exps = EC.CANDIDATE_PROFILE.get("experiences", {})
     experiences = [{"key": k, "anchor": e.get("anchor", ""), "optional": bool(e.get("optional"))}
                    for k, e in exps.items()]
-    research_tokens = ["contact_first", "contact_full", "company", "role", "role_or_company",
-                       "what_they_do", "situation_read", "recent", "recent_short", "proof_1",
-                       "proof_2", "city", "candidate_name", "candidate_first"]
-    tokens = ([{"token": t, "kind": "research"} for t in research_tokens]
-              + [{"token": e["key"], "kind": "experience", "anchor": e["anchor"]} for e in experiences]
+    # Derived from the engine rather than hardcoded. This list previously held
+    # fourteen entries while derive_tokens emitted twenty-five, so eleven real
+    # tokens (observation, link_strength, shared_subject, why, recent_kind and
+    # others) worked if typed by hand but were never offered in the editor.
+    from .compose import derive_tokens, TOKEN_HELP
+    try:
+        research_tokens = sorted(derive_tokens({"company": "", "contact_first": ""}).keys())
+    except Exception:
+        research_tokens = ["contact_first", "contact_full", "company", "role", "role_or_company",
+                           "what_they_do", "situation_read", "recent", "recent_short", "proof_1",
+                           "proof_2", "city", "candidate_name", "candidate_first"]
+    tokens = ([{"token": t, "kind": "research", "help": TOKEN_HELP.get(t, "")} for t in research_tokens]
+              + [{"token": e["key"], "kind": "experience", "anchor": e["anchor"], "help": f"your experience anchor for {e['key']}"} for e in experiences]
               + [{"token": "relevant", "kind": "relevant",
-                  "anchor": "the model picks the best-fitting experience for the point"}])
+                  "anchor": "the model picks the best-fitting experience for the point",
+                  "help": "dynamically selected experience anchor"}])
     return {
         "experiences": experiences,
         "tokens": tokens,

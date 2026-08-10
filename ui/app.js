@@ -1850,7 +1850,11 @@ function focusedTriageId() {
 
 
 /* ================= VOICES (block-schema editor) ================= */
-let META = { experiences: [], tokens: [], fact_scopes: ["recent","target_proofs","situation_read","candidate_evidence","candidate_spine","custom_facts"],
+// fact_scopes here is only a fallback for a failed /api/meta call; the live list
+// comes from FACT_SCOPES on the server. It previously still named
+// candidate_evidence and candidate_spine, renamed to profile_evidence and
+// profile_spine, so a failed meta fetch offered two scopes that no longer exist.
+let META = { experiences: [], tokens: [], fact_scopes: ["recent","target_proofs","situation_read","profile_evidence","profile_spine","custom_facts"],
              block_lengths: ["one_line","short","medium","body"], block_modes: ["fixed","ai"],
              situations: ["no_role_small","role_small","role_large"], candidate_first: "" };
 let VE = { blocks: [] };        // working copy of the blocks being edited
@@ -1962,13 +1966,13 @@ async function deleteVoice(id, name) {
 const DEFAULT_STYLE = { formality:2, warmth:2, directness:3, sentence_length:"flowing",
   hedging:"neutral", humor:"none", person_focus:"recipient_first", proof_density:"single", notes:"", examples:[] };
 const SCOPE_LABEL = { recent:"recent event", target_proofs:"their proof points", situation_read:"situation read",
-  candidate_evidence:"my selected evidence", candidate_spine:"my spine", custom_facts:"custom facts" };
+  profile_evidence:"my selected evidence", profile_spine:"my spine", custom_facts:"custom facts" };
 const LEN_LABEL = { one_line:"one line", short:"short", medium:"medium", body:"body (full length)" };
 
 function starterBlocks() {
   return [
     { id:"greeting", label:"Greeting", mode:"fixed", text:"Hi {contact_first},", guidance:"", fact_scope:[], length:"short", optional:false },
-    { id:"body", label:"Body", mode:"ai", text:"", guidance:"Tie one piece of my evidence to what they need. Lead with wanting to build inside a company rather than evaluate it from outside.", fact_scope:["target_proofs","candidate_evidence","candidate_spine","situation_read"], length:"body", optional:false },
+    { id:"body", label:"Body", mode:"ai", text:"", guidance:"Tie one piece of my evidence to what they need. Lead with wanting to build inside a company rather than evaluate it from outside.", fact_scope:["target_proofs","profile_evidence","profile_spine","situation_read"], length:"body", optional:false },
     { id:"positioning", label:"Positioning", mode:"fixed", text:"I am seeking a part-time role alongside my studies.", guidance:"", fact_scope:[], length:"short", optional:false },
     { id:"close", label:"Close", mode:"fixed", text:"Open to a short call?", guidance:"", fact_scope:[], length:"one_line", optional:false },
   ];
@@ -2128,8 +2132,8 @@ function collectVars() {
 function renderTokenPalette() {
   const pal = $("#veTokenPalette");
   const chip = (t, kind, title) => `<button class="token-chip ${kind}" data-tok="${esc(t)}" title="${esc(title||"")}">{${esc(t)}}</button>`;
-  const research = (META.tokens||[]).filter(t=>t.kind==="research").map(t=>chip(t.token,"research")).join("");
-  const exps = (META.tokens||[]).filter(t=>t.kind==="experience").map(t=>chip(t.token,"experience",t.anchor)).join("");
+  const research = (META.tokens||[]).filter(t=>t.kind==="research").map(t=>chip(t.token,"research",t.help||"")).join("");
+  const exps = (META.tokens||[]).filter(t=>t.kind==="experience").map(t=>chip(t.token,"experience",t.anchor||t.help||"")).join("");
   const rel = chip("relevant","relevant","the model picks the best-fitting experience for the point");
   pal.innerHTML = `<div class="token-group"><span class="token-lab">research</span>${research}</div>
                    <div class="token-group"><span class="token-lab">experiences</span>${exps} ${rel}</div>`;
