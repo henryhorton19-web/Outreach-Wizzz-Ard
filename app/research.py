@@ -659,6 +659,7 @@ def salvage_partial_cache(name, website, source_urls, raw_text, reason) -> dict:
         if isinstance(v, dict) and v.get("present") and v.get("read") and v.get("basis"):
             cache[k] = v
             
+    cache["overall_confidence"] = compute_confidence(cache)
     cache = _prune_nulls(cache)
     try:
         _validate(cache)
@@ -699,6 +700,7 @@ def salvage_partial_cache(name, website, source_urls, raw_text, reason) -> dict:
             v = partial.get(k)
             if isinstance(v, dict) and v.get("present") and v.get("read"):
                 minimal[k] = v
+        minimal["overall_confidence"] = compute_confidence(minimal)
         return _prune_nulls(minimal)
 
 
@@ -722,6 +724,46 @@ def is_role_inbox(email: str) -> bool:
     # hyphenated compounds such as nous-contacter, get-in-touch
     parts = {p for p in local.replace(".", "-").replace("_", "-").split("-") if p}
     return bool(parts & _ROLE_LOCALS) and len(parts) <= 3
+
+
+def compute_confidence(cache: dict) -> str:
+    """Derive overall_confidence from what the cache actually contains.
+
+    Both salvage paths previously hardcoded "medium", so the value reported
+    nothing except that salvage had run. Two real runs came back medium for
+    entirely different reasons, and a third with genuinely better data reported
+    high only because it took a different code path.
+    """
+    company = (cache or {}).get("company") or {}
+    contact = (cache or {}).get("contact") or {}
+    obs = (cache or {}).get("earned_observation") or {}
+    proofs = [p for p in (cache.get("proof_points") or [])
+              if isinstance(p, dict) and p.get("fact") and p.get("source")]
+
+    score = 0
+    if (company.get("what_they_do") or "").strip():
+        score += 1
+    if len(proofs) >= 2:
+        score += 1
+    if (cache.get("situation_read") or "").strip():
+        score += 1
+    if obs.get("present") and (obs.get("read") or "").strip():
+        score += 1
+    if (contact.get("email") or "").strip() and contact.get("contact_verified"):
+        score += 1
+
+    # A hard failure caps the result; a salvage note alone does not, because a
+    # salvaged cache can still carry perfectly good facts.
+    failures = [f for f in (cache.get("research_failures") or []) if str(f).strip()]
+    hard_failure = any("minimal cache" in str(f).lower() for f in failures)
+
+    if hard_failure:
+        return "low" if score <= 2 else "medium"
+    if score >= 4:
+        return "high"
+    if score >= 2:
+        return "medium"
+    return "low"
 
 
 def downgrade_role_inbox(cache: dict) -> dict:
@@ -915,6 +957,7 @@ def _post_process(cache: dict, name: str, website: str | None, source_urls: list
         pass
 
     cache = downgrade_role_inbox(cache)
+    cache["overall_confidence"] = compute_confidence(cache)
     return _prune_nulls(cache)
 
 
