@@ -1,47 +1,97 @@
 # Outreach Wizz-ard
 
-A desktop application that researches a company, drafts a personalised outreach email grounded in sourced facts, and refuses to send anything it cannot evidence.
+[![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Tests](https://img.shields.io/badge/tests-338%20passing-brightgreen.svg)](tests/)
 
-![Outreach Wizz-ard Workspace](docs/media/screenshot-workspace.png)
+A fact-grounded desktop email drafting application built to research targets, resolve contacts, and compose personalized candidate outreach for operating seats during the Sciences Po Paris exchange year.
 
-## What it does
+---
 
-* **Web-Grounded Research Pipeline:** Ingests company targets, verifies leadership contacts against company domains, and extracts structured milestone facts into a validated JSON schema cache.
-* **Fact-Grounded Email Composition:** Generates tailored outreach drafts using customizable voice recipes, block-level guidance, and candidate-experience bridges.
-* **Enforced Honesty Floor:** Static analysis rejects any draft containing unsourced numeric claims, fabricated customer names, or domain mismatches before reaching the user review queue.
-* **Local-First Privacy Architecture:** Keeps sensitive client data, outbox queues, and private voice presets isolated in user data directories (`%APPDATA%\OutreachWizzard` or `~/.outreach_wizzard`).
-* **Custom Quality Gates:** Enforces codebase integrity via 6 custom static analysis tools checking HTML markup, selector binding, CSS contrast, style encapsulation, domain vocabulary, and JS syntax.
+## Why This Exists
 
-## Architecture
+Outreach Wizz-ard originated as a domain re-aim of an Example Capital deal-sourcing outreach engine, repointed at a personal candidate job search problem. Rather than using unconstrained LLM text generation, the application enforces a strict separation between web fact-gathering and email composition. Every statement, metric, and company fact in a generated draft is traceable back to audited research JSON caches or a verified candidate profile.
+
+> **Provenance is the product.** The engine enforces a strict honesty floor: no invented numbers, no unsourced claims, and no hallucinated background links.
+
+---
+
+## How It Works
+
+The system operates as a deterministic, two-stage pipeline:
 
 ```mermaid
 flowchart TD
-    A[Company Ingest] --> B[Web-Grounded Research Engine]
-    B -->|JSON Schema Contract| C[Fact-Grounded Composition Engine]
-    C --> D[Honesty Floor Gate]
-    D -->|Pass| E[Review & Outbox Queue]
-    D -->|Fail| F[Draft Rejection / Redraft]
-    E --> G[Local Sync & User Storage]
+    Target[Target Company Name / URL] --> Research[Stage 1: Web Research Engine]
+    Research -->|Web Search & Contact Discovery| Cache[(Audit Cache JSON)]
+    Cache --> LinkMatcher[Two-Stage Link Matcher]
+    LinkMatcher -->|Domain Recall + Precision Reranker| Spec[Spec Assembly]
+    Spec --> Compose[Stage 2: Fact-Grounded Compose]
+    Compose -->|No External Web Tools| Draft[Machine Draft]
+    Draft --> Critique[Honesty Floor Critique]
+    Critique --> ReviewQueue[Desktop Review Queue]
+    ReviewQueue -->|Manual Approval| Outbox[Approved .eml / EMLX]
+    Outbox --> Triage[Triage & Outcomes Engine]
 ```
 
-## Key Technical Highlights
+1. **Stage 1 — Web Research (`app/research.py`):** Fetches target company information, resolves official domain names, extracts stated plans and proof points, and identifies contact details via verified pattern lookup. Stores output as a schema-validated audit cache (`cache_<slug>.json`).
+2. **Two-Stage Link Matcher (`app/link_matcher.py`):** Combines a free domain recall matcher (`engine.draft_engine.target_domains`) with a single LLM precision reranker to evaluate whether a genuine connection exists between the candidate's background and the target company.
+3. **Stage 2 — Fact-Grounded Composition (`app/compose.py`):** Generates draft emails using only the extracted JSON cache and the user's candidate profile. Web tools are disabled during composition to prevent hallucination.
+4. **Honesty Floor Critique (`engine/draft_engine.py`):** Audits completed drafts against numeric accuracy, em-dashes, forbidden hype phrases, and presumptuous openers. Critiques are advisory: no draft is silently discarded, keeping final editorial control with the human operator.
+5. **Review Queue & Triage (`ui/`, `app/outcomes.py`):** Presents drafts in a desktop interface for human review, manual edits, approval, and lifecycle outcome tracking (sent, replied, bounced, no-response).
 
-* **Two-Stage Schema Contract:** Web-grounded research produces a strict JSON contract (`engine/schema.json`), allowing instant, zero-cost email redrafts without repeating web searches.
-* **Domain-Pinned Contact Discovery:** Eliminates contact hallucination by validating contact email addresses strictly against target corporate domains.
-* **Hard Verification Floor:** Enforces strict provenance gates over model outputs, guaranteeing every statistic and claim traces back to verified source facts.
-* **Thread Pool Async Offloading:** Prevents FastAPI event loop blocking by offloading synchronous workload handlers to worker thread pools.
-* **Custom Quality Gates & 337 Passing Tests:** Maintains 6 custom static analysis gates in `tools/` and a comprehensive pytest test suite.
+<!-- TODO(Henry): add 3 real screenshots — review queue, voice editor, Triage view -->
 
-## Quickstart
+---
 
+## Quick Start
+
+### Running the Desktop App
+
+Outreach Wizz-ard includes OS-agnostic launcher scripts that automatically handle environment activation and launch the desktop GUI:
+
+**Windows (PowerShell):**
 ```powershell
-git clone https://github.com/henryhorton19-web/paris-outreach.git
-cd paris-outreach
+cd "C:\Users\HenryHorton\OneDrive\Documents\Internship\09 Personal Projects\paris-outreach"
 .\run-wizzard.ps1
 ```
 
-*(For developer guidelines, see [`AGENTS.md`](file:///C:/Users/HenryHorton/OneDrive%20-%20HPE%20Growth%20Capital/Documents/HPE%20Growth%20Internship/09%20Personal%20Projects/paris-outreach/AGENTS.md). Detailed engineering post-mortems and decisions are documented in [`docs/ENGINEERING.md`](file:///C:/Users/HenryHorton/OneDrive%20-%20HPE%20Growth%20Capital/Documents/HPE%20Growth%20Internship/09%20Personal%20Projects/paris-outreach/docs/ENGINEERING.md).)*
+**macOS / Linux (Bash):**
+```bash
+cd "/path/to/paris-outreach"
+./run-wizzard.sh
+```
 
-## Tech Stack
+### Local Development & Testing
 
-Python 3.12 · FastAPI · pywebview · Vanilla JS · Gemini & Anthropic Providers
+1. **Install Dependencies:**
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # On Windows: .\venv\Scripts\Activate.ps1
+   pip install -r requirements.txt
+   ```
+
+2. **Run Test Suite & Quality Gates:**
+   ```bash
+   python -m pytest -q
+   python tools/check_style_purity.py
+   ```
+
+---
+
+## Security & Reliability Model
+
+- **Host Allowlist Security:** Embedded server rejects non-loopback HTTP host headers to protect local sessions.
+- **Keyring Key Storage:** LLM API keys are stored securely using native OS keyring services rather than plaintext configuration files.
+- **Safe Outbox Exports:** Approved drafts export as clean `.eml` files stripped of executable scripts or remote tracking pixels.
+- **Job Persistence & Checkpointing:** Long-running batch draft operations feature per-company checkpointing and 3-attempt exponential backoff retry logic.
+
+---
+
+## Further Reading
+
+- [ARCHITECTURE.md](ARCHITECTURE.md) — Comprehensive technical system design, pipeline mechanics, state machines, and security architecture.
+- [docs/design/FIRST_TIME_SETUP.md](docs/design/FIRST_TIME_SETUP.md) — Initial environment configuration and provider API key setup.
+- [docs/design/SCHEMA.md](docs/design/SCHEMA.md) — Reference schemas for research caches, custom voices, and candidate profiles.
+- [docs/design/SYNC_SETUP.md](docs/design/SYNC_SETUP.md) — Two-repo synchronization architecture (public code vs. private data repository).
+- [docs/README.md](docs/README.md) — Directory index for design documentation and historical build logs.
