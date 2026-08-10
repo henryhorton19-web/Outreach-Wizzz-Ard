@@ -34,3 +34,7 @@ Thumbs.db
 
 # --- Stage E: permanent exclusion list (15,592 company names — never commit) ---
 excluded.json
+
+# --- Zip archives ---
+*.zip
+
