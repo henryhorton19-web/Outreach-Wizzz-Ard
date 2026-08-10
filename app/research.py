@@ -843,6 +843,32 @@ def _post_process(cache: dict, name: str, website: str | None, source_urls: list
         cache["proof_points"] = sorted(pts, key=_rank)
 
     try:
+        from .observation_sampler import sample_observations, select_observation
+        company = cache.get("company") or {}
+        proofs = [p.get("fact", "") if isinstance(p, dict) else str(p)
+                  for p in (cache.get("proof_points") or [])]
+        user_prompt = "\n".join([
+            f"COMPANY: {company.get('name', '')}",
+            f"WHAT THEY DO: {company.get('what_they_do', '')}",
+            f"SITUATION: {cache.get('situation_read', '')}",
+            "PROOF POINTS:",
+            *[f"  - {p}" for p in proofs if p],
+        ])
+        system_prompt = "You are an expert startup researcher."
+        samples = sample_observations(system_prompt, user_prompt, provider=provider, k=3)
+        if samples:
+            chosen = select_observation(samples)
+            if chosen.get("read"):
+                cache["earned_observation"] = {
+                    "present": True,
+                    "read": chosen["read"],
+                    "mood": chosen.get("mood", "hypothesis"),
+                    "basis": "verbalized sampling",
+                }
+    except Exception:
+        pass
+
+    try:
         from .observation import resolve_observation
         cache["observation"] = resolve_observation(cache, provider=provider, voice=voice)
     except Exception:
