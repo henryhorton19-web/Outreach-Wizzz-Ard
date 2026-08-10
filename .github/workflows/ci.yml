@@ -9,6 +9,7 @@ jobs:
       WIZZARD_PROVIDER: stub
       PARIS_NO_KEYRING: "1"
       WIZZARD_NO_KEYRING: "1"
+      PYTHONPATH: "."
 
     steps:
       - uses: actions/checkout@v4
@@ -22,7 +23,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt pytest httpx
+          pip install --prefer-binary -r requirements.txt pytest httpx
       - name: tests
         run: python -m pytest tests/ -q
       - name: markup gate
