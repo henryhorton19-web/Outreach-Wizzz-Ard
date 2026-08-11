@@ -1352,8 +1352,16 @@ async function refreshCost() {
     const meter = $("#costMeter");
     if (!meter) return;
     const drafts = c.drafts || 0;
-    meter.textContent = `${fmtCost(c.cost)} · ${drafts} draft${drafts === 1 ? "" : "s"}`;
-    meter.title = `in ${c.in || 0} · out ${c.out || 0} · cached ${c.cached || 0} tokens`;
+    // Unit economics rather than a running total. A total falls when you simply
+    // draft less, which looks like an improvement and is not one; cost per draft
+    // only falls when a draft genuinely gets cheaper. The absolute figures are one
+    // tap away in the popover.
+    meter.textContent = drafts
+      ? `${fmtCost(c.per_draft)}/draft · ${drafts}`
+      : (c.has_unattributed_spend ? `${fmtCost(c.cost)} · 0 drafts` : "~$0.00 · 0 drafts");
+    meter.title = `${fmtCost(c.cost)} total across ${drafts} draft${drafts === 1 ? "" : "s"}`
+                + ` · in ${c.in || 0} · out ${c.out || 0} · cached ${c.cached || 0} tokens`
+                + ` · click for a breakdown`;
     meter.classList.toggle("hidden", !(c.cost || drafts));
     state._cost = c;
   } catch (e) { /* cost is optional; never block */ }
@@ -1364,9 +1372,22 @@ async function openCostPopover() {
   const byModel = c.by_model || {};
   const lines = Object.keys(byModel).map(m =>
     `${m}: ${fmtCost(byModel[m].cost)} (${byModel[m].in}/${byModel[m].out} tok)`).join("\n") || "No usage yet.";
+
+  // The absolutes the headline no longer carries, plus cost per APPROVED draft.
+  // That divides by outcomes rather than attempts, so it counts the money spent on
+  // drafts that were never good enough to send. It lags the headline, because a
+  // draft can sit unapproved for days, which is why it lives here and not up top.
+  const unit = [
+    `Per draft:     ${fmtCost(c.per_draft || 0)}   (${c.drafts || 0} drafts)`,
+    (c.approved ? `Per approved:  ${fmtCost(c.per_approved || 0)}   (${c.approved} approved)`
+                : `Per approved:  not yet, nothing approved`),
+    `Total:         ${fmtCost(c.cost || 0)}`,
+    `Tokens:        in ${c.in || 0} · out ${c.out || 0} · cached ${c.cached || 0}`,
+  ].join("\n");
+
   const ok = await dialog({
-    title: "Session cost",
-    message: `${fmtCost(c.cost)} across ${c.drafts || 0} drafts.\n\n${lines}`,
+    title: "Cost per draft",
+    message: `${unit}\n\nBy model:\n${lines}`,
     options: [{ label: "Reset session", value: "reset", danger: true }, { label: "Close", value: false, primary: true }],
   });
   if (ok === "reset") { await api("/api/cost/reset", { method: "POST" }); await refreshCost(); toast("Session cost reset"); }
