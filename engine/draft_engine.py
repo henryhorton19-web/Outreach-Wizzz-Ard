@@ -202,7 +202,7 @@ def rank_evidence(cache: dict, prefer=(), pin=(), exclude=(), weights=None) -> l
         score = len(tags & bridges)
         standing = C.CANDIDATE_PROFILE.get("standing_key", "anchor_co")
         if key == standing:
-            score += 1
+            score += 0.25
         if key in prefer:
             score += 2
         score += sum(int(weights.get(b, 0)) for b in bridges)
@@ -287,6 +287,7 @@ def prepare(cache: dict, voice_name: str = None) -> dict:
             "{role_or_company}", role_or_company),
         "subject": v["subject"].replace("{company}", name).replace("{role_or_company}", role_or_company),
         "ask": v["ask"],
+        "signature": v.get("signature", ""),
         "lead": v["lead"],
         "send_to": (cache.get("contact") or {}).get("email", ""),
         "contact_name": contact.get("name", ""),
@@ -374,7 +375,8 @@ def finalize(spec: dict, parts: dict) -> dict:
     opening = normalize(_opening_line(spec), keep_dashes=keep_dashes)
     ask_block = normalize(spec["ask"], keep_dashes=keep_dashes)
 
-    blocks = [greeting, opening, body, ask_block]
+    signature = (spec.get("signature") or "").strip()
+    blocks = [greeting, opening, body, ask_block, signature]
     email = "\n\n".join(b for b in blocks if b.strip())
 
     rep = critique(body, ask_block, spec)

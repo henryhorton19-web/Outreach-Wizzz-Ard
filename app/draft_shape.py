@@ -33,4 +33,6 @@ def shape_notes(body: str, ctx: dict) -> list[str]:
             "their", "this", "that", "with", "from", "they", "company", "platform", "business", "growth", "scale"}
         if not useful.intersection(re.findall(r"[a-z0-9]{4,}", low)):
             notes.append(f"Prove you looked by using this researched specific: {specifics[0]!r}.")
-    return notes[:MAX_NOTES]
+    from .opener_check import opener_notes
+    from .proposal_check import proposal_notes
+    return (opener_notes(body, ctx) + notes + proposal_notes(body, ctx))[:MAX_NOTES]

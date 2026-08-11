@@ -8,14 +8,15 @@
   "length_min": 55,
   "length_max": 85,
   "allow_dashes": false,
+  "signature": "Henry Horton\nLSE Politics and Economics, on exchange at Sciences Po Paris\nlinkedin.com/in/henry-horton",
   "situations": [],
   "variables": {"use_shape_guidance": "true"},
   "style": {"formality": 2, "warmth": 2, "directness": 4, "sentence_length": "flowing", "hedging": "none", "humor": "none", "person_focus": "recipient_first", "proof_density": "single", "notes": "Plain and specific. No hedging, flattery, or unverifiable adjectives. Write like someone who has looked at the company and has one thing to say.", "examples": []},
-  "evidence": {"count": 1, "prefer": [], "pin": [], "exclude": [], "category_weights": {}, "custom_facts": [], "identity_note": ""},
+  "evidence": {"count": 2, "prefer": [], "pin": [], "exclude": [], "category_weights": {}, "custom_facts": [], "identity_note": ""},
   "blocks": [
     {"id": "greeting", "mode": "fixed", "text": "Hi {contact_first},"},
     {"id": "noticing", "mode": "ai", "length": "short", "fact_scope": ["target_proofs", "situation_read", "earned_observation"], "guidance": "Open with what you noticed. Build on {observation} and include one verbatim researched specific, such as a number, named feature, or public commitment. Do not tell them their news, guess at problems, hedge, or open with Given. One or two sentences."},
-    {"id": "proposal", "mode": "ai", "length": "short", "fact_scope": ["profile_evidence", "profile_spine", "earned_observation"], "guidance": "Name the ONE thing you would do first if you were working there, connected to what you noticed. Ground it in work you have actually done, but lead with the action, not the credential. Never assess your background as useful, list options, or say you are curious to learn. One or two sentences."},
+    {"id": "proposal", "mode": "ai", "length": "short", "fact_scope": ["profile_evidence", "profile_spine", "earned_observation"], "guidance": "Name the ONE thing you would do about THEIR business in your first week. It must follow from what you noticed, not from your last project. Lead with the action, not an employer credential. Never propose rebuilding your own project unless their business genuinely has the same shape. One or two sentences."},
     {"id": "close", "mode": "fixed", "text": "Happy to do a short piece of it first so you can see the work rather than take my word for it. Open to a quick chat?"}
   ]
 }
