@@ -4,7 +4,7 @@ from __future__ import annotations
 _BUILD = ("built", "shipped", "wrote", "automated", "engineered", "coded", "designed")
 _ANALYSIS = ("diligenced", "analysed", "analyzed", "modelled", "modeled", "valued", "researched", "evaluated", "screened")
 _CRAFT = ("lines of code", "loc", "tests", "test suite", "static gate", "static analysis", "ci pipeline", "coverage", "linter", "type hints", "refactor")
-_SELF_HARM = ("bug", "broken", "500", "crash", "failure", "regression", "was returning")
+_SELF_HARM = ("bug", "broken", "500", "crash", "failure", "was returning")
 
 
 def split_suggestions(experiences: dict) -> list[str]:
