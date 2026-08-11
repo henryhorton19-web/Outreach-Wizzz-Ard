@@ -1292,7 +1292,13 @@ def export_count(scope: str = "drafts"):
 
 @app.get("/api/cost")
 def get_cost():
-    return store.load_session_stats()
+    from .cost_metrics import compute_metrics
+    stats = store.load_session_stats()
+    try:
+        approved = sum(1 for s in store.load_sent_items() if getattr(s, "approved_at", None))
+    except Exception:
+        approved = 0
+    return compute_metrics(stats, approved=approved)
 
 
 @app.post("/api/cost/reset")
