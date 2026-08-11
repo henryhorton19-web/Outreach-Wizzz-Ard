@@ -151,6 +151,7 @@ class CustomVoice(BaseModel):
     length_max: int = 120
     variables: dict[str, str] = Field(default_factory=dict)   # voice-defined custom tokens
     allow_dashes: bool = False                            # floor knob (default keeps the no-dash rule)
+    lead_mode: Literal["news", "noticing"] = "news"
     audience: Literal["self", "organisation"] = "self"   # who this voice speaks FOR
     default_profile_id: str = ""                         # optional profile override; "" = active profile
     recent_point_templates: dict[str, str] = Field(default_factory=dict)  # category -> opener template

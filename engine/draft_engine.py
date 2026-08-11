@@ -309,6 +309,7 @@ def prepare(cache: dict, voice_name: str = None) -> dict:
                         if (cache.get("earned_observation") or {}).get("present") else ""),
         "observation_mood": ((cache.get("earned_observation") or {}).get("mood", "hypothesis")
                              if (cache.get("earned_observation") or {}).get("present") else ""),
+        "lead_mode": v.get("lead_mode", "news"),
     }
     return spec
 
@@ -347,7 +348,13 @@ def writer_brief(spec: dict) -> dict:
 # ---------------------------------------------------------------------------
 
 def _opening_line(spec: dict) -> str:
-    """The opener: from the recent point when present, else the voice fallback."""
+    """The opener line, for voices that want one.
+
+    ``news`` is the historic default. ``noticing`` keeps the recent point as
+    research input but leaves the first printed sentence to the voice's body.
+    """
+    if spec.get("lead_mode", "news") == "noticing":
+        return ""
     if spec["recent"]["present"]:
         det = spec["recent"]["detail"].strip().rstrip(".")
         kind = spec["recent"].get("kind")
