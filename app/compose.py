@@ -473,6 +473,7 @@ def produce_email(provider: Provider, voice, spec: dict, tokens: dict, shortlist
             "observation": spec.get("observation", "") or "",
             "proof_points": spec.get("proof_points", []) or [],
             "situation_read": spec.get("situation_read", "") or "",
+            "what_they_do": spec.get("what_they_do", "") or "",
             "feedback_checks": (getattr(voice, "variables", {}) or {}).get("feedback_checks", ""),
         }
         if (getattr(voice, "variables", {}) or {}).get("use_verbalized_sampling") == "true":
