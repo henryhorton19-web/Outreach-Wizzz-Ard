@@ -491,5 +491,13 @@ def produce_email(provider: Provider, voice, spec: dict, tokens: dict, shortlist
             parts[body_block.id] = body_text
             email = "\n\n".join(parts[b.id].strip() for b in voice.blocks
                                 if parts.get(b.id, "").strip())
+        if (getattr(voice, "variables", {}) or {}).get("use_shape_guidance") == "true":
+            from . import draft_shape
+            notes = draft_shape.shape_notes(body_text, ctx)
+            shaped = revise.revise_with_notes(body_text, notes, provider=provider)
+            if len(draft_shape.shape_notes(shaped, ctx)) < len(notes):
+                body_text = shaped
+                parts[body_block.id] = body_text
+                email = "\n\n".join(parts[b.id].strip() for b in voice.blocks
+                                    if parts.get(b.id, "").strip())
     return email, parts, body_text
-

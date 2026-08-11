@@ -47,3 +47,17 @@ def revise_if_needed(body: str, ctx: dict, provider: Any = None) -> str:
     if draft_feedback.score(revised, ctx) >= draft_feedback.score(body, ctx):
         return revised
     return body
+
+
+def revise_with_notes(body: str, notes: list[str], provider: Any = None) -> str:
+    """Run one supplied revision pass, retaining the version with fewer notes."""
+    if not notes or provider is None or getattr(provider, "is_stub", False):
+        return body
+    user = f"CURRENT DRAFT:\n{body}\n\nINSTRUCTIONS:\n" + "\n".join(
+        f"{i}. {note}" for i, note in enumerate(notes, 1))
+    try:
+        revised = (provider.generate(system=REVISE_SYSTEM, user=user, use_web=False,
+                                     temperature=0.4, timeout_s=40).text or "").strip()
+    except Exception:
+        return body
+    return revised or body
