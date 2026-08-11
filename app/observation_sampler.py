@@ -35,8 +35,10 @@ in the facts.
 Do not begin with "Given", and do not write "a key operational challenge will be". Those are the shapes \
 this system produces when it is not really looking.
 
-mood is "question" or "hypothesis". Prefer "question": you are a stranger, and a question is honest \
-where a diagnosis of their problems is presumptuous.
+mood is "tension", "question" or "hypothesis". Prefer a tension between two public commitments; it
+states no private problem. If no honest tension exists, prefer a question over a hypothesis.
+
+Never hedge with "must be", "will likely", "probably", "may be" or "might be".
 
 Keep each under {max_words} words.
 
@@ -67,7 +69,7 @@ def sample_observations(system: str, user: str, provider: Any = None,
         except (TypeError, ValueError):
             p = 0.0
         mood = str(c.get("mood") or "hypothesis").strip().lower()
-        out.append({"read": read, "mood": mood if mood in ("question", "hypothesis") else "hypothesis",
+        out.append({"read": read, "mood": mood if mood in ("tension", "question", "hypothesis") else "hypothesis",
                     "p": p})
     return out
 
@@ -84,6 +86,12 @@ def _quality(c: dict) -> float:
 
     if c.get("mood") == "question":
         score += 0.5                                  # deferential by construction
+    elif c.get("mood") == "tension":
+        score += 1.0                                  # public commitments, not a diagnosis
+
+    hedges = ("must be", "will likely", "likely be", "is likely", "probably",
+              "may be", "might be", "could be", "presumably", "i imagine", "i suspect")
+    score -= 0.6 * sum(1 for hedge in hedges if hedge in low)
 
     words = len(re.findall(r"\S+", read))
     if words > MAX_WORDS:

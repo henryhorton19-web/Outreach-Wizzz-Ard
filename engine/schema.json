@@ -86,7 +86,7 @@
       "properties": {
         "present": {"type": "boolean"},
         "read": {"type": "string", "minLength": 1},
-        "mood": {"enum": ["hypothesis", "question"]},
+        "mood": {"enum": ["tension", "question", "hypothesis"]},
         "basis": {"type": "string"}
       }
     },
