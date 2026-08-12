@@ -2938,6 +2938,14 @@ function renderSourcingReport(job) {
     notes.push(`${counts.queued || 0} queued, ${unresWeb} with no confirmed website yet`);
   }
 
+  // A run with no live provider returns offline samples. Say so plainly, or a missing
+  // API key is indistinguishable from an exhausted market.
+  if (counts.no_provider) {
+    notes.unshift("No live provider configured. These are offline sample companies, not real results. Set a provider and API key in Settings.");
+  } else if ((counts.ungrounded || 0) > 0) {
+    notes.unshift(`${counts.ungrounded} companies were produced without a web search and are not verified findings.`);
+  }
+
   let html = `
     <div style="background: #ffffff; padding: 12px; border-radius: 6px; border: 1px solid #e2e8f0; font-size: 13px;">
       <div class="sr-preset" style="font-weight:600; font-size:12px; color:var(--ink-soft); margin-bottom:6px;">Preset: ${esc(presetName)}</div>

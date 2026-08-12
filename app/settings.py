@@ -103,10 +103,86 @@ def get_outbox_helper_dir() -> Path:
     return d
 
 
+# Bumped when shipped seed data changes in a way that should replace stale files in an
+# existing data directory. Never-overwrite seeding is right for a user's own edits and
+# wrong for a file inherited from an earlier build, and patching one file at a time did
+# not scale: the profile was fixed and the sourcing presets were not.
+BUILD_VERSION = "2026-08-1"
+
+
+def _build_marker_path():
+    return DATA_DIR / "build_version.json"
+
+
+def _last_seeded_build() -> str:
+    import json as _json
+    try:
+        return str(_json.loads(_build_marker_path().read_text(encoding="utf-8")).get("build") or "")
+    except Exception:
+        return ""
+
+
+def _write_build_marker() -> None:
+    import json as _json
+    try:
+        DATA_DIR.mkdir(parents=True, exist_ok=True)
+        _build_marker_path().write_text(
+            _json.dumps({"build": BUILD_VERSION}, indent=2), encoding="utf-8")
+    except Exception:
+        pass
+
+
+# Historical migration aid, not a general rule. These phrases identify sourcing presets
+# written for an earlier single-operator job-search use of this tool, which are wrong for
+# any current mandate. Deliberately narrow: a false positive moves a user's own work
+# aside. Do NOT extend this list to catch more files; report a miss instead.
+_STALE_MARKERS = (
+    "sciences po", "remote-english", "remote english", "part time", "part-time",
+    "in paris or", "hours a week", "on exchange", "looking for a role",
+)
+
+
+def _looks_stale(text: str) -> bool:
+    low = (text or "").lower()
+    return any(m in low for m in _STALE_MARKERS)
+
+
+def _migrate_stale_sourcing_prompts() -> None:
+    """Move superseded presets aside once, so shipped presets can seed.
+
+    Backed up rather than deleted, and only on a marker match, so a preset the user
+    wrote themselves is never touched.
+    """
+    import json as _json
+    try:
+        if not SOURCING_PROMPTS_DIR.exists():
+            return
+        for f in list(SOURCING_PROMPTS_DIR.glob("*.json")):
+            try:
+                d = _json.loads(f.read_text(encoding="utf-8"))
+            except Exception:
+                continue
+            blob = " ".join(str(d.get(k) or "") for k in
+                            ("criteria_text", "exclude_notes", "display_name"))
+            if not _looks_stale(blob):
+                continue
+            backup = f.with_suffix(".json.stale.bak")
+            if not backup.exists():
+                backup.write_text(f.read_text(encoding="utf-8"), encoding="utf-8")
+            f.unlink()
+    except Exception:
+        pass
+
+
 def ensure_seeded() -> None:
     """Bootstrap-once PER KIND: if the store has ZERO items of a given kind, insert that kind's
     shipped starter items.
     """
+    # Runs once per build, before any seeding, so migrated-away files are replaced by
+    # the shipped versions in the same pass.
+    _stale_check_needed = _last_seeded_build() != BUILD_VERSION
+    _migrate_stale_sourcing_prompts()
+
     import json as _json
     import shutil
     pkg = Path(__file__).resolve().parent
@@ -157,6 +233,9 @@ def ensure_seeded() -> None:
                     shutil.copyfile(src, SOURCING_PROMPTS_DIR / src.name)
                 except Exception:
                     pass
+
+    if _stale_check_needed:
+        _write_build_marker()
 
 
 ensure_seeded()

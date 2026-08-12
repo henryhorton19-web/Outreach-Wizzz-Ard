@@ -39,7 +39,8 @@ def start_sourcing_job(settings: Any,
                        recency_days: int = 120,
                        sources: list[str] | None = None,
                        sourcing_prompt_id: str | None = None,
-                       fixture_harvest: list[dict] | None = None) -> dict:
+                       fixture_harvest: list[dict] | None = None,
+                       provider: Any = None) -> dict:
     """Start a new sourcing job in background or synchronous mode."""
     job_id = str(uuid.uuid4())
     started_at = datetime.now(timezone.utc).isoformat()
@@ -69,6 +70,7 @@ def start_sourcing_job(settings: Any,
             # three offline samples" look identical in the run report, which is why a
             # permanently broken feature went unnoticed.
             "harvest_attempts": 0,
+            "no_provider": 0,
             "ungrounded": 0,
             "harvested": 0,
             "checked": 0,
@@ -88,7 +90,8 @@ def start_sourcing_job(settings: Any,
     _ACTIVE_JOBS[job_id] = job
 
     # Run execution synchronous for clean predictability
-    _execute_job(job, settings, recency_days, max_candidates, custom_prompt, fixture_harvest, target_n=target_n)
+    _execute_job(job, settings, recency_days, max_candidates, custom_prompt, fixture_harvest,
+                 target_n=target_n, provider=provider)
     return job
 
 
@@ -111,10 +114,20 @@ def _accepts_novelty(adapter) -> bool:
 
 def _execute_job(job: dict, settings: Any, recency_days: int, max_candidates: int,
                   custom_prompt: Any | None, fixture_harvest: list[dict] | None = None,
-                  target_n: int = 0) -> None:
+                  target_n: int = 0,
+                  provider: Any = None) -> None:
     global _LAST_RUN
     sources = job["sources"]
     harvested_raw: list[dict] = []
+
+    # A run without a real provider cannot search the web, so every row will be an
+    # offline sample. That previously reported as a normal empty run, which is how a
+    # missing API key looked identical to an exhausted market.
+    if provider is None or getattr(provider, "is_stub", False):
+        job["errors"].append(
+            "No live provider: sourcing returned offline sample data only. "
+            "Set a provider and API key in Settings, then run again.")
+        job["counts"]["no_provider"] = 1
 
     # 1. HARVEST
     if fixture_harvest:

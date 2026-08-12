@@ -3,7 +3,7 @@
   "display_name": "Hot Startups & Fresh Funding",
   "seeded_from": "default_hot_startups.json",
   "criteria_text": "Hottest new startups or growth companies with fresh seed/Series A/B funding, active product/GTM/ops expansion, or strong momentum.",
-  "sources": ["techeu_funding_feed", "grounded_search"],
+  "sources": ["grounded_search"],
   "recency_days": 120,
   "exclude_notes": "Skip mature legacy enterprises, non-tech agencies, or local non-growth businesses."
 }
