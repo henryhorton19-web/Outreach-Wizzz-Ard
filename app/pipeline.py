@@ -130,6 +130,14 @@ def draft_one(provider: Provider, cs: CompanyState, voice_override: str | None =
             cache = store.load_cache(cs.slug)
             if cache is not None:
                 cache = research_mod._sanitize_cache(cache)
+                # A cache whose facts are salvage placeholders cannot produce an
+                # email, and reusing it on a retry reproduces the same empty draft.
+                # Discard it here so the branch below re-researches instead.
+                from .cache_health import is_degraded
+                if is_degraded(cache):
+                    cache = None
+                    cs.notes = ((cs.notes + "\n") if cs.notes else "") + \
+                        "Previous research was incomplete, so it was run again."
         if cache is None:
             given_site = cs.recipient_domain or cs.website
             cache = research_mod.research_company(provider, cs.name, given_site, None)
