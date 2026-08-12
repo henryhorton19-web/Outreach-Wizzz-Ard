@@ -829,7 +829,7 @@ def _ingest_to_queue(rows: list[dict], list_id: str = "default") -> dict:
     existing = store.queue_slugs(list_id=list_id) | {cs.slug for cs in store.load_drafts()}
     contacted_domains = suppression_mod.already_contacted_domains()
     already, added, over_cap = [], [], []
-    suppressed, contacted = [], []          # error-prevention surfacing (Phase 4a)
+    suppressed, contacted, excluded_blocked = [], [], []   # error-prevention surfacing
     current = store.queue_count(list_id=list_id)
     for r in rows:
         slug = r["slug"]
@@ -838,7 +838,7 @@ def _ingest_to_queue(rows: list[dict], list_id: str = "default") -> dict:
             continue
         # permanent exclusion check (Stage E): already-approved entities are permanently blocked
         if _exclusion_blocked(slug):
-            contacted.append(r["name"])
+            excluded_blocked.append(r["name"])
             continue
         # suppression / do-not-contact check (by any email/domain the ingest row carries)
         ref_email = (r.get("email") or "").strip()
@@ -862,7 +862,8 @@ def _ingest_to_queue(rows: list[dict], list_id: str = "default") -> dict:
         added.append(r["name"])
     return {"queue": store.load_queue(list_id=list_id), "added": len(added),
             "skipped_duplicates": already, "over_cap": over_cap,
-            "suppressed": suppressed, "already_contacted": contacted}
+            "suppressed": suppressed, "already_contacted": contacted,
+            "excluded_blocked": excluded_blocked}
 
 
 @app.post("/api/ingest")

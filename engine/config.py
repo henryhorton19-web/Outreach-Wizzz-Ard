@@ -181,6 +181,10 @@ class ProfileStore:
                 import json
                 data = json.loads(p.read_text(encoding="utf-8"))
                 data.setdefault("id", p.stem)
+                import sys
+                for mod_name in ("config", "engine.config"):
+                    if mod_name in sys.modules:
+                        setattr(sys.modules[mod_name], "CANDIDATE_PROFILE", data)
                 return data
             except Exception:
                 pass

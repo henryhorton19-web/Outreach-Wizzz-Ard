@@ -243,6 +243,10 @@ def _execute_job(job: dict, settings: Any, recency_days: int, max_candidates: in
         res = _ingest_to_queue(ingest_rows, list_id=list_id)
         added_count = res.get("added") or 0
         job["counts"]["queued"] = added_count
+        ex_blocked = len(res.get("excluded_blocked") or [])
+        job["counts"]["excluded"] = ex_blocked
+        if ex_blocked > 0:
+            job["notes"].append(f"{ex_blocked} target(s) blocked by permanent exclusion set (excluded.json).")
         job["added_slugs"] = [r["slug"] for r in ingest_rows]
         # Undo must reverse the list the rows actually went into, not whichever
         # list happens to be active when the user clicks undo.
