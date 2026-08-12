@@ -764,7 +764,8 @@ function renderDrafts() {
       }
     } else if (cs.state === "error") {
       const retry = document.createElement("button");
-      retry.className = "btn ghost small"; retry.textContent = "Retry";
+      retry.className = "btn ghost small"; retry.textContent = "Retry with fresh research";
+      retry.title = "Previous research will be discarded and run again";
       retry.onclick = (e) => { e.stopPropagation(); runDraft(cs.slug); };
       act.appendChild(retry);
     }
@@ -793,7 +794,7 @@ function buildDrawer(cs) {
   wrap.className = "drawer-inner";
   if (cs.state === "error") {
     wrap.innerHTML = `<div class="research"><div class="research-fail">${esc(cs.error || "Draft failed.")}</div>
-      <button class="btn ghost small" id="retryBtn">Retry this target</button></div>`;
+      <button class="btn ghost small" id="retryBtn" title="Previous research will be discarded and run again">Retry with fresh research</button></div>`;
     wrap.querySelector("#retryBtn").onclick = () => runDraft(cs.slug);
     return wrap;
   }

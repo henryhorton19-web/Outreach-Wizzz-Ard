@@ -1687,7 +1687,11 @@ def draft_one_row(slug: str, payload: dict = Body(default={})):
     if not batch or slug not in batch.companies:
         raise HTTPException(status_code=404, detail="unknown target")
     provider = _provider()
-    reuse = bool(payload.get("reuse_cache", True))
+    # A retry after a failure defaults to fresh research. Reusing the cache is right
+    # for an ordinary redraft, where the research is fine and only the wording is
+    # being changed, but it makes a retry identical to the attempt that just failed.
+    was_error = getattr(batch.companies[slug], "state", None) == State.error
+    reuse = bool(payload.get("reuse_cache", not was_error))
     cs = pipeline.draft_one(provider, batch.companies[slug],
                             voice_override=_STATE.get("voice"), reuse_cache=reuse)
     batch.companies[slug] = cs
