@@ -2941,6 +2941,9 @@ function renderSourcingReport(job) {
   let html = `
     <div style="background: #ffffff; padding: 12px; border-radius: 6px; border: 1px solid #e2e8f0; font-size: 13px;">
       <div class="sr-preset" style="font-weight:600; font-size:12px; color:var(--ink-soft); margin-bottom:6px;">Preset: ${esc(presetName)}</div>
+      <div style="font-size: 12px; color: var(--ink-soft); margin-bottom: 6px;">
+        harvested ${counts.harvested || 0}, already seen ${counts.already_seen || 0}, new ${counts.new || 0}, ungrounded ${counts.ungrounded || 0}, attempts ${counts.harvest_attempts || 0}
+      </div>
       <div style="display: flex; gap: 16px; font-weight: 500; color: #1e293b; margin-bottom: 8px;">
         <span>Checked: ${counts.checked || 0}</span>
         <span style="color: #16a34a;">Queued: ${counts.queued || 0}</span>

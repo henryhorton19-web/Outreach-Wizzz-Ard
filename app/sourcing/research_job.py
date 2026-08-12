@@ -65,6 +65,11 @@ def start_sourcing_job(settings: Any,
         "max_candidates": max_candidates,
         "sourcing_prompt_id": sourcing_prompt_id,
         "counts": {
+            # Without these, "the market has nothing new" and "the harvester returned
+            # three offline samples" look identical in the run report, which is why a
+            # permanently broken feature went unnoticed.
+            "harvest_attempts": 0,
+            "ungrounded": 0,
             "harvested": 0,
             "checked": 0,
             "already_seen": 0,
@@ -87,6 +92,23 @@ def start_sourcing_job(settings: Any,
     return job
 
 
+_MAX_HARVEST_ATTEMPTS = 4
+
+
+def _accepts_novelty(adapter) -> bool:
+    """Does this harvester support the exclude_names/run_index arguments?
+
+    Checked rather than assumed, so a source that has not been upgraded keeps
+    working on its old signature instead of raising TypeError.
+    """
+    import inspect
+    try:
+        params = inspect.signature(adapter.harvest).parameters
+        return "exclude_names" in params and "run_index" in params
+    except (TypeError, ValueError):
+        return False
+
+
 def _execute_job(job: dict, settings: Any, recency_days: int, max_candidates: int,
                   custom_prompt: Any | None, fixture_harvest: list[dict] | None = None,
                   target_n: int = 0) -> None:
@@ -104,8 +126,37 @@ def _execute_job(job: dict, settings: Any, recency_days: int, max_candidates: in
                 continue
             try:
                 provider = getattr(settings, "provider_instance", None)
-                raw_items = adapter.harvest(recency_days=recency_days, max_items=max_candidates, custom_prompt=custom_prompt, provider=provider)
-                harvested_raw.extend(raw_items)
+                # Harvest until there are enough NEW candidates, not until there are
+                # max_candidates RAW ones. The old call asked once for a fixed budget,
+                # then discarded everything already in the seen ledger and never asked
+                # again, so run one found targets and every later run found none.
+                from app.sourcing.seen import load_seen
+                seen_names = [(r.get("name") or s) for s, r in (load_seen() or {}).items()]
+                want = target_n if target_n and target_n > 0 else max_candidates
+                collected: dict[str, dict] = {}
+                for attempt in range(_MAX_HARVEST_ATTEMPTS):
+                    if _accepts_novelty(adapter):
+                        batch = adapter.harvest(
+                            recency_days=recency_days, max_items=max_candidates,
+                            custom_prompt=custom_prompt, provider=provider,
+                            exclude_names=seen_names, run_index=attempt)
+                    else:
+                        batch = adapter.harvest(
+                            recency_days=recency_days, max_items=max_candidates,
+                            custom_prompt=custom_prompt, provider=provider)
+                    fresh = 0
+                    for row in batch:
+                        slug = row.get("slug")
+                        if slug and slug not in collected:
+                            collected[slug] = row
+                            fresh += 1
+                    job["counts"]["harvest_attempts"] = attempt + 1
+                    # Stop when satisfied, or when a batch returns nothing new, which
+                    # means the source is exhausted and further attempts only cost money.
+                    if len(collected) >= want or fresh == 0:
+                        break
+                    seen_names = seen_names + [str(r.get("name") or "") for r in batch]
+                harvested_raw.extend(collected.values())
             except Exception as e:
                 job["errors"].append(f"Source {s_id} error: {e}")
 
@@ -121,6 +172,8 @@ def _execute_job(job: dict, settings: Any, recency_days: int, max_candidates: in
     for raw in harvested_raw:
         slug = raw["slug"]
         job["counts"]["checked"] += 1
+        if not (raw.get("meta") or {}).get("grounded", True):
+            job["counts"]["ungrounded"] += 1
 
         if is_seen(slug, expiry_days=reject_expiry):
             job["counts"]["already_seen"] += 1
