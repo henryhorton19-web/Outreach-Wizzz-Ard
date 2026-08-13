@@ -100,6 +100,9 @@ def derive_tokens(spec: dict, variables: dict | None = None) -> dict:
         "contact_full": spec.get("contact_name", ""),
         "role": role,
         "role_or_company": role or company,
+        # Plan 28: lower-cased company for voices whose house style never capitalises it (subject
+        # lines and fixed blocks). Additive: {company} is unchanged, so no existing voice moves.
+        "company_lower": (company or "").lower(),
         "what_they_do": spec.get("what_they_do", "") or "",
         "situation_read": spec.get("situation_read", "") or "",
         "observation": spec.get("observation", "") or "",
@@ -461,6 +464,34 @@ def _skip(block, spec: dict) -> bool:
     return False
 
 
+def _lowercase_company(parts, spec) -> dict:
+    """Lower-case every occurrence of the target's name in the composed blocks (Plan 28).
+
+    Guidance alone cannot hold this: a model asked to write a proper noun in lower case will comply
+    most of the time and capitalise it the rest, and this voice has no `length: "body"` block, so
+    none of the revise/shape passes run to catch the miss. A deterministic replace turns a house
+    rule the model usually follows into one it cannot break.
+
+    Only the company name is touched. Other proper nouns, the recipient's name, the sender's name
+    and the signature are left exactly as written. Lookarounds rather than \\b so a name ending in
+    punctuation still matches and a longer word merely CONTAINING the name does not.
+    Never raises; returns the input unchanged on anything unexpected.
+    """
+    try:
+        name = str((spec or {}).get("company") or "").strip()
+        if not name or not isinstance(parts, dict):
+            return parts if isinstance(parts, dict) else {}
+        pat = re.compile(r"(?<![A-Za-z0-9])" + re.escape(name) + r"(?![A-Za-z0-9])",
+                         re.IGNORECASE)
+        low = name.lower()
+        out = {}
+        for k, v in parts.items():
+            out[k] = pat.sub(low, v) if isinstance(v, str) else v
+        return out
+    except Exception:
+        return parts if isinstance(parts, dict) else {}
+
+
 def produce_email(provider: Provider, voice, spec: dict, tokens: dict, shortlist: list,
                   followup: dict | None = None):
     """Return (email, parts_by_block_id, body_text). Fixed blocks are substituted; AI blocks come
@@ -513,4 +544,10 @@ def produce_email(provider: Provider, voice, spec: dict, tokens: dict, shortlist
                 parts[body_block.id] = body_text
                 email = "\n\n".join(parts[b.id].strip() for b in voice.blocks
                                     if parts.get(b.id, "").strip())
+    if (getattr(voice, "variables", {}) or {}).get("lowercase_company") == "true":
+        parts = _lowercase_company(parts, spec)
+        email = "\n\n".join(parts[b.id].strip() for b in voice.blocks
+                            if parts.get(b.id, "").strip())
+        if body_block:
+            body_text = parts.get(body_block.id, body_text)
     return email, parts, body_text
