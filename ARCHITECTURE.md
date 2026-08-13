@@ -107,3 +107,19 @@ The self-learning voice framework implements a 4-layer preference learning archi
 ## 9. Cost Accounting (`app/cost.py`)
 
 - **Real-Time Cost Meter (`app/cost.py`):** Accumulates session-level and per-draft token usage and dollar costs against a per-model price table in settings. Updates the in-app header cost meter in real time.
+
+---
+
+## 10. Self-Learning Voice — Edit-Grounded Template Induction (`app/exemplars.py`, `app/edit_align.py`, `app/template_induct.py`, `app/exemplar_voice.py`, `app/exemplar_guards.py`, `app/exemplar_replay.py`)
+
+- **Authored vs. Tolerated Exemplar Corpus (`app/exemplars.py`):** Stores every approved email under `learning="exemplar"` voices in JSONL format, keeping company retrieval features and block maps. Authored emails (written from scratch in Turn 0) carry a permanent weight of 3.0, while tolerated machine drafts carry a weight of 1.0. Eviction is performed by value score rather than age. Deliberately outcome-free (no reply/bounce signal).
+- **Blank-Box Authoring (`app/pipeline.py:author_blank`):** Turn 0 presents an empty draft (`machine_email = ""`) allowing the user to author the email from scratch without model involvement.
+- **Edit Alignment & Classification (`app/edit_align.py`):** Uses `SequenceMatcher` to decompose diffs into `slot`, `structural`, or `register` edits and align text spans within block boundaries.
+- **Template Induction Engine (`app/template_induct.py`):** Performs weighted progressive multi-sequence alignment over stored exemplars to induce `fixed` skeleton blocks and `ai` holes with inferred `fact_scope`.
+- **Exemplar Prompt Injection (`app/compose.py`):** Dynamically retrieves `k` nearest exemplars by feature similarity and injects them into the system prompt as Few-Shot examples during generation.
+- **Safety Guardrails (`app/exemplar_guards.py`):**
+  - **Leak Guard:** Detects foreign company proper nouns in generated text.
+  - **Novelty Guard:** Enforces n-gram overlap cap (default `0.72`) against recent sent emails.
+  - **Effort Freeze Detector:** Triggers `frozen = True` if user edit effort rises continuously over 4 consecutive turns.
+- **Replay Evaluation Harness (`app/exemplar_replay.py`):** Evaluates template-assisted effort reduction over baseline. Exposed via `GET /api/voices/{voice_id}/exemplar/replay`.
+

@@ -30,7 +30,9 @@ hiddenimports = (
     + collect_submodules("uvicorn")
     + ["google.genai", "anthropic", "openpyxl", "jsonschema", "multipart",
        "app.server", "app.providers.gemini", "app.providers.anthropic_provider",
-       "app.providers.stub"]
+       "app.providers.stub",
+       "app.exemplars", "app.edit_align", "app.template_induct",
+       "app.exemplar_voice", "app.exemplar_guards", "app.exemplar_replay"]
 )
 try:
     datas += collect_data_files("certifi")
