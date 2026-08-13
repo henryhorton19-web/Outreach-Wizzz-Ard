@@ -42,6 +42,7 @@ from . import voice_stats as voice_stats_mod
 from . import voice_learning
 from . import exemplars
 from . import exemplar_voice
+from . import exemplar_replay
 from . import voice_optimize
 from . import pipeline_view
 from . import outcomes as outcomes_mod
@@ -623,6 +624,15 @@ def unfreeze_exemplar_voice(voice_id: str):
     res = exemplar_voice.unfreeze(voice_id)
     if not res.get("ok"):
         raise HTTPException(status_code=400, detail=res.get("error", "unfreeze failed"))
+    return res
+
+
+@app.get("/api/voices/{voice_id}/exemplar/replay")
+def replay_exemplar_voice(voice_id: str):
+    """Run an offline replay over stored exemplars to measure effort reduction."""
+    res = exemplar_replay.run_replay(voice_id)
+    if not res.get("ok"):
+        raise HTTPException(status_code=400, detail=res.get("error", "replay failed"))
     return res
 
 
