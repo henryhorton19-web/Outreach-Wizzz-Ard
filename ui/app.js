@@ -486,6 +486,10 @@ function renderQueue() {
 
     const chipHtml = chips.map(c => `<span class="tag neutral">${esc(c)}</span>`).join("");
 
+    const activeVoiceId = state.sessionVoice || state.defaultVoice || (allVoices[0] ? allVoices[0].id : "");
+    const activeVoice = voiceById(activeVoiceId);
+    const isExemplar = activeVoice && activeVoice.learning === "exemplar";
+
     el.innerHTML = `
       <div class="qrow-info">
         <div class="qrow-name">
@@ -496,12 +500,31 @@ function renderQueue() {
       </div>
       <div class="qrow-act" style="display:flex; align-items:center; gap:8px;">
         <button class="btn ghost small" data-act="draft">Draft &rarr;</button>
+        ${isExemplar ? `<button class="btn ghost small" data-act="blank">Write it myself</button>` : ""}
         <button class="qrow-remove-btn" data-act="remove" aria-label="Remove target from queue" title="Remove">&times;</button>
       </div>`;
     el.querySelector('[data-act="draft"]').onclick = () => draftFromQueue(rec.slug);
+    if (isExemplar) {
+      el.querySelector('[data-act="blank"]').onclick = () => authorBlankFromQueue(rec.slug);
+    }
     el.querySelector('[data-act="remove"]').onclick = () => removeFromQueue(rec.slug);
     list.appendChild(el);
   });
+}
+
+async function authorBlankFromQueue(slug) {
+  if (state.status && needsKey(state.status)) { openStartup(); return; }
+  const list_id = state.activeListId || "default";
+  try {
+    const r = await api(`/api/queue/${slug}/draft?list_id=${encodeURIComponent(list_id)}`, { method: "POST" });
+    state.queue = r.queue; renderQueue(); fetchLists();
+    ingestCompany(r.company);
+    const activeVoiceId = state.sessionVoice || state.defaultVoice || (allVoices[0] ? allVoices[0].id : "");
+    const updated = await api(`/api/companies/${slug}/blank`, { method: "POST", body: { voice: activeVoiceId } });
+    companies.set(slug, updated);
+    renderDrafts();
+    refreshCost();
+  } catch (e) { toast(e.message, true); }
 }
 async function draftFromQueue(slug) {
   if (state.status && needsKey(state.status)) { openStartup(); return; }

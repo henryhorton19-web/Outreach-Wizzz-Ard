@@ -237,6 +237,48 @@ def draft_one(provider: Provider, cs: CompanyState, voice_override: str | None =
     return cs
 
 
+def author_blank(cs: CompanyState, *, voice_id: str) -> CompanyState:
+    """Turn 0 of a self-learning voice: hand the user an EMPTY draft to write themselves.
+
+    No research is required and no compose call is made, so this is the one path in the app that
+    produces a draft with no model involvement at all. `machine_email` is set to "" rather than left
+    None on purpose: None means "not drafted yet" and the edit endpoint rejects it, while "" means
+    "drafted, and the machine contributed nothing", which is exactly the authored case. Downstream,
+    an empty machine_email is what marks the resulting exemplar as `authored`.
+    """
+    try:
+        vdef = store.get_custom_voice(voice_id)
+        if vdef is None:
+            cs.state = State.error
+            cs.error = f"unknown voice: {voice_id}"
+            store.upsert_draft(cs)
+            return cs
+        if getattr(vdef, "learning", "patch") != "exemplar":
+            cs.state = State.error
+            cs.error = ("blank authoring is only available on a self-learning (exemplar) voice; "
+                        f"{voice_id} is a patch voice")
+            store.upsert_draft(cs)
+            return cs
+        cs.voice = voice_id
+        cs.subject = ""
+        cs.machine_subject = ""
+        cs.machine_body = ""
+        cs.machine_email = ""
+        cs.machine_blocks = {}
+        cs.final_email = ""
+        cs.edited_email = None
+        cs.edited_body = None
+        cs.notes = []
+        cs.status_pill = "write it yourself"
+        cs.state = State.in_review
+        cs.error = None
+    except Exception as e:
+        cs.state = State.error
+        cs.error = f"{type(e).__name__}: {e}"
+    store.upsert_draft(cs)
+    return cs
+
+
 def apply_edit(cs: CompanyState, *, subject: str | None, email: str) -> CompanyState:
     if subject is not None:
         cs.subject = subject

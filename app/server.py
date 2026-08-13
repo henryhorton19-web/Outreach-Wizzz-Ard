@@ -1895,6 +1895,9 @@ def edit_email(slug: str, payload: dict = Body(...)):
     cs = store.get_draft(slug) or (_batch().companies.get(slug) if _batch() else None)
     if not cs:
         raise HTTPException(status_code=404, detail="unknown target")
+    # Plan 26: `None` means never drafted; `""` means the blank-box authored path, where the machine
+    # deliberately contributed nothing and the user is about to type the whole email. Only None is a
+    # 400 -- rejecting "" would make turn 0 of a self-learning voice unwritable.
     if cs.machine_email is None:
         raise HTTPException(status_code=400, detail="draft this target first")
 
@@ -1922,6 +1925,21 @@ def edit_email(slug: str, payload: dict = Body(...)):
         cs.recipient_domain = new_to.rsplit("@", 1)[1].lower()
 
     pipeline.apply_edit(cs, subject=payload.get("subject"), email=payload.get("email", ""))
+    _persist()
+    return _cs_public(cs)
+
+
+@app.post("/api/companies/{slug}/blank")
+def blank_one_row(slug: str, payload: dict = Body(default={})):
+    """Open an empty draft for the user to author (Plan 26, turn 0). Makes no model call."""
+    batch = _batch()
+    cs = store.get_draft(slug) or (batch.companies.get(slug) if batch else None)
+    if not cs:
+        raise HTTPException(status_code=404, detail="unknown target")
+    vid = str(payload.get("voice") or _STATE.get("voice") or "")
+    cs = pipeline.author_blank(cs, voice_id=vid)
+    if batch and slug in batch.companies:
+        batch.companies[slug] = cs
     _persist()
     return _cs_public(cs)
 

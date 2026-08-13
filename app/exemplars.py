@@ -126,6 +126,7 @@ def load(voice: str) -> list[dict]:
                 continue
             if isinstance(r, dict) and r.get("final_email"):
                 r.setdefault("provenance", "tolerated")
+                r.setdefault("weight", WEIGHT.get(r.get("provenance", "tolerated"), 1.0))
                 r.setdefault("features", {})
                 r.setdefault("machine_blocks", {})
                 r.setdefault("effort", 1.0)

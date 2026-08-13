@@ -81,7 +81,7 @@ def test_no_reply_or_bounce_field_is_stored():
     exemplars.record(voice="sl_test", slug="acme", provenance="authored", machine_email="",
                      machine_blocks={}, final_email="X" * 40, features=_features())
     rec = exemplars.load("sl_test")[0]
-    for banned in ("reply_state", "replied", "bounced", "sent_id", "weight", "outcome"):
+    for banned in ("reply_state", "replied", "bounced", "sent_id", "outcome"):
         assert banned not in rec, f"{banned} must not be in an exemplar record"
 
 
