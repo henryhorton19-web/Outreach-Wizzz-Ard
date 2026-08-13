@@ -617,6 +617,15 @@ def apply_exemplar_template(voice_id: str):
     return res
 
 
+@app.post("/api/voices/{voice_id}/exemplar/unfreeze")
+def unfreeze_exemplar_voice(voice_id: str):
+    """Unfreeze an exemplar voice so template induction can run again."""
+    res = exemplar_voice.unfreeze(voice_id)
+    if not res.get("ok"):
+        raise HTTPException(status_code=400, detail=res.get("error", "unfreeze failed"))
+    return res
+
+
 @app.post("/api/voices/{voice_id}/learn")
 def learn_voice_now(voice_id: str):
     """Manually run a learning cycle now and return a proposal (does NOT apply it). Works offline
@@ -2086,6 +2095,7 @@ def _approve_rows(rows: list[CompanyState], batch: BatchState | None) -> dict:
                     machine_blocks=dict(getattr(cs, "machine_blocks", {}) or {}),
                     final_email=cs.final_email or "",
                     features=exemplars.features_from_spec(cs.spec, cs.cache))
+                exemplar_voice.maybe_freeze(v)
         except Exception:
             pass
 

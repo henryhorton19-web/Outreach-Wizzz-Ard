@@ -16,6 +16,8 @@ from __future__ import annotations
 
 import re
 
+from .exemplar_guards import merge_extra
+
 MAX_NOTES = 3
 _SCAFFOLD_N = 7
 _SELF = (" i ", " my ", " me ", " myself ", "i've", "i have", "i am", "i'd")
@@ -102,7 +104,9 @@ def feedback_for(body: str, ctx: dict) -> list[str]:
                 f"This draft is mostly about you ({me} references to yourself, {you} to them). "
                 f"Cut your background to one clause and give the space to what they are dealing with.")
 
-    return notes[:MAX_NOTES]
+    ctx_copy = dict(ctx or {})
+    ctx_copy["body"] = body
+    return merge_extra(notes, ctx_copy)
 
 
 def score(body: str, ctx: dict) -> int:

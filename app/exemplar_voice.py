@@ -83,3 +83,50 @@ def apply_template(voice_id: str) -> dict:
         return {"ok": True, "voice": v.model_dump(), "n_blocks": len(blocks)}
     except Exception as e:
         return {"ok": False, "error": str(e)}
+
+
+def maybe_freeze(voice_id: str) -> bool:
+    """Check if the voice's effort series indicates rising effort and freeze if needed. Never raises."""
+    try:
+        v = store.get_custom_voice(voice_id)
+        if v is None or getattr(v, "learning", "patch") != "exemplar":
+            return False
+
+        meta = v.template_meta or {}
+        if meta.get("frozen"):
+            return True
+
+        series = exemplars.effort_series(voice_id)
+        st = S.load_settings()
+        win = int(getattr(st, "exemplar_freeze_window", 4) or 4)
+
+        from . import exemplar_guards
+        frozen, reason = exemplar_guards.should_freeze(series, window=win)
+        if frozen:
+            meta["frozen"] = True
+            meta["freeze_reason"] = reason
+            meta["frozen_at"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
+            v.template_meta = meta
+            store.save_custom_voice(v)
+            return True
+        return False
+    except Exception:
+        return False
+
+
+def unfreeze(voice_id: str) -> dict:
+    """Unfreeze an exemplar voice so induction can run again. Never raises."""
+    try:
+        v = store.get_custom_voice(voice_id)
+        if v is None:
+            return {"ok": False, "error": f"unknown voice: {voice_id}"}
+
+        meta = v.template_meta or {}
+        meta["frozen"] = False
+        meta["freeze_reason"] = ""
+        v.template_meta = meta
+
+        store.save_custom_voice(v)
+        return {"ok": True, "voice": v.model_dump()}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
