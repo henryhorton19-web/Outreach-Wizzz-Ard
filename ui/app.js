@@ -2204,6 +2204,7 @@ function fillFromVoice(v) {
   veSet("veSit_no_role_small", sit.includes("no_role_small"));
   veSet("veSit_role_small", sit.includes("role_small"));
   veSet("veSit_role_large", sit.includes("role_large"));
+  veSet("veLearning", v.learning || "patch");
   veSet("veLenMin", v.length_min || 70);
   veSet("veLenMax", v.length_max || 120);
   veSet("veAllowDashes", !!v.allow_dashes);
@@ -2339,6 +2340,7 @@ function collectVoice() {
     id, display_name: (veGet("veName") || "").trim(),
     kind: (state.editingVoiceId ? ((voiceById(id) || {}).kind || state.voiceKind || "outreach")
                                 : (state.voiceKind || "outreach")),
+    learning: veGet("veLearning") || "patch",
     seeded_from: editing ? ((voiceById(id) || {}).seeded_from || "blank") : "blank",
     situations, subject: veGet("veSubject"),
     blocks: readBlocksFromDOM(),

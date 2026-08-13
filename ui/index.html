@@ -807,6 +807,14 @@
             <label class="check"><input type="checkbox" id="veSit_role_small" /> A role · small company</label>
             <label class="check"><input type="checkbox" id="veSit_role_large" /> A role · large company</label>
           </div>
+          <div class="field" style="margin-top:12px;">
+            <label>Voice learning type</label>
+            <div class="desc">Patch = standard style sliders &amp; feedback notes. Exemplar = self-learning voice (template induced from your approved emails).</div>
+            <select id="veLearning">
+              <option value="patch">Patch (standard template)</option>
+              <option value="exemplar">Exemplar (self-learning induced from edits)</option>
+            </select>
+          </div>
           <div style="margin-top:12px; display:flex; gap:16px;">
             <div class="field" style="flex:1;"><label>Body words min</label><input type="number" id="veLenMin" min="10" max="400" /></div>
             <div class="field" style="flex:1;"><label>Body words max</label><input type="number" id="veLenMax" min="10" max="400" /></div>
