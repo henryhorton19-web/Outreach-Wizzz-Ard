@@ -41,6 +41,7 @@ from . import suppression as suppression_mod
 from . import voice_stats as voice_stats_mod
 from . import voice_learning
 from . import exemplars
+from . import exemplar_voice
 from . import voice_optimize
 from . import pipeline_view
 from . import outcomes as outcomes_mod
@@ -591,6 +592,29 @@ def get_voice_learning(voice_id: str):
     """Status for the Voices editor's Learning panel: mode, edits-since, pending proposal(s),
     version history, and any live A/B challenger with both reply rates."""
     return voice_learning.learning_status(voice_id)
+
+
+# ---- Plan 26: exemplar voice management endpoints -----------------------
+
+@app.get("/api/voices/{voice_id}/exemplar/status")
+def get_exemplar_status(voice_id: str):
+    """Status for an exemplar voice (exemplar count, induced blocks, freeze state, convergence)."""
+    return exemplar_voice.status(voice_id)
+
+
+@app.get("/api/voices/{voice_id}/exemplar/preview")
+def preview_exemplar_template(voice_id: str):
+    """Preview induced template blocks without mutating the voice."""
+    return exemplar_voice.preview(voice_id)
+
+
+@app.post("/api/voices/{voice_id}/exemplar/induct")
+def apply_exemplar_template(voice_id: str):
+    """Run template induction and apply the induced blocks to the voice definition (versioned)."""
+    res = exemplar_voice.apply_template(voice_id)
+    if not res.get("ok"):
+        raise HTTPException(status_code=400, detail=res.get("error", "induction failed"))
+    return res
 
 
 @app.post("/api/voices/{voice_id}/learn")
