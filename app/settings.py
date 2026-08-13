@@ -351,6 +351,17 @@ class Settings:
     #                                               arbitrated by the reply-rate bandit before it wins
     voice_learning_reflection_model: str = ""     # empty = use helper_model (cheap; reflection is small)
 
+    # ---- Plan 26: self-learning (exemplar) voices ----
+    # Everything here is edit-grounded. There is deliberately no reply-rate knob.
+    exemplar_enabled: bool = True             # master switch for learning="exemplar" voices
+    exemplar_corpus_cap: int = 200            # max stored exemplars per voice (evicted by value)
+    exemplar_min_for_induction: int = 2       # exemplars needed before a template is induced
+    exemplar_holes_k: int = 2                 # local exemplars injected per hole at compose time
+    exemplar_support_promote: int = 2         # exemplars a span must appear in to become skeleton
+    exemplar_freeze_window: int = 4           # turns of rising effort that freeze induction
+    exemplar_novelty_max: float = 0.72        # max n-gram overlap with a recent sent email
+    exemplar_recalibrate_every: int = 8       # suggest a blank-box turn every N approvals (0 = off)
+
     # ---- Sourcing fields ("Find new targets") ----
     sourcing_enabled: bool = True
     sourcing_target_n: int = 10
@@ -428,6 +439,21 @@ class Settings:
         except (TypeError, ValueError):
             d["voice_learning_cooldown_hours"] = 12
         d["voice_learning_promote"] = bool(d.get("voice_learning_promote", False))
+        d["exemplar_enabled"] = bool(d.get("exemplar_enabled", True))
+        for _k, _lo, _hi, _dflt in (("exemplar_corpus_cap", 10, 2000, 200),
+                                    ("exemplar_min_for_induction", 1, 50, 2),
+                                    ("exemplar_holes_k", 0, 6, 2),
+                                    ("exemplar_support_promote", 1, 20, 2),
+                                    ("exemplar_freeze_window", 2, 50, 4),
+                                    ("exemplar_recalibrate_every", 0, 100, 8)):
+            try:
+                d[_k] = max(_lo, min(_hi, int(d.get(_k, _dflt))))
+            except (TypeError, ValueError):
+                d[_k] = _dflt
+        try:
+            d["exemplar_novelty_max"] = max(0.30, min(0.99, float(d.get("exemplar_novelty_max", 0.72))))
+        except (TypeError, ValueError):
+            d["exemplar_novelty_max"] = 0.72
         d["voice_learning_reflection_model"] = str(d.get("voice_learning_reflection_model") or "").strip()
         cp = d.get("cost_prices")
         if not isinstance(cp, dict):

@@ -40,6 +40,7 @@ from .sourcing import research_job as sourcing_job_mod
 from . import suppression as suppression_mod
 from . import voice_stats as voice_stats_mod
 from . import voice_learning
+from . import exemplars
 from . import voice_optimize
 from . import pipeline_view
 from . import outcomes as outcomes_mod
@@ -387,7 +388,10 @@ def update_settings(payload: dict = Body(...)):
               "sourcing_max_web_per_candidate", "sourcing_budget_usd",
               "sourcing_recency_days", "sourcing_sources", "sourcing_reject_expiry_days",
               # Stage E & G settings
-              "exclusion_enabled", "allow_org_voice_learning"):
+              "exclusion_enabled", "allow_org_voice_learning",
+              "exemplar_enabled", "exemplar_corpus_cap", "exemplar_min_for_induction",
+              "exemplar_holes_k", "exemplar_support_promote", "exemplar_freeze_window",
+              "exemplar_novelty_max", "exemplar_recalibrate_every"):
         if k in payload and payload[k] is not None:
             setattr(st, k, payload[k])
     if st.provider not in S.VALID_PROVIDERS:
@@ -2026,6 +2030,22 @@ def _approve_rows(rows: list[CompanyState], batch: BatchState | None) -> dict:
                                    cs.final_email or "", sent_id=_sent_id):
             edited_voices.add(v)
             voice_learning.note_edit(v)
+
+        # Plan 26: the exemplar corpus records EVERY approval under a self-learning voice, including
+        # the ones edit_ledger.record_edit refuses (unedited approvals, frame edits, blank-box
+        # authored emails). Unconditional and error-swallowing by design; never gates an approve.
+        try:
+            _vd = store.get_custom_voice(v)
+            if _vd is not None and getattr(_vd, "learning", "patch") == "exemplar":
+                exemplars.record(
+                    voice=v, slug=cs.slug,
+                    provenance=("authored" if not (cs.machine_email or "").strip() else "tolerated"),
+                    machine_email=cs.machine_email or "",
+                    machine_blocks=dict(getattr(cs, "machine_blocks", {}) or {}),
+                    final_email=cs.final_email or "",
+                    features=exemplars.features_from_spec(cs.spec, cs.cache))
+        except Exception:
+            pass
 
         # --- Phase 0: record a SentItem (the join point for reply/bounce/pipeline/stats) ---
         mid = mid_by_name.get(cs.name, "")
