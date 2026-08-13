@@ -296,6 +296,18 @@ def build_voice_system(voice, has_profile_evidence: bool = False, ctx: dict | No
                     parts.append(f"Exemplar {i} ({r.get('provenance', 'exemplar')}):\n{r.get('final_email', '')}")
         except Exception:
             pass
+        # Plan 30: variation pressure from the corpus. Guidance cannot stop repetition because the
+        # model cannot see what it already sent; the history can.
+        if (getattr(voice, "variables", {}) or {}).get("variation_history") == "true":
+            try:
+                from . import intent_variation as _iv
+                from . import exemplars as _ex
+                _hist = [r.get("final_email", "") for r in _ex.load(voice.id)]
+                _d = _iv.variation_directive(_hist)
+                if _d:
+                    parts.append(_d)
+            except Exception:
+                pass
     return "\n".join(parts)
 
 
@@ -509,7 +521,9 @@ def produce_email(provider: Provider, voice, spec: dict, tokens: dict, shortlist
                         if parts.get(b.id, "").strip())
     body_block = next((b for b in voice.blocks if b.length == "body"), None)
     body_text = parts.get(body_block.id, "") if body_block else ""
-    if body_block and body_text and provider and not getattr(provider, "is_stub", False):
+    target_block = body_block or next((b for b in voice.blocks if b.id == "opening"), None)
+    target_text = parts.get(target_block.id, "") if target_block else ""
+    if target_block and target_text and provider and not getattr(provider, "is_stub", False):
         from . import draft_feedback, revise, body_sampler
         ctx = {
             "style_examples": spec.get("style_examples") or list(getattr(voice.style, "examples", []) or []),
@@ -519,7 +533,21 @@ def produce_email(provider: Provider, voice, spec: dict, tokens: dict, shortlist
             "what_they_do": spec.get("what_they_do", "") or "",
             "feedback_checks": (getattr(voice, "variables", {}) or {}).get("feedback_checks", ""),
         }
-        if (getattr(voice, "variables", {}) or {}).get("use_verbalized_sampling") == "true":
+        # Plan 30: the two guards from Plan 26 Stage 6 were never called. Wire them here, with
+        # novelty scoped to the variable block rather than the whole letter.
+        if getattr(voice, "learning", "patch") == "exemplar" or (getattr(voice, "variables", {}) or {}).get("variation_history") == "true":
+            try:
+                from . import exemplar_guards as _g, exemplars as _ex, intent_variation as _iv
+                _var_block_text = parts.get("opening", target_text)
+                _extra = list(_g.leak_notes(_var_block_text, ctx) or [])
+                _prior = [r.get("final_email", "") for r in _ex.load(voice.id)][-5:]
+                _extra += _g.novelty_notes(_var_block_text, _prior) or []
+                _extra += _iv.relevance_notes(_var_block_text, spec) or []
+                if _extra:
+                    ctx["extra_notes"] = _extra
+            except Exception:
+                pass
+        if body_block and (getattr(voice, "variables", {}) or {}).get("use_verbalized_sampling") == "true":
             st = S.load_settings()
             system = compile_system_prompt(voice, ai_blocks, spec, tokens, shortlist, followup=followup)
             user = json.dumps({"task": "Generate candidate bodies"}, ensure_ascii=False)
@@ -529,10 +557,12 @@ def produce_email(provider: Provider, voice, spec: dict, tokens: dict, shortlist
                 body_text = best_cand["body"]
                 parts[body_block.id] = body_text
 
-        revised = revise.revise_if_needed(body_text, ctx, provider=provider)
-        if revised and revised != body_text:
-            body_text = revised
-            parts[body_block.id] = body_text
+        revised = revise.revise_if_needed(target_text, ctx, provider=provider)
+        if revised and revised != target_text:
+            target_text = revised
+            parts[target_block.id] = target_text
+            if body_block:
+                body_text = target_text
             email = "\n\n".join(parts[b.id].strip() for b in voice.blocks
                                 if parts.get(b.id, "").strip())
         if (getattr(voice, "variables", {}) or {}).get("use_shape_guidance") == "true":

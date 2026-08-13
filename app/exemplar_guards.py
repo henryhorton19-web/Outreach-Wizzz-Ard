@@ -40,7 +40,13 @@ def leak_notes(body: str, ctx: dict) -> list[str]:
 
 
 def novelty_notes(candidate: str, recent_emails: list[str], max_overlap: float = 0.72) -> list[str]:
-    """Flag excessive n-gram / text overlap with recent emails to maintain novelty. Never raises."""
+    """Flag excessive text overlap with recent emails to maintain novelty.
+
+    IMPORTANT: pass the VARIABLE BLOCK, not the whole email. On a voice with a fixed skeleton the
+    whole-email ratio between any two letters is ~0.85 by construction, so a whole-email comparison
+    fires on every draft and tells you nothing. What matters is whether the parts that were supposed
+    to differ actually differ. Never raises.
+    """
     try:
         notes: list[str] = []
         cand_str = (candidate or "").strip()
