@@ -12,9 +12,20 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
+import re
+
 from . import store
 from . import settings as S
 from .models import State
+
+# pipeline.draft_retarget stages a bounce retry under "{parent_slug}__b{n}", so sent history must be
+# grouped by the ROOT slug. Grouped by exact slug, a retry send is a separate family and can never
+# supersede the bounce it came from, which leaves the original pinned in Bounced permanently.
+_RETRY_SUFFIX = re.compile(r"__b\d+$")
+
+
+def _root_slug(slug: str) -> str:
+    return _RETRY_SUFFIX.sub("", slug or "")
 
 COLUMNS = ["researching", "drafted", "sent", "replied", "bounced", "no_response"]
 COLUMN_LABELS = {
@@ -127,16 +138,25 @@ def assemble(list_id: str = "") -> dict:
     items = store.load_sent_items()
     latest_sents = {}
     for si in sorted(items, key=lambda x: x.approved_at or "", reverse=True):
-        if si.slug not in latest_sents:
-            latest_sents[si.slug] = si
+        root = _root_slug(si.slug)
+        if root not in latest_sents:
+            latest_sents[root] = si
+
+    seen_roots = {_root_slug(s) for s in seen_slugs}
 
     filtered_sents_count = 0
     for si in latest_sents.values():
         item_list = getattr(si, "source_list_id", "")
         if not _matches_list(item_list):
             continue
-        filtered_sents_count += 1
         stage = _sent_stage(si)
+        # A live retry draft supersedes the bounce that produced it: the target's real position is
+        # Drafted, and showing it in Bounced as well is the duplicate the operator sees today.
+        # bounced_exhausted is never superseded -- the address ladder is spent, nothing is in flight.
+        rs = si.reply_state.value if hasattr(si.reply_state, "value") else si.reply_state
+        if stage == "bounced" and rs == "bounced" and _root_slug(si.slug) in seen_roots:
+            continue
+        filtered_sents_count += 1
         quiet = _quiet_days(si.approved_at)
         cols[stage].append({
             "slug": si.slug, "sent_id": si.id, "name": si.name, "voice": si.voice or "",

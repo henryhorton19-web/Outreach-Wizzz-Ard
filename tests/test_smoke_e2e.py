@@ -107,10 +107,11 @@ def test_end_to_end_outcome_flow(client, monkeypatch):
     assert triage["counts"]["replied"] == 1
     assert triage["counts"]["bounced"] == 1
 
-    # Pipeline shows correct columns
+    # Pipeline shows correct columns (staged retry draft supersedes bounce on board)
     board = c.get("/api/pipeline", headers=H).json()
     assert len(board["columns"]["replied"]) == 1
-    assert len(board["columns"]["bounced"]) == 1
+    assert len(board["columns"]["drafted"]) == 1
+    assert len(board["columns"]["bounced"]) == 0
 
     # Voice Performance: bounces excluded from denominator, min-n gate honest
     stats = c.get("/api/voice_stats", headers=H).json()
