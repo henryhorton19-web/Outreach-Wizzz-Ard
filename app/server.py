@@ -878,6 +878,7 @@ def _ingest_to_queue(rows: list[dict], list_id: str = "default") -> dict:
     already, added, over_cap = [], [], []
     suppressed, contacted, excluded_blocked = [], [], []   # error-prevention surfacing
     current = store.queue_count(list_id=list_id)
+    to_add = []
     for r in rows:
         slug = r["slug"]
         if slug in existing:
@@ -903,10 +904,12 @@ def _ingest_to_queue(rows: list[dict], list_id: str = "default") -> dict:
         if current >= store.QUEUE_CAP:
             over_cap.append(r["name"])
             continue
-        store.upsert_queue(slug, r["name"], r.get("ref"), r.get("meta"), list_id=list_id)
+        to_add.append(r)
         existing.add(slug)
         current += 1
         added.append(r["name"])
+    if to_add:
+        store.upsert_queue_batch(to_add, list_id=list_id)
     return {"queue": store.load_queue(list_id=list_id), "added": len(added),
             "skipped_duplicates": already, "over_cap": over_cap,
             "suppressed": suppressed, "already_contacted": contacted,

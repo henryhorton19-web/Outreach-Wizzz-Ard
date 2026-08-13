@@ -269,18 +269,45 @@ def queue_slugs(list_id: str = "default") -> set[str]:
     return {r["slug"] for r in load_queue(list_id=list_id)}
 
 
-def upsert_queue(slug: str, name: str, crm_id: str | None, meta: dict | None = None, list_id: str = "default") -> None:
+def upsert_queue_batch(records: list[dict], list_id: str = "default") -> None:
+    """Insert a list of records [{slug, name, ref/crm_id?, meta?}] into the queue while preserving
+    their relative sequence order (e.g. Row 1 before Row 2). Newly added batch is placed at the top,
+    with record 0 of the batch being at the very top."""
+    if not records:
+        return
     with _MUTEX:
         import datetime
         items = load_queue(list_id=list_id)
-        items = [r for r in items if r["slug"] != slug]   # replace if already present
-        rec = {"slug": slug, "name": name, "crm_id": crm_id or "",
-               "queued_at": datetime.datetime.now(datetime.timezone.utc).isoformat()}
-        if meta:
-            rec["meta"] = meta
-        items.append(rec)
-        items = sorted(items, key=lambda x: x.get("queued_at") or "", reverse=True)[:QUEUE_CAP]
-        save_queue(items, list_id=list_id)
+        slug_set = {r["slug"] for r in records}
+        items = [r for r in items if r["slug"] not in slug_set]   # remove existing duplicates
+
+        now = datetime.datetime.now(datetime.timezone.utc)
+        batch_items = []
+        n = len(records)
+        for idx, r in enumerate(records):
+            # Microsecond offset preserving top-to-bottom order (index 0 gets latest timestamp)
+            ts = (now + datetime.timedelta(microseconds=n - idx)).isoformat()
+            rec = {
+                "slug": r["slug"],
+                "name": r["name"],
+                "crm_id": r.get("crm_id") or r.get("ref") or "",
+                "queued_at": ts,
+            }
+            if r.get("meta"):
+                rec["meta"] = r["meta"]
+            batch_items.append(rec)
+
+        # New batch placed at beginning of queue (Row 1 at top), followed by existing queue
+        new_items = batch_items + items
+        new_items = sorted(new_items, key=lambda x: x.get("queued_at") or "", reverse=True)[:QUEUE_CAP]
+        save_queue(new_items, list_id=list_id)
+
+
+def upsert_queue(slug: str, name: str, crm_id: str | None, meta: dict | None = None, list_id: str = "default") -> None:
+    rec = {"slug": slug, "name": name, "crm_id": crm_id or ""}
+    if meta:
+        rec["meta"] = meta
+    upsert_queue_batch([rec], list_id=list_id)
 
 
 def remove_from_queue(slug: str, list_id: str = "default") -> bool:
