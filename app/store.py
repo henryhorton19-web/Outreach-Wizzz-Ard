@@ -628,6 +628,15 @@ def load_cache(slug: str) -> dict | None:
     return json.loads(p.read_text(encoding="utf-8"))
 
 
+def clear_cache(slug: str) -> None:
+    try:
+        p = cache_path(slug)
+        if p.exists():
+            p.unlink()
+    except Exception:
+        pass
+
+
 def list_custom_voices(kind: str | None = "outreach",
                        include_challengers: bool = False) -> list[CustomVoice]:
     """Voices of one kind (default 'outreach' so existing callers never see follow-up voices).

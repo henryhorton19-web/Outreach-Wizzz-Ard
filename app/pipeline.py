@@ -120,6 +120,89 @@ def _is_unusable_cache(cache: dict) -> bool:
 # draft one target
 # ---------------------------------------------------------------------------
 
+def anchor_site(cs) -> str:
+    """The identity anchor to hand research: the OPERATOR'S site first, the machine's own resolved
+    domain second.
+
+    The previous order was `cs.recipient_domain or cs.website`, which inverted authority: line ~151
+    writes `cs.recipient_domain` FROM `company["resolved_domain"]`, so once research resolved the
+    wrong company its own guess became the anchor for every later draft and outranked the site the
+    operator typed. A machine inference must never outrank a human's explicit input.
+    Never raises.
+    """
+    try:
+        return (getattr(cs, "website", "") or "").strip() or \
+               (getattr(cs, "recipient_domain", "") or "").strip()
+    except Exception:
+        return ""
+
+
+def _bare_domain(value) -> str:
+    """Host only, lower case, no scheme, no path, no leading www. Never raises."""
+    try:
+        v = str(value or "").strip().lower()
+        if not v:
+            return ""
+        v = v.split("://", 1)[-1]
+        v = v.split("/", 1)[0]
+        return v.removeprefix("www.")
+    except Exception:
+        return ""
+
+
+def cache_contradicts_website(cs, cache) -> bool:
+    """True when the operator gave a site and the cached research is about a DIFFERENT domain.
+
+    `cache_health.is_degraded` catches a cache that is empty or full of salvage placeholders. It
+    cannot catch a cache that is complete, healthy and about the wrong company, which is exactly what
+    happens after a name collision. Without this check, `draft_one` reuses the whole wrong profile --
+    contact, inferred address and all -- and pasting the correct website has no effect whatsoever.
+    Never raises; returns False when there is nothing to compare.
+    """
+    try:
+        given = _bare_domain(getattr(cs, "website", ""))
+        if not given:
+            return False
+        company = (cache or {}).get("company") or {}
+        found = _bare_domain(company.get("resolved_domain") or company.get("website") or "")
+        if not found:
+            return False
+        return not (found == given or found.endswith("." + given) or given.endswith("." + found))
+    except Exception:
+        return False
+
+
+def strip_foreign_contact_email(cache, anchor: str) -> dict:
+    """Remove a contact address whose domain disagrees with the anchor domain.
+
+    `research.email_candidates` / `apply_pattern` will build a plausible-looking address from any
+    name and any domain, with no check that the domain is the one we anchored on. That is how
+    `ot.website@example-corp-alt.test` reached a draft for a company at example-corp.test. An address on the
+    wrong domain is worse than no address: it is sendable, and it goes to a stranger.
+    Mutates nothing; returns the cache. Never raises.
+    """
+    try:
+        a = _bare_domain(anchor)
+        if not a or not isinstance(cache, dict):
+            return cache if isinstance(cache, dict) else {}
+        contact = dict((cache.get("contact") or {}))
+        email = str(contact.get("email") or "").strip().lower()
+        if not email or "@" not in email:
+            return cache
+        dom = _bare_domain(email.split("@", 1)[1])
+        if dom == a or dom.endswith("." + a) or a.endswith("." + dom):
+            return cache
+        contact["email"] = ""
+        contact["email_method"] = "dropped_domain_mismatch"
+        contact["email_confidence"] = "low"
+        contact["contact_verified"] = False
+        out = dict(cache)
+        out["contact"] = contact
+        return out
+    except Exception:
+        return cache if isinstance(cache, dict) else {}
+
+
 def draft_one(provider: Provider, cs: CompanyState, voice_override: str | None = None,
               *, reuse_cache: bool = True) -> CompanyState:
     cost_mod.set_slug(cs.slug)
@@ -138,9 +221,17 @@ def draft_one(provider: Provider, cs: CompanyState, voice_override: str | None =
                     cache = None
                     cs.notes = ((cs.notes + "\n") if cs.notes else "") + \
                         "Previous research was incomplete, so it was run again."
+                elif cache_contradicts_website(cs, cache):
+                    # The cache is healthy but about a DIFFERENT company. Reusing it would ignore the
+                    # site the operator supplied and reproduce the wrong profile forever.
+                    cache = None
+                    cs.recipient_domain = ""
+                    cs.notes = ((cs.notes + "\n") if cs.notes else "") + \
+                        "Previous research was about a different company, so it was run again."
         if cache is None:
-            given_site = cs.recipient_domain or cs.website
+            given_site = anchor_site(cs)
             cache = research_mod.research_company(provider, cs.name, given_site, None)
+            cache = strip_foreign_contact_email(cache, given_site)
             store.save_cache(cs.slug, cache)
         cs.cache = cache
 

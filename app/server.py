@@ -1276,23 +1276,41 @@ def set_queue_website(slug: str, payload: dict = Body(...), list_id: str = ""):
 
 @app.put("/api/companies/{slug}/website")
 def set_company_website(slug: str, payload: dict = Body(...)):
-    """Correct the identity anchor on a target that has NOT been researched yet. Blocked once
-    research has run, because the cache is already built around the old site and editing the field
-    would leave the two disagreeing -- reset the target instead."""
+    """Correct the identity anchor at any point before approval.
+
+    This used to 409 once research had run, on the grounds that the cache was built around the old
+    site. That was right while nothing could invalidate the cache; it is wrong now. Correcting the
+    website IS the moment the stale cache should go, and refusing here left the operator with no
+    recovery from a name collision except deleting the target. Blocked only from `approved` onward,
+    where an approved copy already exists and re-researching would silently change what was signed
+    off."""
     cs = store.get_draft(slug)
     if not cs:
         raise HTTPException(status_code=404, detail="unknown target")
-    if cs.state not in (State.input, State.error):
+    if cs.state in (State.approved, State.ready):
         raise HTTPException(status_code=409,
-                            detail="already researched; reset this target before changing its site")
+                            detail="this target is already approved; reset it before changing its site")
     raw = str(payload.get("website") or "").strip()
     site = ingest_mod._clean_website(raw) if raw else ""
     if raw and not site:
         raise HTTPException(status_code=400, detail=f"not a website: {raw}")
     cs.website = site or None
+    # Setting a site that contradicts the cached research is the operator saying "you profiled the
+    # wrong company". Drop the cache and the machine-resolved domain so the next draft re-researches
+    # against the new anchor instead of silently reusing the old profile.
+    invalidated = False
+    if site and pipeline.cache_contradicts_website(cs, cs.cache or store.load_cache(slug) or {}):
+        try:
+            store.clear_cache(slug)
+        except Exception:
+            pass
+        cs.cache = None
+        cs.recipient_domain = ""
+        cs.state = State.input
+        invalidated = True
     store.upsert_draft(cs)
     _persist()
-    return {"ok": True, "company": _cs_public(cs)}
+    return {"ok": True, "invalidated": invalidated, "company": _cs_public(cs)}
 
 
 @app.delete("/api/queue/{slug}")
