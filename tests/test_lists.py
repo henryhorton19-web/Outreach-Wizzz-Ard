@@ -7,7 +7,13 @@ from app import store
 
 
 def test_named_company_lists_crud_and_queue_scoping(tmp_path, monkeypatch):
-    monkeypatch.setenv("PARIS_DATA_DIR", str(tmp_path))
+    monkeypatch.setattr(store, "QUEUE_FILE", tmp_path / "queue.json")
+    monkeypatch.setattr(store, "DRAFTS_FILE", tmp_path / "drafts.json")
+    monkeypatch.setattr(store, "LISTS_FILE", tmp_path / "lists.json")
+    monkeypatch.setattr(store, "SENT_ITEMS_FILE", tmp_path / "sent_items.json")
+    monkeypatch.setattr(store, "ARCHIVE_FILE", tmp_path / "archive.json")
+    monkeypatch.setattr(store, "SUPPRESSIONS_FILE", tmp_path / "suppressions.json")
+    monkeypatch.setattr(S, "SETTINGS_FILE", tmp_path / "settings.json")
     monkeypatch.delenv("WIZZARD_PROFILE_SOURCE", raising=False)
 
     client = TestClient(app)

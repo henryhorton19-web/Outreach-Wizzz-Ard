@@ -295,6 +295,10 @@ def upsert_queue_batch(records: list[dict], list_id: str = "default") -> None:
             }
             if r.get("meta"):
                 rec["meta"] = r["meta"]
+            # The operator-supplied site is the identity anchor research needs (see research
+            # ._identity_anchor). Keyword-only with a default, so every existing caller is unaffected.
+            if r.get("website"):
+                rec["website"] = r["website"]
             batch_items.append(rec)
 
         # New batch placed at beginning of queue (Row 1 at top), followed by existing queue
@@ -303,11 +307,36 @@ def upsert_queue_batch(records: list[dict], list_id: str = "default") -> None:
         save_queue(new_items, list_id=list_id)
 
 
-def upsert_queue(slug: str, name: str, crm_id: str | None, meta: dict | None = None, list_id: str = "default") -> None:
+def upsert_queue(slug: str, name: str, crm_id: str | None, meta: dict | None = None,
+                 list_id: str = "default", website: str | None = None) -> None:
     rec = {"slug": slug, "name": name, "crm_id": crm_id or ""}
     if meta:
         rec["meta"] = meta
+    if website:
+        rec["website"] = website
     upsert_queue_batch([rec], list_id=list_id)
+
+
+def set_queue_website(slug: str, website: str, list_id: str = "default") -> bool:
+    """Set or clear the operator-supplied site on a queued target. Empty string clears it.
+    Returns False when the slug is not in that list. Never raises."""
+    with _MUTEX:
+        try:
+            items = load_queue(list_id=list_id)
+            hit = False
+            for r in items:
+                if r["slug"] == slug:
+                    if website:
+                        r["website"] = website
+                    else:
+                        r.pop("website", None)
+                    hit = True
+                    break
+            if hit:
+                save_queue(items, list_id=list_id)
+            return hit
+        except Exception:
+            return False
 
 
 def remove_from_queue(slug: str, list_id: str = "default") -> bool:

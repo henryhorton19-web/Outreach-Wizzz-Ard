@@ -41,8 +41,8 @@ def test_non_url_second_column_is_ignored_not_passed_to_research():
 
 
 def test_pasted_text_website_reaches_the_queue_record(tmp_path, monkeypatch):
-    monkeypatch.setattr(store, "DATA_DIR", tmp_path)
     monkeypatch.setattr(store, "QUEUE_FILE", tmp_path / "queue.json")
+    monkeypatch.setattr(store, "LISTS_FILE", tmp_path / "lists.json")
     store.upsert_queue("elix_ai", "Northwind AI", None, None, list_id="default",
                        website="https://northwind-ai.test")
     rec = [r for r in store.load_queue(list_id="default") if r["slug"] == "elix_ai"][0]

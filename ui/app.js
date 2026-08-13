@@ -478,6 +478,7 @@ function renderQueue() {
   state.queue.forEach(rec => {
     const el = document.createElement("div");
     el.className = "qrow";
+    el.setAttribute("data-slug", rec.slug);
     const m = rec.meta || {};
     const chips = [];
     if (m.employees_band) chips.push(humanBadgeLabel(m.employees_band));
@@ -496,13 +497,49 @@ function renderQueue() {
           ${esc(rec.name)}
           ${rec.crm_id || rec.ref ? `<span class="qrow-ref">${esc(rec.crm_id || rec.ref)}</span>` : ""}
         </div>
-        ${chips.length ? `<div class="qrow-chips">${chipHtml}</div>` : ""}
+        <div class="qrow-chips">
+          ${chipHtml}
+          <input type="text" class="tag-add-input" data-act="website" placeholder="website (optional)" value="${esc(rec.website || "")}" autocomplete="off" spellcheck="false" />
+        </div>
       </div>
       <div class="qrow-act" style="display:flex; align-items:center; gap:8px;">
         <button class="btn ghost small" data-act="draft">Draft &rarr;</button>
         ${isExemplar ? `<button class="btn ghost small" data-act="blank">Write it myself</button>` : ""}
         <button class="qrow-remove-btn" data-act="remove" aria-label="Remove target from queue" title="Remove">&times;</button>
       </div>`;
+    const webInput = el.querySelector('[data-act="website"]');
+    if (webInput) {
+      let saving = false;
+      const saveWebsite = async () => {
+        if (saving) return;
+        const value = webInput.value.trim();
+        if (value === (rec.website || "")) return;
+        saving = true;
+        const list_id = state.activeListId || "default";
+        try {
+          const r = await api(`/api/queue/${rec.slug}/website?list_id=${encodeURIComponent(list_id)}`, {
+            method: "PUT",
+            body: JSON.stringify({ website: value })
+          });
+          state.queue = r.queue;
+          renderQueue();
+        } catch (e) {
+          saving = false;
+          toast(e.message || "Failed to update website", true);
+          setTimeout(() => {
+            const freshInput = $("#queueList").querySelector(`[data-slug="${rec.slug}"] [data-act="website"]`) || webInput;
+            if (freshInput) freshInput.focus();
+          }, 50);
+        }
+      };
+      webInput.onblur = () => { saveWebsite(); };
+      webInput.onkeydown = (evt) => {
+        if (evt.key === "Enter") {
+          evt.preventDefault();
+          webInput.blur();
+        }
+      };
+    }
     el.querySelector('[data-act="draft"]').onclick = () => draftFromQueue(rec.slug);
     if (isExemplar) {
       el.querySelector('[data-act="blank"]').onclick = () => authorBlankFromQueue(rec.slug);

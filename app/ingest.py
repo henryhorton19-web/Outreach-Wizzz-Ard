@@ -1,4 +1,4 @@
-"""Ingestion: turn pasted text (one target per line), a CSV (first column = name), or the
+"""Ingestion: turn pasted text (one target per line), a CSV or XLSX (column 1 = name, column 2 = website), or the
 Outreach_Tracker workbook into normalized rows. Trusted input: no scoring, no fit verdict. A
 ref token (category/source) is kept only for display/audit; nothing downstream depends on it.
 """
@@ -30,6 +30,35 @@ def _split_line(line: str) -> tuple[str, str | None, str | None]:
                     return head.strip(), tail, None
             return line.replace("\t", " ").strip(), None, None
     return line, None, None
+
+
+_URL_RE = re.compile(r"^(https?://|www\.)\S+$|^[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}(/\S*)?$")
+
+# Column 2 of an uploaded sheet is the website. It is the disambiguation key: research anchors
+# profiling to the domain when one is given, and guesses (toward the better-known company of the
+# same name) when one is not. A column 2 that is NOT a URL is discarded rather than passed through,
+# because a stray note handed to research as a website is worse than no website at all.
+def _clean_website(value) -> str:
+    try:
+        v = str(value or "").strip()
+        if not v or not _URL_RE.match(v):
+            return ""
+        if v.lower().startswith(("http://", "https://")):
+            scheme, _, rest = v.partition("://")
+            host, slash, path = rest.partition("/")
+            return f"{scheme.lower()}://{host.lower()}{slash}{path}"
+        return v.lower()
+    except Exception:
+        return ""
+
+
+_NAME_HEADERS = ("company name", "company", "name", "target")
+_SITE_HEADERS = ("website", "url", "domain", "site", "web")
+
+
+def _is_header(first: str, second: str) -> bool:
+    return (first or "").strip().lower() in _NAME_HEADERS or \
+           (second or "").strip().lower() in _SITE_HEADERS
 
 
 def _display_name(raw: str) -> str:
@@ -82,6 +111,7 @@ def parse_names(text: str) -> list[dict]:
 
 
 def parse_csv_bytes(data: bytes) -> list[dict]:
+    """Column 1 = company name, column 2 = website (optional)."""
     text = data.decode("utf-8-sig", errors="replace")
     reader = csv.reader(io.StringIO(text))
     records = []
@@ -89,10 +119,16 @@ def parse_csv_bytes(data: bytes) -> list[dict]:
         if not r:
             continue
         first = (r[0] or "").strip()
-        if i == 0 and first.lower() in ("company name", "company", "name", "target"):
+        second = (r[1] or "").strip() if len(r) > 1 else ""
+        if i == 0 and _is_header(first, second):
             continue  # header
-        if first:
-            records.append({"name": first})
+        if not first:
+            continue
+        rec = {"name": first}
+        site = _clean_website(second)
+        if site:
+            rec["website"] = site
+        records.append(rec)
     return _rows_from_records(records)
 
 
@@ -115,10 +151,16 @@ def parse_xlsx_bytes(data: bytes) -> list[dict]:
             if first is None:
                 continue
             first = str(first).strip()
-            if i == 0 and first.lower() in ("company name", "company", "name", "target"):
+            second = str(row[1]).strip() if len(row) > 1 and row[1] is not None else ""
+            if i == 0 and _is_header(first, second):
                 continue
-            if first:
-                out.append({"name": first})
+            if not first:
+                continue
+            rec = {"name": first}
+            site = _clean_website(second)
+            if site:
+                rec["website"] = site
+            out.append(rec)
         return _rows_from_records(out)
     except Exception:
         return []

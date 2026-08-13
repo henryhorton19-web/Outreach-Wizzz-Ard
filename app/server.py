@@ -898,6 +898,11 @@ def _ingest_to_queue(rows: list[dict], list_id: str = "default") -> dict:
         dom = ""
         if ref_email and "@" in ref_email:
             dom = ref_email.split("@", 1)[1].lower().removeprefix("www.")
+        elif r.get("website"):
+            # A sheet of names + websites carries no email, so without this the archive dedup never
+            # fires on an upload. Host only: strip scheme, path, and a leading www.
+            _w = str(r["website"]).split("://", 1)[-1]
+            dom = _w.split("/", 1)[0].lower().removeprefix("www.")
         if dom and dom in contacted_domains:
             contacted.append(r["name"])
             continue
@@ -1243,13 +1248,51 @@ def queue_to_draft(slug: str, list_id: str = ""):
     meta = record.get("meta") or {}
     src_list = record.get("source_list_id") or meta.get("source_list_id") or list_id
     cs = CompanyState(slug=record["slug"], name=record["name"], source_list_id=src_list,
-                      ref=record.get("crm_id") or record.get("ref") or None, state=State.input)
+                      ref=record.get("crm_id") or record.get("ref") or None, state=State.input,
+                      website=record.get("website") or None)
     store.upsert_draft(cs)
     if not _batch():
         _STATE["batch"] = BatchState(batch_id=uuid.uuid4().hex[:12], voice=_STATE.get("voice"))
     _batch().companies[slug] = cs
     _persist()
     return {"ok": True, "company": _cs_public(cs), "queue": store.load_queue(list_id=list_id)}
+
+
+@app.put("/api/queue/{slug}/website")
+def set_queue_website(slug: str, payload: dict = Body(...), list_id: str = ""):
+    """Correct the identity anchor before drafting. A non-URL value is a 400 rather than a silent
+    discard: the bulk CSV path drops junk quietly because it is bulk, but a deliberate single edit
+    that vanishes would leave the operator believing research is anchored when it is not."""
+    list_id = list_id or store.active_list_id()
+    raw = str(payload.get("website") or "").strip()
+    site = ingest_mod._clean_website(raw) if raw else ""
+    if raw and not site:
+        raise HTTPException(status_code=400,
+                            detail=f"not a website: {raw}. Use a domain or a full URL.")
+    if not store.set_queue_website(slug, site, list_id=list_id):
+        raise HTTPException(status_code=404, detail="target not in queue")
+    return {"ok": True, "website": site, "queue": store.load_queue(list_id=list_id)}
+
+
+@app.put("/api/companies/{slug}/website")
+def set_company_website(slug: str, payload: dict = Body(...)):
+    """Correct the identity anchor on a target that has NOT been researched yet. Blocked once
+    research has run, because the cache is already built around the old site and editing the field
+    would leave the two disagreeing -- reset the target instead."""
+    cs = store.get_draft(slug)
+    if not cs:
+        raise HTTPException(status_code=404, detail="unknown target")
+    if cs.state not in (State.input, State.error):
+        raise HTTPException(status_code=409,
+                            detail="already researched; reset this target before changing its site")
+    raw = str(payload.get("website") or "").strip()
+    site = ingest_mod._clean_website(raw) if raw else ""
+    if raw and not site:
+        raise HTTPException(status_code=400, detail=f"not a website: {raw}")
+    cs.website = site or None
+    store.upsert_draft(cs)
+    _persist()
+    return {"ok": True, "company": _cs_public(cs)}
 
 
 @app.delete("/api/queue/{slug}")
