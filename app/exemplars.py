@@ -183,3 +183,34 @@ def _evict(voice: str) -> None:
         store.safe_write_text(path(voice), text)
     except Exception:
         pass
+
+
+def retrieve(voice: str, features: dict, k: int = 2) -> list[dict]:
+    """Retrieve top k exemplars closest in feature similarity to `features`, weighted by provenance.
+
+    Never raises.
+    """
+    try:
+        recs = load(voice)
+        if not recs:
+            return []
+
+        def _similarity(rec: dict) -> float:
+            rec_feats = rec.get("features", {}) or {}
+            score = 0.0
+            for fk in FEATURE_KEYS:
+                v1 = (features.get(fk) or "").strip().lower()
+                v2 = (rec_feats.get(fk) or "").strip().lower()
+                if v1 and v2:
+                    if v1 == v2:
+                        score += 2.0
+                    else:
+                        score += difflib.SequenceMatcher(None, v1, v2).ratio()
+            w = float(rec.get("weight") or WEIGHT.get(rec.get("provenance", "tolerated"), 1.0))
+            return score * w
+
+        scored = [(rec, _similarity(rec)) for rec in recs]
+        scored.sort(key=lambda item: item[1], reverse=True)
+        return [item[0] for item in scored[:k]]
+    except Exception:
+        return []

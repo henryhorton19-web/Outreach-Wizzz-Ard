@@ -264,7 +264,7 @@ _LEN_HINT = {"one_line": "exactly one sentence", "short": "one or two sentences"
 # The one compose call
 # ---------------------------------------------------------------------------
 
-def build_voice_system(voice, has_profile_evidence: bool) -> str:
+def build_voice_system(voice, has_profile_evidence: bool = False, ctx: dict | None = None) -> str:
     parts = [floor_preamble(allow_dashes=voice.allow_dashes,
                             has_profile_evidence=has_profile_evidence),
              "\n--- VOICE (the author's intent; follow it) ---"]
@@ -281,6 +281,18 @@ def build_voice_system(voice, has_profile_evidence: bool) -> str:
     led = edit_ledger.examples_block(voice.id)
     if led and led.strip():
         parts.append(led)
+    if getattr(voice, "learning", "patch") == "exemplar":
+        try:
+            from . import exemplars
+            k = int(getattr(S.load_settings(), "exemplar_holes_k", 2) or 2)
+            feats = exemplars.features_from_spec(ctx or {})
+            recs = exemplars.retrieve(voice.id, feats, k=k)
+            if recs:
+                parts.append("\n--- EXEMPLAR OUTREACH EXAMPLES (adapt structure; do not copy company facts) ---")
+                for i, r in enumerate(recs, 1):
+                    parts.append(f"Exemplar {i} ({r.get('provenance', 'exemplar')}):\n{r.get('final_email', '')}")
+        except Exception:
+            pass
     return "\n".join(parts)
 
 
@@ -318,7 +330,7 @@ def compose_voice(provider: Provider, voice, ai_blocks, spec: dict, tokens: dict
                  ("candidate_evidence" in (b.fact_scope or [])) or
                  ("profile_spine" in (b.fact_scope or [])) or
                  ("candidate_spine" in (b.fact_scope or [])) for b in ai_blocks)
-    system = build_voice_system(voice, has_profile_evidence=has_cv)
+    system = build_voice_system(voice, has_profile_evidence=has_cv, ctx=spec)
     if followup:
         system = followup_floor_preamble() + "\n\n" + system
     specs, _ = _blockspecs(voice, ai_blocks, spec, tokens, shortlist)
