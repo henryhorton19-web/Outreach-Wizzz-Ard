@@ -338,6 +338,19 @@ def compose_voice(provider: Provider, voice, ai_blocks, spec: dict, tokens: dict
     When `followup` is provided ({original_subject, original_body, step}), the follow-up floor is
     prepended and the prior email is passed as context so AI blocks write a follow-up, not a fresh
     pitch."""
+    if (getattr(voice, "variables", {}) or {}).get("staged") == "true":
+        from . import staged_voice
+        opening_block = next((b for b in ai_blocks if b.id == "opening"), None)
+        if opening_block:
+            cache = spec.get("cache") or {}
+            staged_opening = staged_voice.run_staged_select_and_render(provider, voice, spec, cache, opening_block)
+            other_ai_blocks = [b for b in ai_blocks if b.id != "opening"]
+            if not other_ai_blocks:
+                return {"opening": staged_opening}
+            res_other = compose_voice(provider, voice, other_ai_blocks, spec, tokens, shortlist, followup=followup)
+            res_other["opening"] = staged_opening
+            return res_other
+
     if getattr(provider, "is_stub", False):
         return mock_voice(voice, ai_blocks, spec, tokens, shortlist, followup=followup)
 

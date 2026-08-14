@@ -18,6 +18,7 @@ from . import validate as validate_mod
 from . import store
 from . import settings as S
 from . import cost as cost_mod
+from . import staged_voice
 
 
 # ---------------------------------------------------------------------------
@@ -352,11 +353,19 @@ def draft_one(provider: Provider, cs: CompanyState, voice_override: str | None =
         spec["custom_facts"] = list(ev.custom_facts or [])
         spec["allowed_facts"] = _build_allowed_facts(cache, selected, shortlist, vdef)
         spec["send_to"] = (cache.get("contact") or {}).get("email", "")
+        spec["cache"] = cache
         cs.spec = spec
 
         # 4. produce the email from the voice's blocks (one compose call for AI blocks)
         tokens = compose_mod.derive_tokens(spec, vdef.variables)
-        email, parts, body_text = compose_mod.produce_email(provider, vdef, spec, tokens, shortlist)
+        try:
+            email, parts, body_text = compose_mod.produce_email(provider, vdef, spec, tokens, shortlist)
+        except staged_voice.StagedAbstention as e:
+            cs.state = State.error
+            cs.error = "no honest link found: " + "; ".join(e.errors)
+            cs.status_pill = "needs a look"
+            store.upsert_draft(cs)
+            return cs
 
         cs.subject = compose_mod.render(vdef.subject, tokens)
         cs.machine_subject = cs.subject
