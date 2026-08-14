@@ -120,6 +120,59 @@ def _is_unusable_cache(cache: dict) -> bool:
 # draft one target
 # ---------------------------------------------------------------------------
 
+def company_domain(cs) -> str:
+    """WHICH COMPANY IS THIS. The identity anchor, as a bare host.
+
+    Deliberately does NOT consult `recipient_domain`. That field answers a different question -- which
+    mailbox am I writing to -- and the email editor writes to it (server.py:2014), so consulting it
+    here is what let typing an address silently rewrite the company's identity.
+    Never raises.
+    """
+    try:
+        site = (getattr(cs, "website", "") or "").strip()
+        if site:
+            return _bare_domain(site)
+        cache = getattr(cs, "cache", None) or {}
+        company = cache.get("company") or {}
+        return _bare_domain(company.get("resolved_domain") or company.get("website") or "")
+    except Exception:
+        return ""
+
+
+def pin_mailbox_domain(cache, anchor: str) -> dict:
+    """Force an INFERRED address onto the company's own domain.
+
+    A supplied website already anchors identity via `research.resolve_company_domain`, but the address
+    is built separately by `email_candidates` / `apply_pattern` from research's own resolved domain,
+    so identity and delivery could diverge with nothing to catch it. Only guessed addresses are
+    repinned: an address a human typed or one found on a real page outranks the anchor, because both
+    reflect evidence the anchor does not have.
+    Never raises.
+    """
+    try:
+        a = _bare_domain(anchor)
+        if not a or not isinstance(cache, dict):
+            return cache if isinstance(cache, dict) else {}
+        contact = dict(cache.get("contact") or {})
+        email = str(contact.get("email") or "").strip().lower()
+        method = str(contact.get("email_method") or "").strip().lower()
+        if not email or "@" not in email:
+            return cache
+        if contact.get("contact_verified") or method in ("manual", "found_on_page", "verified"):
+            return cache
+        local, _, dom = email.partition("@")
+        if _bare_domain(dom) == a:
+            return cache
+        contact["email"] = f"{local}@{a}"
+        contact["email_method"] = "repinned_to_company_domain"
+        contact["email_confidence"] = "low"
+        out = dict(cache)
+        out["contact"] = contact
+        return out
+    except Exception:
+        return cache if isinstance(cache, dict) else {}
+
+
 def anchor_site(cs) -> str:
     """The identity anchor to hand research: the OPERATOR'S site first, the machine's own resolved
     domain second.
@@ -232,6 +285,7 @@ def draft_one(provider: Provider, cs: CompanyState, voice_override: str | None =
             given_site = anchor_site(cs)
             cache = research_mod.research_company(provider, cs.name, given_site, None)
             cache = strip_foreign_contact_email(cache, given_site)
+            cache = pin_mailbox_domain(cache, company_domain(cs))
             store.save_cache(cs.slug, cache)
         cs.cache = cache
 

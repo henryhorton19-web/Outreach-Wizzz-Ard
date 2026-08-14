@@ -209,6 +209,9 @@ def _cs_public(cs: CompanyState) -> dict:
         "slug": cs.slug,
         "name": cs.name,
         "website": cs.website,
+        # Two distinct answers, published separately. `company_domain` is identity; `recipient_domain`
+        # is delivery. The UI must render the first wherever it says "website".
+        "company_domain": pipeline.company_domain(cs),
         "recipient_domain": cs.recipient_domain or (cache.get("company") or {}).get("resolved_domain", ""),
         "domain_source": (cache.get("company") or {}).get("domain_source", "given" if cs.recipient_domain else "unresolved"),
         "ref": cs.ref,
@@ -2029,6 +2032,8 @@ def edit_email(slug: str, payload: dict = Body(...)):
         cs.cache = cache
         if cs.spec is not None and isinstance(cs.spec, dict):
             cs.spec["send_to"] = new_to.lower()
+        # Plan 31 (A5): this sets the MAILBOX domain only. It must never touch the company's identity
+        # anchor -- `cs.website` -- or typing an address silently redefines which company this is.
         cs.recipient_domain = new_to.rsplit("@", 1)[1].lower()
 
     pipeline.apply_edit(cs, subject=payload.get("subject"), email=payload.get("email", ""))

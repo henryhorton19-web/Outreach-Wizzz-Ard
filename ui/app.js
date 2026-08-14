@@ -913,7 +913,7 @@ function buildDrawer(cs) {
   const contact = cs.contact || (cs.cache || {}).contact || {};
   const emailMethod = contact.email_method || (contact.email_source_url ? "found_on_page" : (contact.email ? "pattern_guess" : "not_found"));
   const sourceUrl = contact.email_source_url || "";
-  const resolvedDom = cs.recipient_domain || (cs.cache || {}).company?.resolved_domain || "";
+  const resolvedDom = cs.company_domain || cs.recipient_domain || (cs.cache || {}).company?.resolved_domain || "";
   const domSource = cs.domain_source || (cs.cache || {}).company?.domain_source || (resolvedDom ? "given" : "unresolved");
 
   let badgeHtml = "";
