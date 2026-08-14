@@ -289,6 +289,20 @@ def draft_one(provider: Provider, cs: CompanyState, voice_override: str | None =
             store.save_cache(cs.slug, cache)
         cs.cache = cache
 
+        # Plan 31: refuse rather than invent. A fluent letter built on placeholders is sendable and
+        # false, which is strictly worse than a target the operator has to look at.
+        try:
+            from . import preflight as _pf
+            _blocks = _pf.blockers(cache)
+        except Exception:
+            _blocks = []
+        if _blocks:
+            cs.state = State.error
+            cs.error = "not enough to write from: " + "; ".join(_blocks)
+            cs.status_pill = "needs a look"
+            store.upsert_draft(cs)
+            return cs
+
         company = cache.get("company") or {}
         if company.get("name"):
             cs.name = company["name"]
