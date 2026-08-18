@@ -959,12 +959,11 @@ function renderDrafts() {
         },
         onSaved: (r) => {
           if (r && r.company) {
-            cs.website = r.company.website || "";
-            const oldSt = cs.state;
-            cs.state = r.company.state || cs.state;
-            if (r.invalidated && ["drafted", "edited"].includes(oldSt)) {
-              pill.textContent = "needs redraft";
-              pill.className = "pill pill-err";
+            companies.set(cs.slug, r.company);
+            if (r.invalidated) {
+              runDraft(cs.slug);
+            } else {
+              renderDrafts();
             }
           }
         }
