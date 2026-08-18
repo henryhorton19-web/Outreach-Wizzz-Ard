@@ -32,7 +32,7 @@ def _split_line(line: str) -> tuple[str, str | None, str | None]:
     return line, None, None
 
 
-_URL_RE = re.compile(r"^(https?://|www\.)\S+$|^[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}(/\S*)?$")
+_URL_RE = re.compile(r"^(?:https?://|www\.)\S+$|^[a-zA-Z0-9\-\.]+\.[a-zA-Z]{2,}(?::\d+)?(?:[/?#]\S*)?$", re.I)
 
 # Column 2 of an uploaded sheet is the website. It is the disambiguation key: research anchors
 # profiling to the domain when one is given, and guesses (toward the better-known company of the

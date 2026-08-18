@@ -201,6 +201,9 @@ def _bare_domain(value) -> str:
             return ""
         v = v.split("://", 1)[-1]
         v = v.split("/", 1)[0]
+        v = v.split("?", 1)[0]
+        v = v.split("#", 1)[0]
+        v = v.split(":", 1)[0]
         return v.removeprefix("www.")
     except Exception:
         return ""

@@ -46,7 +46,11 @@ def _extract_domain(url_or_domain: str) -> str:
     'https://example-saas.test/about' and 'example-saas.test' both return 'example-saas.test'."""
     if not url_or_domain:
         return ""
-    m = _DOMAIN_RE.match(url_or_domain.strip())
+    v = str(url_or_domain).strip().lower()
+    v = v.split("://", 1)[-1].split("/", 1)[0].split("?", 1)[0].split("#", 1)[0].split(":", 1)[0]
+    if v.startswith("www."):
+        v = v[4:]
+    m = re.search(r"([a-z0-9][a-z0-9\-\.]*\.[a-z]{2,})", v)
     return m.group(1).lower() if m else ""
 
 
