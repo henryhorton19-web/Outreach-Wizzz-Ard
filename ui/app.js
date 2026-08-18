@@ -499,7 +499,7 @@ function renderQueue() {
         </div>
         <div class="qrow-chips">
           ${chipHtml}
-          <input type="text" class="tag-add-input" data-act="website" placeholder="website (optional)" value="${esc(rec.website || "")}" autocomplete="off" spellcheck="false" />
+          <span class="website-input-wrap"><input type="text" class="tag-add-input" data-act="website" placeholder="website (optional)" value="${esc(rec.website || "")}" autocomplete="off" spellcheck="false" /><span class="website-save-status"></span></span>
         </div>
       </div>
       <div class="qrow-act" style="display:flex; align-items:center; gap:8px;">
@@ -507,40 +507,31 @@ function renderQueue() {
         ${isExemplar ? `<button class="btn ghost small" data-act="blank">Write it myself</button>` : ""}
         <button class="qrow-remove-btn" data-act="remove" aria-label="Remove target from queue" title="Remove">&times;</button>
       </div>`;
-    const webInput = el.querySelector('[data-act="website"]');
-    if (webInput) {
-      let saving = false;
-      const saveWebsite = async () => {
-        if (saving) return;
-        const value = webInput.value.trim();
-        if (value === (rec.website || "")) return;
-        saving = true;
+    wireWebsiteInput(el.querySelector('[data-act="website"]'), {
+      currentValue: rec.website || "",
+      save: async (value) => {
         const list_id = state.activeListId || "default";
-        try {
-          const r = await api(`/api/queue/${rec.slug}/website?list_id=${encodeURIComponent(list_id)}`, {
-            method: "PUT",
-            body: JSON.stringify({ website: value })
-          });
-          state.queue = r.queue;
-          renderQueue();
-        } catch (e) {
-          saving = false;
-          toast(e.message || "Failed to update website", true);
-          setTimeout(() => {
-            const freshInput = $("#queueList").querySelector(`[data-slug="${rec.slug}"] [data-act="website"]`) || webInput;
-            if (freshInput) freshInput.focus();
-          }, 50);
-        }
-      };
-      webInput.onblur = () => { saveWebsite(); };
-      webInput.onkeydown = (evt) => {
-        if (evt.key === "Enter") {
-          evt.preventDefault();
-          webInput.blur();
-        }
-      };
-    }
-    el.querySelector('[data-act="draft"]').onclick = () => draftFromQueue(rec.slug);
+        const r = await api(`/api/queue/${rec.slug}/website?list_id=${encodeURIComponent(list_id)}`, {
+          method: "PUT",
+          body: JSON.stringify({ website: value })
+        });
+        state.queue = r.queue;
+        return r;
+      },
+      onSaved: () => renderQueue(),
+      refocus: () => $("#queueList").querySelector(`[data-slug="${rec.slug}"] [data-act="website"]`)
+    });
+    el.querySelector('[data-act="draft"]').onclick = async (evt) => {
+      const btn = evt.currentTarget;
+      const pending = el.querySelector('[data-act="website"]')?._pendingSave;
+      if (pending) {
+        const original = btn.textContent;
+        btn.disabled = true; btn.textContent = "Saving\u2026";
+        try { await pending; } catch (e) { /* field shows its own error */ }
+        btn.disabled = false; btn.textContent = original;
+      }
+      draftFromQueue(rec.slug);
+    };
     if (isExemplar) {
       el.querySelector('[data-act="blank"]').onclick = () => authorBlankFromQueue(rec.slug);
     }
@@ -563,8 +554,76 @@ async function authorBlankFromQueue(slug) {
     refreshCost();
   } catch (e) { toast(e.message, true); }
 }
+/**
+ * One website input, wired for save-on-blur/Enter with a promise the caller can await.
+ *
+ * `input._pendingSave` is the load-bearing part of Plan 33: it is how a caller like
+ * `draftFromQueue` finds out whether a save is in flight and waits for it, closing the race where
+ * clicking "Draft ->" could reach the server before a just-typed website did (A1). It is set to null
+ * whenever nothing is pending, so `await (input?._pendingSave || Promise.resolve())` is always safe.
+ *
+ * Visible feedback (A2): a small inline status node cycles through saving / saved / an error, rather
+ * than succeeding silently and only speaking up on failure -- a field that says nothing on success
+ * teaches "no news is good news", which is the wrong lesson for a field that feeds identity
+ * resolution.
+ */
+function wireWebsiteInput(input, { currentValue, save, onSaved, refocus }) {
+  if (!input) return;
+  const status = input.nextElementSibling && input.nextElementSibling.classList.contains("website-save-status")
+    ? input.nextElementSibling
+    : (() => {
+        const s = document.createElement("span");
+        s.className = "website-save-status";
+        input.insertAdjacentElement("afterend", s);
+        return s;
+      })();
+  const setStatus = (text) => { status.textContent = text || ""; };
+
+  input._pendingSave = null;
+
+  const commit = () => {
+    const value = input.value.trim();
+    if (value === (currentValue || "")) { setStatus(""); return null; }
+    setStatus("Saving\u2026");
+    const p = (async () => {
+      try {
+        const r = await save(value);
+        currentValue = value;
+        setStatus("Saved");
+        setTimeout(() => setStatus(""), 1500);
+        if (onSaved) onSaved(r);
+        return r;
+      } catch (e) {
+        setStatus(e.message || "Not saved");
+        setTimeout(() => {
+          const fresh = (refocus && refocus()) || input;
+          if (fresh) fresh.focus();
+        }, 50);
+        throw e;
+      } finally {
+        input._pendingSave = null;
+      }
+    })();
+    input._pendingSave = p;
+    return p;
+  };
+
+  input.onblur = () => { commit(); };
+  input.onkeydown = (evt) => {
+    if (evt.key === "Enter") { evt.preventDefault(); input.blur(); }
+  };
+}
+
 async function draftFromQueue(slug) {
   if (state.status && needsKey(state.status)) { openStartup(); return; }
+  // Plan 33 (A1): the website field saves on blur, which a click on this very button triggers a
+  // fraction of a second before the click handler runs. Awaiting the pending save -- not a delay,
+  // the actual promise the blur produced -- is what closes the race. This is the fix for Revox
+  // drafting with website: null.
+  const row = document.querySelector(`[data-slug="${slug}"] [data-act="website"]`);
+  if (row && row._pendingSave) {
+    try { await row._pendingSave; } catch (e) { /* surfaced by the field itself; draft proceeds */ }
+  }
   const list_id = state.activeListId || "default";
   try {
     const r = await api(`/api/queue/${slug}/draft?list_id=${encodeURIComponent(list_id)}`, { method: "POST" });
@@ -811,6 +870,38 @@ function renderDrafts() {
     }
     if (dc.link && dc.link === "weak") {
       badges.innerHTML += `<span class="badge badge-warn">link: weak</span>`;
+    }
+
+    if (["input", "researched", "error", "drafted", "edited"].includes(cs.state)) {
+      const isResearched = cs.state !== "input";
+      const placeholder = isResearched ? "will re-research on next draft" : "website (optional)";
+      const wrap = document.createElement("span");
+      wrap.className = "website-input-wrap";
+      wrap.innerHTML = `<input type="text" class="tag-add-input" data-act="company-website" placeholder="${esc(placeholder)}" value="${esc(cs.website || "")}" autocomplete="off" spellcheck="false" /><span class="website-save-status"></span>`;
+      badges.appendChild(wrap);
+
+      const companyWebInput = wrap.querySelector('[data-act="company-website"]');
+      if (companyWebInput) {
+        wireWebsiteInput(companyWebInput, {
+          currentValue: cs.website || "",
+          save: async (value) => {
+            const r = await api(`/api/companies/${cs.slug}/website`, {
+              method: "PUT",
+              body: JSON.stringify({ website: value })
+            });
+            if (r.invalidated) {
+              toast("Website changed; this target will be re-researched on the next draft.");
+            }
+            return r;
+          },
+          onSaved: (r) => {
+            if (r && r.company) {
+              companies.set(cs.slug, r.company);
+              renderDrafts();
+            }
+          }
+        });
+      }
     }
 
     const pill = row.querySelector(".pill");

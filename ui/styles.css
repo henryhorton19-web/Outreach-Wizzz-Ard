@@ -505,6 +505,8 @@ select:focus-visible, .redraft-select:focus-visible, a:focus-visible {
 .tag-remove-btn:hover { color: var(--error); }
 .tag-add-box { display: inline-flex; align-items: center; gap: 4px; margin-left: 4px; }
 .tag-add-input { font-family: var(--mono); font-size: 11px; padding: 3px 6px; border: 1px dashed var(--line-strong); border-radius: 4px; background: var(--panel); color: var(--ink); width: 110px; }
+.website-input-wrap { display: inline-flex; align-items: center; gap: 4px; }
+.website-save-status { font-family: var(--mono); font-size: 10px; color: var(--ink-faint); margin-left: 2px; }
 
 /* ---- targets column & header remediation ---- */
 .col-header-title { display: flex; align-items: center; gap: 8px; flex-wrap: nowrap; min-width: 0; }
