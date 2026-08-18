@@ -513,7 +513,7 @@ function renderQueue() {
         const list_id = state.activeListId || "default";
         const r = await api(`/api/queue/${rec.slug}/website?list_id=${encodeURIComponent(list_id)}`, {
           method: "PUT",
-          body: JSON.stringify({ website: value })
+          body: { website: value }
         });
         state.queue = r.queue;
         return r;
@@ -946,7 +946,7 @@ function renderDrafts() {
           const prevState = cs.state;
           const r = await api(`/api/companies/${cs.slug}/website`, {
             method: "PUT",
-            body: JSON.stringify({ website: value })
+            body: { website: value }
           });
           if (r.invalidated) {
             if (["drafted", "edited"].includes(prevState)) {
