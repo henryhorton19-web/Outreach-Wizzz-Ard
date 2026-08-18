@@ -1142,6 +1142,10 @@ def start_sourcing_research(payload: dict = Body(...)):
         recency_days=recency_days,
         sources=sources,
         sourcing_prompt_id=prompt_id,
+        # A real provider must reach the harvester or grounded search cannot run at all.
+        # _provider_optional() returns a real provider when a key is stored, the stub when
+        # the provider is configured as stub, and None otherwise, so it never raises.
+        provider=_provider_optional(),
     )
     return {"ok": True, "job": job}
 

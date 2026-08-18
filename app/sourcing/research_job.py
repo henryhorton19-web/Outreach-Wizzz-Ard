@@ -70,7 +70,13 @@ def start_sourcing_job(settings: Any,
             # three offline samples" look identical in the run report, which is why a
             # permanently broken feature went unnoticed.
             "harvest_attempts": 0,
+            # Written later in the run. Without initialisation the report can be missing
+            # the field entirely, and "the exclusion list blocked everything", "the
+            # harvester found nothing" and "no provider was configured" become
+            # indistinguishable to whoever reads the run.
             "no_provider": 0,
+            "excluded": 0,
+            "suppressed": 0,
             "ungrounded": 0,
             "harvested": 0,
             "checked": 0,
@@ -138,7 +144,12 @@ def _execute_job(job: dict, settings: Any, recency_days: int, max_candidates: in
             if not adapter:
                 continue
             try:
-                provider = getattr(settings, "provider_instance", None)
+                # The provider comes from the enclosing scope, supplied by the caller.
+                # This previously read provider_instance from settings, and Settings has
+                # no such attribute, so it was always None: the harvester always fell
+                # back to offline sample data and grounded search could never run, whatever
+                # the configuration.
+                pass
                 # Harvest until there are enough NEW candidates, not until there are
                 # max_candidates RAW ones. The old call asked once for a fixed budget,
                 # then discarded everything already in the seen ledger and never asked

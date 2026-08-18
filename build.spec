@@ -17,11 +17,11 @@ datas = [
     ("engine/schema.json", "engine"),
     ("engine/composition_brief.md", "engine"),
     ("engine/enrichment_brief.md", "engine"),
-    ("engine/voice_no_role_small.md", "engine"),
-    ("engine/voice_role_small.md", "engine"),
-    ("engine/voice_role_large.md", "engine"),
     # shipped seed voices (copied into the user data dir on first run)
     ("app/seed_voices/*.json", "app/seed_voices"),
+    ("app/seed_followup_voices/*.json", "app/seed_followup_voices"),
+    ("app/seed_sourcing_prompts/*.json", "app/seed_sourcing_prompts"),
+    ("app/prompts/*.md", "app/prompts"),
 ]
 
 # keyring backends + provider SDKs are imported dynamically; collect them explicitly.
