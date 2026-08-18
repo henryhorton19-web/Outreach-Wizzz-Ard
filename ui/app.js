@@ -518,7 +518,7 @@ function renderQueue() {
         state.queue = r.queue;
         return r;
       },
-      onSaved: () => renderQueue(),
+      onSaved: () => {},
       refocus: () => $("#queueList").querySelector(`[data-slug="${rec.slug}"] [data-act="website"]`)
     });
     el.querySelector('[data-act="draft"]').onclick = async (evt) => {
@@ -555,50 +555,79 @@ async function authorBlankFromQueue(slug) {
   } catch (e) { toast(e.message, true); }
 }
 /**
- * One website input, wired for save-on-blur/Enter with a promise the caller can await.
+ * One website input plus its own save button, shared by the queue row and the drafted card.
  *
- * `input._pendingSave` is the load-bearing part of Plan 33: it is how a caller like
- * `draftFromQueue` finds out whether a save is in flight and waits for it, closing the race where
- * clicking "Draft ->" could reach the server before a just-typed website did (A1). It is set to null
- * whenever nothing is pending, so `await (input?._pendingSave || Promise.resolve())` is always safe.
+ * Plan 34 replaces Plan 33's blur-to-save with an explicit button. Blur is not an intention: clicking
+ * the Draft button, another row, or the scrollbar all committed a value the person never asked to
+ * save, and left no moment where an action produced a visible result. The button is now the only
+ * thing that saves, and it is also where the result is shown.
  *
- * Visible feedback (A2): a small inline status node cycles through saving / saved / an error, rather
- * than succeeding silently and only speaking up on failure -- a field that says nothing on success
- * teaches "no news is good news", which is the wrong lesson for a field that feeds identity
- * resolution.
+ * `input._pendingSave` is retained from Plan 33 as a BACKSTOP, not the mechanism: someone can still
+ * type a website and click "Draft ->" without pressing save, and `draftFromQueue` awaits this promise
+ * to keep that case correct.
+ *
+ * `onSaved` is deliberately NOT wired to a full re-render here. Rebuilding the list destroys the very
+ * input the person is using (see Plan 34 Task 1); callers patch their own row instead.
  */
 function wireWebsiteInput(input, { currentValue, save, onSaved, refocus }) {
   if (!input) return;
-  const status = input.nextElementSibling && input.nextElementSibling.classList.contains("website-save-status")
-    ? input.nextElementSibling
-    : (() => {
-        const s = document.createElement("span");
-        s.className = "website-save-status";
-        input.insertAdjacentElement("afterend", s);
-        return s;
-      })();
-  const setStatus = (text) => { status.textContent = text || ""; };
+  const wrap = input.closest(".website-input-wrap") || input.parentElement;
+  let saved = currentValue || "";
+
+  let btn = wrap.querySelector('[data-act="website-save"]');
+  if (!btn) {
+    btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "website-save-btn";
+    btn.setAttribute("data-act", "website-save");
+    btn.setAttribute("aria-label", "Save website");
+    btn.textContent = "\u2713";
+    input.insertAdjacentElement("afterend", btn);
+  }
+  const status = wrap.querySelector(".website-save-status");
+
+  const dirty = () => input.value.trim() !== saved;
+  const setIdle = () => {
+    btn.disabled = !dirty();
+    btn.textContent = "\u2713";
+    btn.title = dirty() ? "Save website" : "Nothing to save";
+    btn.classList.remove("is-saving", "is-error");
+  };
 
   input._pendingSave = null;
 
   const commit = () => {
+    if (!dirty()) { setIdle(); return null; }
     const value = input.value.trim();
-    if (value === (currentValue || "")) { setStatus(""); return null; }
-    setStatus("Saving\u2026");
+    btn.disabled = true;
+    btn.textContent = "\u2026";
+    btn.title = "Saving";
+    btn.classList.add("is-saving");
+    btn.classList.remove("is-error");
+    if (status) status.textContent = "";
     const p = (async () => {
       try {
         const r = await save(value);
-        currentValue = value;
-        setStatus("Saved");
-        setTimeout(() => setStatus(""), 1500);
+        saved = value;
+        btn.classList.remove("is-saving");
+        btn.textContent = "\u2713";
+        btn.title = "Saved";
+        if (status) {
+          status.textContent = "Saved";
+          setTimeout(() => { if (status) status.textContent = ""; }, 1500);
+        }
         if (onSaved) onSaved(r);
+        setIdle();
         return r;
       } catch (e) {
-        setStatus(e.message || "Not saved");
-        setTimeout(() => {
-          const fresh = (refocus && refocus()) || input;
-          if (fresh) fresh.focus();
-        }, 50);
+        btn.classList.remove("is-saving");
+        btn.classList.add("is-error");
+        btn.textContent = "!";
+        btn.title = e.message || "Not saved";
+        btn.disabled = false;
+        if (status) status.textContent = e.message || "Not saved";
+        const fresh = (refocus && refocus()) || input;
+        if (fresh) fresh.focus();
         throw e;
       } finally {
         input._pendingSave = null;
@@ -608,10 +637,21 @@ function wireWebsiteInput(input, { currentValue, save, onSaved, refocus }) {
     return p;
   };
 
-  input.onblur = () => { commit(); };
-  input.onkeydown = (evt) => {
-    if (evt.key === "Enter") { evt.preventDefault(); input.blur(); }
+  btn.onclick = (evt) => {
+    evt.preventDefault();
+    evt.stopPropagation();
+    commit().catch(() => {});
   };
+  input.oninput = () => setIdle();
+  input.onclick = (evt) => evt.stopPropagation();
+  input.onmousedown = (evt) => evt.stopPropagation();
+  input.onkeydown = (evt) => {
+    evt.stopPropagation();
+    if (evt.key === "Enter") { evt.preventDefault(); commit().catch(() => {}); }
+    if (evt.key === "Escape") { evt.preventDefault(); input.value = saved; setIdle(); }
+  };
+  input.onblur = null;   // Plan 34: blur no longer saves. The button is the only commit path.
+  setIdle();
 }
 
 async function draftFromQueue(slug) {
@@ -872,37 +912,7 @@ function renderDrafts() {
       badges.innerHTML += `<span class="badge badge-warn">link: weak</span>`;
     }
 
-    if (["input", "researched", "error", "drafted", "edited"].includes(cs.state)) {
-      const isResearched = cs.state !== "input";
-      const placeholder = isResearched ? "will re-research on next draft" : "website (optional)";
-      const wrap = document.createElement("span");
-      wrap.className = "website-input-wrap";
-      wrap.innerHTML = `<input type="text" class="tag-add-input" data-act="company-website" placeholder="${esc(placeholder)}" value="${esc(cs.website || "")}" autocomplete="off" spellcheck="false" /><span class="website-save-status"></span>`;
-      badges.appendChild(wrap);
-
-      const companyWebInput = wrap.querySelector('[data-act="company-website"]');
-      if (companyWebInput) {
-        wireWebsiteInput(companyWebInput, {
-          currentValue: cs.website || "",
-          save: async (value) => {
-            const r = await api(`/api/companies/${cs.slug}/website`, {
-              method: "PUT",
-              body: JSON.stringify({ website: value })
-            });
-            if (r.invalidated) {
-              toast("Website changed; this target will be re-researched on the next draft.");
-            }
-            return r;
-          },
-          onSaved: (r) => {
-            if (r && r.company) {
-              companies.set(cs.slug, r.company);
-              renderDrafts();
-            }
-          }
-        });
-      }
-    }
+    // Plan 34: company-website moved to .cell-act
 
     const pill = row.querySelector(".pill");
     pill.textContent = cs.status_pill || stateLabel(cs);
@@ -911,6 +921,52 @@ function renderDrafts() {
     // actions
     const act = row.querySelector(".cell-act");
     act.innerHTML = "";
+    if (["input", "researched", "error", "drafted", "edited"].includes(cs.state)) {
+      const wrap = document.createElement("span");
+      wrap.className = "website-input-wrap";
+      const inp = document.createElement("input");
+      inp.type = "text";
+      inp.className = "tag-add-input";
+      inp.setAttribute("data-act", "company-website");
+      inp.autocomplete = "off";
+      inp.spellcheck = false;
+      inp.value = cs.website || "";
+      inp.placeholder = (cs.state === "input") ? "website (optional)" : "website — will re-research";
+      const st = document.createElement("span");
+      st.className = "website-save-status";
+      wrap.appendChild(inp);
+      wrap.appendChild(st);
+      act.appendChild(wrap);
+      wireWebsiteInput(inp, {
+        currentValue: cs.website || "",
+        save: async (value) => {
+          const prevState = cs.state;
+          const r = await api(`/api/companies/${cs.slug}/website`, {
+            method: "PUT",
+            body: JSON.stringify({ website: value })
+          });
+          if (r.invalidated) {
+            if (["drafted", "edited"].includes(prevState)) {
+              toast("Website saved. This draft was written for the old company — redraft it.");
+            } else {
+              toast("Website saved. This target will be re-researched on the next draft.");
+            }
+          }
+          return r;
+        },
+        onSaved: (r) => {
+          if (r && r.company) {
+            cs.website = r.company.website || "";
+            const oldSt = cs.state;
+            cs.state = r.company.state || cs.state;
+            if (r.invalidated && ["drafted", "edited"].includes(oldSt)) {
+              pill.textContent = "needs redraft";
+              pill.className = "pill pill-err";
+            }
+          }
+        }
+      });
+    }
     if (cs.state === "drafted" || cs.state === "edited") {
       const approve = document.createElement("button");
       approve.className = "btn primary small"; approve.textContent = "Approve";
@@ -986,7 +1042,14 @@ function renderDrafts() {
     act.appendChild(del);
 
     // drawer toggle
-    row.querySelector(".row-main").onclick = () => toggleDrawer(cs.slug);
+    // Plan 34 (A): .badges lives inside .row-main, whose click handler toggles the drawer and calls
+    // renderDrafts(), which rebuilds every row. Any input placed in that region is destroyed by the
+    // very click that reaches it -- which is why the card's website field could not be edited at all.
+    // Interactive controls opt out of the drawer toggle; everything else in the row still opens it.
+    row.querySelector(".row-main").onclick = (evt) => {
+      if (evt.target.closest("input, button, select, textarea, label, .website-input-wrap")) return;
+      toggleDrawer(cs.slug);
+    };
 
     const drawer = row.querySelector(".drawer");
     if (openSlugs.has(cs.slug)) drawer.appendChild(buildDrawer(cs));
