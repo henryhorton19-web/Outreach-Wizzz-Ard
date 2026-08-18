@@ -213,6 +213,7 @@ def _cs_public(cs: CompanyState) -> dict:
         # Two distinct answers, published separately. `company_domain` is identity; `recipient_domain`
         # is delivery. The UI must render the first wherever it says "website".
         "company_domain": pipeline.company_domain(cs),
+        "draft_confidence": dict(cs.draft_confidence or {}),
         # Plan 31 Stage 4: the UI must offer "add a contact" rather than "retry research" when a human
         # is the only thing that can unblock this target.
         "blockers": (preflight.blockers_detailed(cache) if cs.state == State.error else []),

@@ -334,6 +334,9 @@ class TargetState(BaseModel):
     research_capped: bool = False
     disqualified: bool = False                      # work-mode / language hard mismatch
     status_pill: str = ""
+    # Plan 32: what this draft is standing on. {} before drafting; always populated after.
+    # {"contact": "found"|"guessed"|"generic", "research": "full"|"thin"}
+    draft_confidence: dict = Field(default_factory=dict)
 
     # cost (Phase 1e) — token usage accumulated at draft time, priced per the settings table
     cost_estimate: float = 0.0

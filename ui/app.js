@@ -802,6 +802,17 @@ function renderDrafts() {
     if (cs.was_edited) badges.innerHTML += `<span class="badge badge-ok">edited</span>`;
     if (cs.research_capped) badges.innerHTML += `<span class="badge badge-warn">research partial</span>`;
 
+    const dc = cs.draft_confidence || {};
+    if (dc.contact && dc.contact !== "found") {
+      badges.innerHTML += `<span class="badge badge-warn">contact: ${esc(dc.contact)}</span>`;
+    }
+    if (dc.research && dc.research !== "full") {
+      badges.innerHTML += `<span class="badge badge-warn">research: ${esc(dc.research)}</span>`;
+    }
+    if (dc.link && dc.link === "weak") {
+      badges.innerHTML += `<span class="badge badge-warn">link: weak</span>`;
+    }
+
     const pill = row.querySelector(".pill");
     pill.textContent = cs.status_pill || stateLabel(cs);
     pill.className = "pill" + (cs.state === "error" || cs.disqualified ? " pill-err" : cs.state === "drafted" ? " pill-ok" : "");

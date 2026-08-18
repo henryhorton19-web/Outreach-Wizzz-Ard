@@ -109,6 +109,8 @@ def _build_allowed_facts(cache: dict, selected: list, shortlist: list, voice) ->
 
 
 def _is_unusable_cache(cache: dict) -> bool:
+    """Retained for callers that still branch on it (e.g. a UI badge), but Plan 32 removed every
+    caller that RAISES on a true result. Nothing in `draft_one` refuses on this any more."""
     if not isinstance(cache, dict):
         return True
     pts = [p for p in (cache.get("proof_points") or []) if isinstance(p, dict) and p.get("fact")]
@@ -290,19 +292,28 @@ def draft_one(provider: Provider, cs: CompanyState, voice_override: str | None =
             store.save_cache(cs.slug, cache)
         cs.cache = cache
 
-        # Plan 31: refuse rather than invent. A fluent letter built on placeholders is sendable and
-        # false, which is strictly worse than a target the operator has to look at.
-        try:
-            from . import preflight as _pf
-            _blocks = _pf.blockers(cache)
-        except Exception:
-            _blocks = []
-        if _blocks:
-            cs.state = State.error
-            cs.error = "not enough to write from: " + "; ".join(_blocks)
-            cs.status_pill = "needs a look"
-            store.upsert_draft(cs)
-            return cs
+        # Plan 32: one retry with a DIFFERENT angle, never a refusal. Re-running the identical query
+        # against an identically thin site returns the identically thin result, so the retry widens
+        # rather than repeats. If it is still thin afterward, draft from whatever exists -- the flag
+        # attached below is what tells the operator, not a blocked pipeline.
+        from . import confidence as _conf
+        if _conf.research_flag(cache) == "thin":
+            try:
+                given_site = anchor_site(cs)
+                wider = research_mod.research_company(
+                    provider, cs.name, given_site, "broaden: search press coverage, LinkedIn, "
+                    "and any funding announcement rather than the company site alone")
+                if _conf.research_flag(wider) == "full" or len(
+                        wider.get("proof_points") or []) > len(cache.get("proof_points") or []):
+                    cache = wider
+                    store.save_cache(cs.slug, cache)
+                    cs.cache = cache
+            except Exception:
+                pass   # the original (thin) cache stands; still draftable
+
+        cache = _conf.apply_contact_fallback(cache)
+        cs.cache = cache
+        cs.draft_confidence = _conf.draft_confidence(cache)
 
         company = cache.get("company") or {}
         if company.get("name"):

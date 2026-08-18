@@ -127,6 +127,10 @@ def derive_tokens(spec: dict, variables: dict | None = None) -> dict:
         tokens[k] = e.get("anchor", "")
     for k, v in (variables or {}).items():
         tokens[str(k)] = str(v)
+    _cf = str(spec.get("contact_first") or "").strip()
+    tokens["contact_first"] = _cf if _cf else "there"
+    if not _cf:
+        tokens["name"] = "there"
     return tokens
 
 
