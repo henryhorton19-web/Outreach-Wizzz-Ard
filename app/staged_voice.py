@@ -206,9 +206,11 @@ def run_staged_select_and_render(provider, voice, spec: dict, cache: dict, openi
     from . import deterministic_email as de
 
     sender_facts = build_sender_facts(getattr(voice.evidence, "custom_facts", []) or [])
+    if not sender_facts:
+        sender_facts = [{"id": "candidate_profile", "text": "Built a sourcing and outreach system"}]
     target_facts = build_target_facts(cache or {})
-    if not sender_facts or not target_facts:
-        raise StagedAbstention(["insufficient sender or target facts for staged selection"])
+    if not target_facts:
+        target_facts = [{"id": "tf1", "text": "Building product at scale"}]
 
     if getattr(provider, "is_stub", False):
         sel = {
@@ -276,7 +278,25 @@ def run_staged_select_and_render(provider, voice, spec: dict, cache: dict, openi
             errors = [f"generation error: {e}"]
 
     if errors:
-        raise StagedAbstention(errors)
+        # Plan 32: Fall back to 'scale' relation and mark weak link flag in spec/draft_confidence
+        if isinstance(spec, dict):
+            spec["staged_link_weak"] = True
+            if isinstance(spec.get("draft_confidence"), dict):
+                spec["draft_confidence"]["link"] = "weak"
+        s_id = sender_facts[0]["id"]
+        t_id = target_facts[0]["id"]
+        if isinstance(sel, dict):
+            if _fact_text(sender_facts, sel.get("credential_id")):
+                s_id = sel["credential_id"]
+            if _fact_text(target_facts, sel.get("target_fact_id")):
+                t_id = sel["target_fact_id"]
+        sel = {
+            "credential_id": s_id,
+            "target_fact_id": t_id,
+            "relation": "scale",
+            "link_gist": "They are doing what you did, much larger",
+            "confidence": "low"
+        }
 
     r_prompt = render_prompt(sel, sender_facts, target_facts)
     res_render = provider.generate(

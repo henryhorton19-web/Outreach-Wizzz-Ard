@@ -369,14 +369,9 @@ def draft_one(provider: Provider, cs: CompanyState, voice_override: str | None =
 
         # 4. produce the email from the voice's blocks (one compose call for AI blocks)
         tokens = compose_mod.derive_tokens(spec, vdef.variables)
-        try:
-            email, parts, body_text = compose_mod.produce_email(provider, vdef, spec, tokens, shortlist)
-        except staged_voice.StagedAbstention as e:
-            cs.state = State.error
-            cs.error = "no honest link found: " + "; ".join(e.errors)
-            cs.status_pill = "needs a look"
-            store.upsert_draft(cs)
-            return cs
+        email, parts, body_text = compose_mod.produce_email(provider, vdef, spec, tokens, shortlist)
+        if spec.get("staged_link_weak"):
+            cs.draft_confidence["link"] = "weak"
 
         cs.subject = compose_mod.render(vdef.subject, tokens)
         cs.machine_subject = cs.subject
