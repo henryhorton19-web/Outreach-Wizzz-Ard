@@ -623,9 +623,12 @@ function wireWebsiteInput(input, { currentValue, save, onSaved, refocus }) {
         btn.classList.remove("is-saving");
         btn.classList.add("is-error");
         btn.textContent = "!";
-        btn.title = e.message || "Not saved";
+        const rawErr = (e && typeof e.message === "string" && e.message) ? e.message : (typeof e === "string" ? e : "Invalid website URL");
+        const errMsg = typeof rawErr === "string" ? rawErr : "Invalid website URL";
+        btn.title = errMsg;
         btn.disabled = false;
-        if (status) status.textContent = e.message || "Not saved";
+        if (status) status.textContent = errMsg.length > 15 ? "Invalid URL" : errMsg;
+        toast(errMsg, true);
         const fresh = (refocus && refocus()) || input;
         if (fresh) fresh.focus();
         throw e;
