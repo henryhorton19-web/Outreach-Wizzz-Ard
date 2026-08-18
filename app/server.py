@@ -1869,9 +1869,10 @@ def draft_one_row(slug: str, payload: dict = Body(default={})):
     # A retry after a failure defaults to fresh research. Reusing the cache is right
     # for an ordinary redraft, where the research is fine and only the wording is
     # being changed, but it makes a retry identical to the attempt that just failed.
-    was_error = getattr(batch.companies[slug], "state", None) == State.error
+    cs = batch.companies[slug]
+    was_error = getattr(cs, "state", None) == State.error
     reuse = bool(payload.get("reuse_cache", not was_error))
-    cs = pipeline.draft_one(provider, batch.companies[slug],
+    cs = pipeline.draft_one(provider, cs,
                             voice_override=_STATE.get("voice"), reuse_cache=reuse)
     batch.companies[slug] = cs
     _persist()
@@ -2164,8 +2165,8 @@ async def redraft_company(slug: str, payload: dict = Body(...)):
     cs = store.get_draft(slug) or (_batch().companies.get(slug) if _batch() else None)
     if not cs:
         raise HTTPException(status_code=404, detail="unknown target")
-    if cs.state not in (State.drafted, State.edited):
-        raise HTTPException(status_code=400, detail="Target must be drafted to redraft.")
+    if cs.state not in (State.drafted, State.edited, State.input, State.error, State.researched):
+        raise HTTPException(status_code=400, detail="Target cannot be redrafted in its current state.")
     new_voice = payload.get("voice")
     reuse_cache = bool(payload.get("reuse_cache", True))
     provider = _provider()

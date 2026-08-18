@@ -102,7 +102,7 @@ a { color: var(--capital); }
 .topbar .icon-btn:hover { border-color: #fff; color: #fff; background: rgba(255,255,255,0.1); }
 
 /* ---- page shell ---- */
-.wrap { max-width: 1400px; margin: 0 auto; padding: 26px 26px 140px; }
+.wrap { max-width: 1600px; margin: 0 auto; padding: 26px 26px 140px; }
 
 /* ---- ingest banner (over-cap / dedup warnings) ---- */
 .ingest-banner {
@@ -250,7 +250,7 @@ select.btn.ghost:hover { border-color: var(--line-strong); background-color: var
 .sheet { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r);
   box-shadow: var(--shadow-soft); overflow: hidden; }
 .sheet-head, .row-main {
-  display: grid; grid-template-columns: 26px 1.35fr 1.5fr 0.9fr 120px; align-items: center;
+  display: grid; grid-template-columns: 26px 1.35fr 1.5fr 0.9fr minmax(220px, auto); align-items: center;
   gap: 14px; padding: 0 18px;
 }
 /* Every grid cell must declare min-width:0 so fractional columns can shrink
@@ -663,7 +663,7 @@ select:focus-visible, .redraft-select:focus-visible, a:focus-visible {
   resize: vertical; background: var(--panel); }
 .letter-body .emailEdit:focus { outline: none; background: var(--panel); }
 .letter-subject input.subjectInput { border: none; font-weight: 600; font-size: 13.5px; font-family: var(--sans);
-  width: 60%; background: transparent; color: var(--ink); }
+  width: 100%; min-width: 200px; background: transparent; color: var(--ink); }
 .letter-subject input.subjectInput:focus { outline: none; border-bottom: 1px solid var(--capital); }
 .c-to { font-size: 12px; color: var(--ink-faint); margin-top: 4px; min-width: 0; overflow-wrap: anywhere; }
 .letter-actions { display: flex; align-items: center; gap: 8px; margin-top: 10px; flex-wrap: wrap; }

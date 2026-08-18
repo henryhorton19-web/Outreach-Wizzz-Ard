@@ -1320,7 +1320,7 @@ function buildDrawer(cs) {
       if (!ok) return;
     }
     try {
-      const r = await api(`/api/companies/${cs.slug}/redraft`, { method: "POST", body: { voice: cs.voice, reuse_cache: true } });
+      const r = await api(`/api/companies/${cs.slug}/redraft`, { method: "POST", body: { voice: cs.voice, reuse_cache: Boolean(cs.cache) } });
       companies.set(cs.slug, r.company);
       toast(cs.voice ? `Redrafted as ${voiceLabel(cs.voice)}` : "Redrafted");
       renderDrafts();
@@ -1333,7 +1333,7 @@ function buildDrawer(cs) {
     const voice = val === "__auto__" ? null : val;
     if (voice === cs.voice) return;
     try {
-      const r = await api(`/api/companies/${cs.slug}/redraft`, { method: "POST", body: { voice, reuse_cache: true } });
+      const r = await api(`/api/companies/${cs.slug}/redraft`, { method: "POST", body: { voice, reuse_cache: Boolean(cs.cache) } });
       companies.set(cs.slug, r.company); toast(voice ? `Redrafted as ${voiceLabel(voice)}` : "Redrafted (auto)"); renderDrafts();
     } catch (e2) { toast(e2.message, true); }
   };
