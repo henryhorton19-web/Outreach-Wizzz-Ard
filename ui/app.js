@@ -823,11 +823,60 @@ function renderDrafts() {
         act.appendChild(chip);
       }
     } else if (cs.state === "error") {
-      const retry = document.createElement("button");
-      retry.className = "btn ghost small"; retry.textContent = "Retry with fresh research";
-      retry.title = "Previous research will be discarded and run again";
-      retry.onclick = (e) => { e.stopPropagation(); runDraft(cs.slug); };
-      act.appendChild(retry);
+      const blockers = cs.blockers || [];
+      const needsContact = blockers.some(b => b.kind === "needs_contact");
+      const needsResearch = blockers.some(b => b.kind === "needs_research") || blockers.length === 0;
+
+      if (needsContact) {
+        const nameIn = document.createElement("input");
+        nameIn.className = "tag-add-input";
+        nameIn.placeholder = "Contact Name";
+        nameIn.title = "Contact Full Name";
+
+        const emailIn = document.createElement("input");
+        emailIn.className = "tag-add-input";
+        emailIn.placeholder = "Email (optional)";
+        emailIn.title = "Contact Email";
+
+        const saveBtn = document.createElement("button");
+        saveBtn.className = "btn ghost small";
+        saveBtn.textContent = "Add contact";
+        saveBtn.onclick = async (e) => {
+          e.stopPropagation();
+          const nameVal = nameIn.value.trim();
+          const emailVal = emailIn.value.trim();
+          if (!nameVal && !emailVal) {
+            toast("Enter a name, email, or both", true);
+            return;
+          }
+          try {
+            const res = await api(`/api/companies/${cs.slug}/contact`, {
+              method: "PUT",
+              body: { name: nameVal, email: emailVal }
+            });
+            if (res.domain_mismatch) {
+              toast("Address domain does not match company domain", "warning");
+            }
+            if (res.company) {
+              companies.set(cs.slug, res.company);
+            }
+            renderDrafts();
+            runDraft(cs.slug);
+          } catch (err) {
+            toast(err.message, true);
+          }
+        };
+        act.appendChild(nameIn);
+        act.appendChild(emailIn);
+        act.appendChild(saveBtn);
+      }
+      if (needsResearch) {
+        const retry = document.createElement("button");
+        retry.className = "btn ghost small"; retry.textContent = "Retry with fresh research";
+        retry.title = "Previous research will be discarded and run again";
+        retry.onclick = (e) => { e.stopPropagation(); runDraft(cs.slug); };
+        act.appendChild(retry);
+      }
     }
     const del = document.createElement("button");
     del.className = "icon-btn small"; del.title = "Delete"; del.innerHTML = "&times;";
@@ -853,9 +902,69 @@ function buildDrawer(cs) {
   const wrap = document.createElement("div");
   wrap.className = "drawer-inner";
   if (cs.state === "error") {
-    wrap.innerHTML = `<div class="research"><div class="research-fail">${esc(cs.error || "Draft failed.")}</div>
-      <button class="btn ghost small" id="retryBtn" title="Previous research will be discarded and run again">Retry with fresh research</button></div>`;
-    wrap.querySelector("#retryBtn").onclick = () => runDraft(cs.slug);
+    const blockers = cs.blockers || [];
+    const needsContact = blockers.some(b => b.kind === "needs_contact");
+    const needsResearch = blockers.some(b => b.kind === "needs_research") || blockers.length === 0;
+
+    const resDiv = document.createElement("div");
+    resDiv.className = "research";
+    const failDiv = document.createElement("div");
+    failDiv.className = "research-fail";
+    failDiv.textContent = cs.error || "Draft failed.";
+    resDiv.appendChild(failDiv);
+
+    if (needsContact) {
+      const nameIn = document.createElement("input");
+      nameIn.className = "tag-add-input";
+      nameIn.placeholder = "Contact Name";
+
+      const emailIn = document.createElement("input");
+      emailIn.className = "tag-add-input";
+      emailIn.placeholder = "Email (optional)";
+
+      const saveBtn = document.createElement("button");
+      saveBtn.className = "btn ghost small";
+      saveBtn.textContent = "Add contact";
+      saveBtn.onclick = async () => {
+        const nameVal = nameIn.value.trim();
+        const emailVal = emailIn.value.trim();
+        if (!nameVal && !emailVal) {
+          toast("Enter a name, email, or both", true);
+          return;
+        }
+        try {
+          const res = await api(`/api/companies/${cs.slug}/contact`, {
+            method: "PUT",
+            body: { name: nameVal, email: emailVal }
+          });
+          if (res.domain_mismatch) {
+            toast("Address domain does not match company domain", "warning");
+          }
+          if (res.company) {
+            companies.set(cs.slug, res.company);
+          }
+          renderDrafts();
+          runDraft(cs.slug);
+        } catch (err) {
+          toast(err.message, true);
+        }
+      };
+      resDiv.appendChild(nameIn);
+      resDiv.appendChild(emailIn);
+      resDiv.appendChild(saveBtn);
+    }
+
+    if (needsResearch) {
+      const retryBtn = document.createElement("button");
+      retryBtn.className = "btn ghost small";
+      retryBtn.id = "retryBtn";
+      retryBtn.title = "Previous research will be discarded and run again";
+      retryBtn.textContent = "Retry with fresh research";
+      retryBtn.onclick = () => runDraft(cs.slug);
+      resDiv.appendChild(retryBtn);
+    }
+
+    wrap.appendChild(resDiv);
     return wrap;
   }
 

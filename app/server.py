@@ -43,6 +43,7 @@ from . import voice_learning
 from . import exemplars
 from . import exemplar_voice
 from . import exemplar_replay
+from . import preflight
 from . import voice_optimize
 from . import pipeline_view
 from . import outcomes as outcomes_mod
@@ -212,6 +213,9 @@ def _cs_public(cs: CompanyState) -> dict:
         # Two distinct answers, published separately. `company_domain` is identity; `recipient_domain`
         # is delivery. The UI must render the first wherever it says "website".
         "company_domain": pipeline.company_domain(cs),
+        # Plan 31 Stage 4: the UI must offer "add a contact" rather than "retry research" when a human
+        # is the only thing that can unblock this target.
+        "blockers": (preflight.blockers_detailed(cache) if cs.state == State.error else []),
         "recipient_domain": cs.recipient_domain or (cache.get("company") or {}).get("resolved_domain", ""),
         "domain_source": (cache.get("company") or {}).get("domain_source", "given" if cs.recipient_domain else "unresolved"),
         "ref": cs.ref,
@@ -1275,6 +1279,65 @@ def set_queue_website(slug: str, payload: dict = Body(...), list_id: str = ""):
     if not store.set_queue_website(slug, site, list_id=list_id):
         raise HTTPException(status_code=404, detail="target not in queue")
     return {"ok": True, "website": site, "queue": store.load_queue(list_id=list_id)}
+
+
+@app.put("/api/companies/{slug}/contact")
+def set_company_contact(slug: str, payload: dict = Body(...)):
+    """Supply the contact by hand when research could not find one.
+
+    Deliberately usable BEFORE a draft exists, unlike `/email`, which requires `machine_email` to be
+    set. Preflight refuses to compose without a contact, so requiring a draft first would make the
+    refusal unrecoverable -- which is what the operator hit on a stealth company.
+
+    A name alone is enough to unblock: the letter needs somebody to address, and the address can be
+    corrected later. An address on a different domain is accepted and flagged rather than refused, since
+    a founder using a personal address is common and the operator can see the flag.
+    """
+    import re as _re
+    cs = store.get_draft(slug)
+    if not cs:
+        raise HTTPException(status_code=404, detail="unknown target")
+
+    name = str(payload.get("name") or "").strip()
+    email = str(payload.get("email") or "").strip().lower()
+    if not name and not email:
+        raise HTTPException(status_code=400, detail="give a name, an address, or both")
+    if name and name.lower() in preflight.PLACEHOLDER_NAMES:
+        raise HTTPException(status_code=400,
+                            detail=f"{name!r} is a placeholder, not a person; give a real name")
+    if email and not _re.match(r"^[^@\s]+@[^@\s]+\.[a-z]{2,}$", email, _re.IGNORECASE):
+        raise HTTPException(status_code=400, detail=f"not a valid email address: {email}")
+
+    cache = dict(cs.cache or {})
+    contact = dict(cache.get("contact") or {})
+    if name:
+        contact["name"] = name
+        if payload.get("title"):
+            contact["title"] = str(payload["title"]).strip()
+    mismatch = False
+    if email:
+        contact["email"] = email
+        contact["email_method"] = "manual"
+        contact["email_confidence"] = "high"
+        contact["contact_verified"] = True
+        contact["email_source_url"] = ""
+        cs.recipient_domain = email.rsplit("@", 1)[1]
+        anchor = pipeline.company_domain(cs)
+        mismatch = bool(anchor and cs.recipient_domain != anchor
+                        and not cs.recipient_domain.endswith("." + anchor))
+    cache["contact"] = contact
+    cs.cache = cache
+    cs.contact_unverified = not bool(email)
+
+    remaining = preflight.blockers(cache)
+    if not remaining and cs.state == State.error:
+        cs.state = State.researched
+        cs.error = None
+        cs.status_pill = "ready to draft"
+    store.upsert_draft(cs)
+    _persist()
+    return {"ok": True, "domain_mismatch": mismatch, "blockers": remaining,
+            "company": _cs_public(cs)}
 
 
 @app.put("/api/companies/{slug}/website")

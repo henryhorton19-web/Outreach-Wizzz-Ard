@@ -24,31 +24,53 @@ PLACEHOLDER_LOCALS = frozenset(("unknown", "info", "contact", "hello", "team", "
 MIN_PROOF_POINTS = 1
 
 
-def blockers(cache) -> list[str]:
-    """Reasons this target must not be composed. Empty list means proceed. Never raises."""
-    out: list[str] = []
+def blockers_detailed(cache) -> list[dict]:
+    """Blockers with the remedy attached: [{"kind", "text"}].
+
+    `kind` is "needs_contact" (a human can supply it in ten seconds) or "needs_research" (only another
+    research pass can help). Callers need the distinction to offer the right action: the UI was showing
+    "Retry with fresh research" on a missing contact, which spends a call and cannot possibly succeed.
+
+    The two contact conditions -- placeholder name, placeholder address -- are one problem and are
+    reported once, because two lines describing one fault reads as two faults. Never raises.
+    """
+    out: list[dict] = []
     try:
         if not isinstance(cache, dict) or not cache:
-            return ["no research for this target"]
+            return [{"kind": "needs_research", "text": "no research for this target"}]
         company = cache.get("company") if isinstance(cache.get("company"), dict) else {}
         contact = cache.get("contact") if isinstance(cache.get("contact"), dict) else {}
 
         name = str(contact.get("name") or "").strip().lower()
-        if name in PLACEHOLDER_NAMES:
-            out.append("no named contact was found, so there is nobody to address the letter to")
-
         email = str(contact.get("email") or "").strip().lower()
-        if email and "@" in email:
-            local = email.split("@", 1)[0]
-            if local in PLACEHOLDER_LOCALS:
-                out.append(f"the only address found is a placeholder ({local}@...)")
+        local = email.split("@", 1)[0] if "@" in email else ""
+        no_name = name in PLACEHOLDER_NAMES
+        no_addr = bool(local) and local in PLACEHOLDER_LOCALS
+        if no_name or no_addr:
+            bits = []
+            if no_name:
+                bits.append("no named contact was found")
+            if no_addr:
+                bits.append(f"the only address found is a placeholder ({local}@...)")
+            out.append({"kind": "needs_contact",
+                        "text": " and ".join(bits) + ". Add a contact to continue."})
 
         if not str(company.get("what_they_do") or "").strip():
-            out.append("research did not establish what this company does")
+            out.append({"kind": "needs_research",
+                        "text": "research did not establish what this company does"})
 
         proofs = cache.get("proof_points")
         if not isinstance(proofs, list) or len([p for p in proofs if p]) < MIN_PROOF_POINTS:
-            out.append("research returned too few facts to write from")
+            out.append({"kind": "needs_research",
+                        "text": "research returned too few facts to write from"})
     except Exception:
         return out
     return out
+
+
+def blockers(cache) -> list[str]:
+    """String form, kept so existing callers and `pipeline` need no change. Never raises."""
+    try:
+        return [b["text"] for b in blockers_detailed(cache)]
+    except Exception:
+        return []
