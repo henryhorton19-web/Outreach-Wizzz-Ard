@@ -203,7 +203,7 @@ def run_staged_select_and_render(provider, voice, spec: dict, cache: dict, openi
     from . import settings as S
     from . import exemplars as _ex
     from . import intent_variation as IV
-    from . import deterministic_email as de
+    from .engine_bridge import de
 
     sender_facts = build_sender_facts(getattr(voice.evidence, "custom_facts", []) or [])
     if not sender_facts:
