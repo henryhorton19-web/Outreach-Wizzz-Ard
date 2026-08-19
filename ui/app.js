@@ -3229,15 +3229,29 @@ async function openSourcingPanel() {
   if (panel) panel.classList.remove("hidden");
   await loadSourcingPrompts();
   await refreshSourcingListSelect();
+  // Always write the banner, never leave it. A null last_run otherwise leaves
+  // "Sourcing run in progress..." on screen forever after a restart.
   try {
     const res = await api("/api/source/research/last");
-    const job = res.job || res;
-    if (job && (job.status === "running" || job.status === "queued")) {
-      trackSourcingJob(job.job_id);
-    } else if (job) {
-      renderSourcingReport(job);
+    const last = res.last_run || res.job || res;
+    const el = $("#sourcingStatusText");
+    if (el) {
+      if (last && last.status === "running") {
+        el.textContent = "Sourcing run in progress...";
+        // trackSourcingJob only exists once live polling has been added; guard for it so
+        // this works either way.
+        if (last.job_id && typeof trackSourcingJob === "function") trackSourcingJob(last.job_id);
+      } else if (last && (last.counts || last.added_slugs)) {
+        el.textContent = `Last run: ${last.counts?.queued || last.added_slugs?.length || 0} companies added`;
+        renderSourcingReport(last);
+      } else {
+        el.textContent = "";
+      }
     }
-  } catch (e) {}
+  } catch (e) {
+    const el = $("#sourcingStatusText");
+    if (el) el.textContent = "";
+  }
 }
 
 function closeSourcingPanel() {
@@ -3391,6 +3405,18 @@ function renderSourcingReport(job) {
     notes.unshift("No live provider configured. These are offline sample companies, not real results. Set a provider and API key in Settings.");
   } else if ((counts.ungrounded || 0) > 0) {
     notes.unshift(`${counts.ungrounded} companies were produced without a web search and are not verified findings.`);
+  }
+
+  // errors previously went nowhere: the ingest path writes failures into this list and
+  // nothing displayed them, so a failed ingest looked like a clean run.
+  if ((job.errors || []).length) {
+    notes.unshift(`Run reported ${job.errors.length} error(s): ${job.errors[0]}`);
+  }
+  if (job.added_list_id) {
+    notes.push(`Companies added to list: ${job.added_list_id}`);
+  }
+  if ((counts.checked || 0) > 0 && (counts.queued || 0) === 0) {
+    notes.unshift("Nothing reached the queue. Check the destination list and any errors above.");
   }
 
   let html = `

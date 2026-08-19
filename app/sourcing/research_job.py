@@ -13,7 +13,52 @@ from app.sourcing.verify import verify_candidate
 from app.sourcing.screen import screen_candidate
 
 _ACTIVE_JOBS: dict[str, dict] = {}
+# Persisted, not memory-only. As a bare module global this reset to None on restart:
+# GET /api/source/research/last then returned null, the frontend had no job to reconcile
+# against, and the status text kept whatever it last rendered. A finished run therefore
+# displayed "Sourcing run in progress..." indefinitely.
 _LAST_RUN: dict | None = None
+
+
+def _last_run_path():
+    from app import settings as _S
+    return _S.DATA_DIR / "last_sourcing_run.json"
+
+
+def _persist_last_run(job: dict) -> None:
+    """Write a small summary. Not the whole job: candidate lists can be large and the UI
+    only needs the status, counts and destination to reconcile its banner."""
+    import json as _json
+    try:
+        path = _last_run_path()
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(_json.dumps({
+            "job_id": job.get("job_id"),
+            "status": job.get("status"),
+            "stage": job.get("stage"),
+            "finished_at": job.get("finished_at") or job.get("started_at"),
+            "counts": job.get("counts") or {},
+            "added_list_id": job.get("added_list_id"),
+            "added_slugs": job.get("added_slugs") or [],
+            "errors": job.get("errors") or [],
+            "notes": job.get("notes") or [],
+            "sourcing_prompt_id": job.get("sourcing_prompt_id"),
+        }, indent=2, ensure_ascii=False), encoding="utf-8")
+    except Exception:
+        pass          # a reporting convenience must never fail a run
+
+
+def _load_persisted_last_run() -> dict | None:
+    import json as _json
+    try:
+        path = _last_run_path()
+        if path.exists():
+            data = _json.loads(path.read_text(encoding="utf-8"))
+            if isinstance(data, dict):
+                return data
+    except Exception:
+        pass
+    return None
 
 
 def get_active_job(job_id: str) -> dict | None:
@@ -21,7 +66,9 @@ def get_active_job(job_id: str) -> dict | None:
 
 
 def get_last_run() -> dict | None:
-    return _LAST_RUN
+    # Falls back to disk, so a restart does not make a finished run look like a running
+    # one. The in-memory copy is richer, so it wins when present.
+    return _LAST_RUN or _load_persisted_last_run()
 
 
 def cancel_job(job_id: str) -> bool:
@@ -364,6 +411,7 @@ def _execute_job(job: dict, settings: Any, recency_days: int, max_candidates: in
     job["status"] = "done"
     job["stage"] = "Completed"
     _LAST_RUN = job
+    _persist_last_run(job)
 
 
 def undo_sourcing_job(job_id: str) -> dict:
