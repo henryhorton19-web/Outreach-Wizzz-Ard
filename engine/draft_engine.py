@@ -19,7 +19,10 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 
-import config as C
+try:
+    from . import config as C
+except (ImportError, ValueError):
+    import config as C
 
 
 # ---------------------------------------------------------------------------
@@ -218,9 +221,33 @@ def select_evidence(cache: dict, prefer=(), pin=(), exclude=(), weights=None, co
     ranked = rank_evidence(cache, prefer, pin, exclude, weights)
     picked = [e for e in ranked if e["_score"] > 0 or e["_pinned"]][:max(1, int(count or 2))]
     if not picked:
-        exps = C.CANDIDATE_PROFILE["experiences"]
-        fk = "solano" if "solano" in exps else next(iter(exps))
-        picked = [dict(exps[fk], _key=fk, _score=0, _pinned=False)]
+        # Two faults in the previous three lines. next(iter(exps)) raised StopIteration
+        # on an empty experiences dict, failing every draft in a batch, and it fired
+        # whenever a voice specified prefer: [] and pin: [] and nothing scored above
+        # zero. It also hardcoded one specific experience key inside engine logic.
+        exps = {}
+        if hasattr(C, "CANDIDATE_PROFILE") and isinstance(C.CANDIDATE_PROFILE, dict):
+            exps = C.CANDIDATE_PROFILE.get("experiences") or {}
+        if exps:
+            fk = next(iter(exps))
+            picked = [dict(exps[fk], _key=fk, _score=0, _pinned=False)]
+        else:
+            # A neutral placeholder, asserting nothing. A fallback that stated facts
+            # about the sender would put invented claims in a real email, so this one
+            # carries no name, no figure and no achievement. Downstream guards already
+            # handle empty facts.
+            picked = [{
+                "_key": "unspecified",
+                "_score": 0,
+                "_pinned": False,
+                "name": "",
+                "title": "",
+                "when": "",
+                "anchor": "",
+                "facts": [],
+                "bridges": [],
+                "xyz": {"action": "", "metric": "", "method": ""},
+            }]
     return picked
 
 
@@ -533,7 +560,9 @@ def mock_email(spec: dict) -> dict:
     candidate evidence to one target proof point, no dashes, in range, no forbidden phrases."""
     proof = (spec.get("proof_points") or [""])[0]
     ev = spec.get("evidence") or []
-    ev_anchor = ev[0]["anchor"] if ev else C.CANDIDATE_PROFILE["experiences"]["solano"]["anchor"]
+    _exps = C.CANDIDATE_PROFILE.get("experiences", {}) if isinstance(getattr(C, "CANDIDATE_PROFILE", None), dict) else {}
+    _fallback_anchor = next(iter(_exps.values()), {}).get("anchor", "") if _exps else ""
+    ev_anchor = ev[0]["anchor"] if ev else _fallback_anchor
 
     lead = spec.get("lead")
     company = spec["company"]
