@@ -111,6 +111,27 @@ function dialog({ title = "", message = "", options = [{ label: "OK", value: tru
 
 /* ---------- helpers ---------- */
 function esc(s) { return (s == null ? "" : String(s)).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
+function timeAgo(isoStr) {
+  if (!isoStr) return "";
+  try {
+    const then = new Date(isoStr).getTime();
+    const ms = Date.now() - then;
+    if (isNaN(ms)) return isoStr;
+    // Clock skew between the machine and whatever set the timestamp is the only way
+    // this can go negative in practice, since last_run_at is always server-generated.
+    // Rounding it to "just now" would misreport a future time as having just happened.
+    if (ms < 0) return "just now (clock skew)";
+    const mins = Math.floor(ms / 60000);
+    if (mins < 1) return "just now";
+    if (mins < 60) return `${mins}m ago`;
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return `${hours}h ago`;
+    const days = Math.floor(hours / 24);
+    return `${days}d ago`;
+  } catch (e) {
+    return isoStr;
+  }
+}
 function shortUrl(u) { try { const x = new URL(u); return x.hostname.replace(/^www\./, "") + (x.pathname.length > 1 ? x.pathname : ""); } catch { return u; } }
 function wordCount(s) { return (s || "").trim() ? (s.trim().match(/\S+/g) || []).length : 0; }
 
