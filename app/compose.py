@@ -69,6 +69,7 @@ TOKEN_HELP = {
     "shared_subject": "the subject you and they both worked on, when one exists",
     "why": "one sentence explaining the link, in the matcher's words",
     "recent_kind": "raise, funding, launch, hire, expansion or other",
+    "recent_raise": "Congratulations sentence for a recent raise, or empty string if absent.",
     "profile_first": "your first name",
     "candidate_first": "your first name (legacy alias)",
     "candidate_name": "your full name",
@@ -140,12 +141,35 @@ def resolve_sector_label(what_they_do: str, mandate: list | None = None) -> str:
     return _SECTOR_FALLBACK
 
 
+def _recent_raise_sentence(facts: dict, target_domain: str = "") -> str:
+    """Build a sentence mentioning a recent raise signal, or empty string if absent."""
+    press = (facts.get("press_signal") or "").lower()
+    if "raise" not in press and "funding" not in press and "capital" not in press:
+        return ""
+    amount = (facts.get("raise_amount") or "").strip()
+    round_name = (facts.get("round_name") or "").strip()
+    date_str = (facts.get("raise_date") or "").strip()
+    if amount and round_name:
+        return f"congratulations on the {amount} {round_name} round"
+    if round_name:
+        return f"congratulations on the {round_name} round"
+    if amount:
+        return f"congratulations on the {amount} raise"
+    return "congratulations on the recent funding"
+
+
 def derive_tokens(spec: dict, variables: dict | None = None) -> dict:
     company = spec.get("company", "")
     role = spec.get("role_title", "")
     proofs = spec.get("proof_points", []) or []
     recent = spec.get("recent", {}) or {}
     name = EC.CANDIDATE_PROFILE.get("name", "")
+    facts = (
+        spec.get("facts")
+        or spec.get("recent_raise_facts")
+        or (spec.get("cache") or {}).get("recent_raise_facts")
+        or spec
+    )
     tokens = {
         "company": company,
         "contact_first": spec.get("contact_first", "there"),
@@ -153,13 +177,7 @@ def derive_tokens(spec: dict, variables: dict | None = None) -> dict:
         "contact_full": spec.get("contact_name", ""),
         "role": role,
         "role_or_company": role or company,
-        # Plan 28: lower-cased company for voices whose house style never capitalises it (subject
-        # lines and fixed blocks). Additive: {company} is unchanged, so no existing voice moves.
         "company_lower": (company or "").lower(),
-        # The market this company operates in, for mid-sentence use. Voices reference
-        # {sector_label} in fixed text and it previously rendered literally, because
-        # nothing emitted it. Never empty: an empty value ships "developments in  and
-        # given", which is worse than the unresolved token.
         "sector_label": resolve_sector_label(
             spec.get("what_they_do", "") or "",
             (spec.get("target_firm_types") or None),
@@ -169,10 +187,8 @@ def derive_tokens(spec: dict, variables: dict | None = None) -> dict:
         "observation": spec.get("observation", "") or "",
         "recent": recent.get("detail", "") if recent.get("present") else "",
         "recent_short": (recent.get("detail", "").split(",")[0] if recent.get("present") else ""),
-        # Which kind of recent point research found (raise | funding | launch | hire |
-        # expansion | other), or "" when none. Drives CustomVoice.recent_point_templates:
-        # a voice can swap a fixed block's standing text for a kind-specific opener.
         "recent_kind": (recent.get("kind", "") if recent.get("present") else ""),
+        "recent_raise": _recent_raise_sentence(facts),
         "proof_1": proofs[0] if len(proofs) > 0 else "",
         "proof_2": proofs[1] if len(proofs) > 1 else "",
         "city": spec.get("city", "") or "",

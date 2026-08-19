@@ -16,6 +16,7 @@ candidate profile.
 """
 from __future__ import annotations
 
+import json
 import re
 from dataclasses import dataclass, field
 
@@ -145,6 +146,36 @@ def target_domains(cache: dict) -> list[str]:
     if has("ai", "llm", "automation", "genai"):
         doms.append("automation")
     return doms
+
+
+def extract_recent_raise_facts(research_text: str, provider: Any = None) -> dict:
+    """Extract structured raise facts from raw research text using LLM, returning a dict."""
+    if not research_text or not provider or getattr(provider, "is_stub", False):
+        return {}
+    prompt = (
+        "Analyze the following research text about a company and extract facts about any recent funding/raise.\n"
+        "Return ONLY a valid JSON object with the following keys:\n"
+        '- "press_signal": "raised" if a funding/raise is mentioned, else ""\n'
+        '- "raise_amount": e.g. "EUR 15m", "$10M", or "" if unknown\n'
+        '- "round_name": e.g. "Series A", "Seed", or "" if unknown\n'
+        '- "raise_date": e.g. "March 2026", or "" if unknown\n\n'
+        f"Research text:\n{research_text}\n"
+    )
+    try:
+        res = provider.generate(prompt=prompt, system_prompt="You are a data extraction system. Output JSON only.")
+        text = getattr(res, "text", "") or ""
+        text = text.strip().removeprefix("```json").removeprefix("```").removesuffix("```").strip()
+        data = json.loads(text)
+        if isinstance(data, dict):
+            return {
+                "press_signal": str(data.get("press_signal") or "").strip(),
+                "raise_amount": str(data.get("raise_amount") or "").strip(),
+                "round_name": str(data.get("round_name") or "").strip(),
+                "raise_date": str(data.get("raise_date") or "").strip(),
+            }
+    except Exception:
+        pass
+    return {}
 
 
 def domain_overlap(exp: dict, doms: list[str]) -> bool:
