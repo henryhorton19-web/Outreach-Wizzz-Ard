@@ -2817,7 +2817,13 @@ function wire() {
   if ($("#managePresetsBtn")) $("#managePresetsBtn").onclick = openPresetsManager;
   if ($("#presetsCloseBtn")) $("#presetsCloseBtn").onclick = () => $("#sourcingPresetsModal").classList.add("hidden");
   if ($("#newPresetBtn")) $("#newPresetBtn").onclick = () => openPresetEditor(null);
-  if ($("#presetCancelBtn")) $("#presetCancelBtn").onclick = () => $("#presetEditor").classList.add("hidden");
+  if ($("#presetCancelBtn")) $("#presetCancelBtn").onclick = () => {
+    // Clearing this is what makes the NEXT action correct. Left set, a later save
+    // issues PUT against the preset that was being edited here, overwriting it even
+    // when the user intended to create something new.
+    editingPresetId = null;
+    $("#presetEditor").classList.add("hidden");
+  };
   if ($("#presetSaveBtn")) $("#presetSaveBtn").onclick = savePreset;
   if ($("#sourcingPromptSelect")) $("#sourcingPromptSelect").onchange = updateSourcingPanelMandateHint;
   setupBulkExportHandlers();
@@ -3100,6 +3106,12 @@ async function renderPresetsList() {
 
 async function openPresetEditor(promptId) {
   editingPresetId = promptId;
+  // The lookup below reads sourcingPrompts, which is filled by a separate call. If it
+  // is empty, find() returns undefined and every field is filled with "", so an
+  // existing preset opens as a blank form and saving it wipes the preset.
+  if (promptId && (!Array.isArray(sourcingPrompts) || sourcingPrompts.length === 0)) {
+    try { await loadSourcingPrompts(); } catch (e) { /* fall through to a blank form */ }
+  }
   const sourcesList = await fetchSourcingSources();
   const editor = $("#presetEditor");
   editor.classList.remove("hidden");
@@ -3164,18 +3176,32 @@ async function savePreset() {
     max_candidates: $("#presetMaxCandidatesInput") ? (parseInt($("#presetMaxCandidatesInput").value, 10) || 40) : 40,
     exclude_notes: $("#presetExcludeInput").value.trim(),
   };
+  let body = pdef;
   if (editingPresetId) {
     const existing = sourcingPrompts.find(x => x.id === editingPresetId);
-    if (existing) pdef.seeded_from = existing.seeded_from;
+    if (existing) {
+      // The PUT endpoint replaces the whole object with no merge, so any field the
+      // form does not carry resets to its Pydantic default: created_at, last_run_at,
+      // total_candidates_seen, the revenue band, exclusion_policy and the rest.
+      //
+      // Spread order matters and is easy to get backwards. Applying left to right
+      // into a NEW object means pdef wins on every key it defines and existing
+      // supplies the remainder. An invalid Object.assign merge would do the
+      // opposite and silently discard the user's edits.
+      body = { ...existing, ...pdef };
+    }
   }
 
   try {
     if (editingPresetId) {
-      await api(`/api/sourcing_prompts/${encodeURIComponent(editingPresetId)}`, { method: "PUT", body: pdef });
+      await api(`/api/sourcing_prompts/${encodeURIComponent(editingPresetId)}`, { method: "PUT", body: body });
     } else {
-      await api("/api/sourcing_prompts", { method: "POST", body: pdef });
+      await api("/api/sourcing_prompts", { method: "POST", body: body });
     }
     toast("Preset saved");
+    // Cleared on the way out, so the next open decides fresh whether this is an edit
+    // or a create. Left set, the next save overwrites whatever was edited here.
+    editingPresetId = null;
     $("#presetEditor").classList.add("hidden");
     renderPresetsList();
   } catch (e) { toast(e.message, true); }
