@@ -484,8 +484,13 @@ function renderQueue() {
     if (m.employees_band) chips.push(humanBadgeLabel(m.employees_band));
     if (m.funding_heat || m.signal_basis || m.discovery_label) chips.push(humanBadgeLabel(m.funding_heat || m.signal_basis || m.discovery_label));
     if (m.hq_city || m.hq_country) chips.push([m.hq_city, m.hq_country].filter(Boolean).join(", "));
+    // Screening no longer decides whether a company is queued, so its verdict is shown to
+    // the reviewer instead. A weak signal is worth seeing, not worth withholding.
+    const screenNote = m.screen_reason || (
+      m.screen_verdict && m.screen_verdict !== "accept" ? m.screen_verdict : "");
 
-    const chipHtml = chips.map(c => `<span class="tag neutral">${esc(c)}</span>`).join("");
+    const chipHtml = chips.map(c => `<span class="tag neutral">${esc(c)}</span>`).join("")
+      + (screenNote ? `<span class="tag caution" title="Flagged by automatic screening. Review and decide.">${esc(screenNote)}</span>` : "");
 
     const activeVoiceId = state.sessionVoice || state.defaultVoice || (allVoices[0] ? allVoices[0].id : "");
     const activeVoice = voiceById(activeVoiceId);
@@ -3397,10 +3402,12 @@ function renderSourcingReport(job) {
       <div style="display: flex; gap: 16px; font-weight: 500; color: #1e293b; margin-bottom: 8px;">
         <span>Checked: ${counts.checked || 0}</span>
         <span style="color: #16a34a;">Queued: ${counts.queued || 0}</span>
-        <span style="color: #d97706;">Held for review: ${counts.held || 0}</span>
-        <span style="color: #64748b;">Filtered: ${counts.rejected || 0}</span>
       </div>
   `;
+
+  if (counts.queued_for_review) {
+    notes.push(`${counts.queued_for_review} flagged by screening and queued for review`);
+  }
 
   if (notes.length) {
     html += `<div style="font-size: 12px; color: #475569; margin-bottom: 8px;">ℹ️ ${notes.map(esc).join('<br/>')}</div>`;
@@ -3410,21 +3417,6 @@ function renderSourcingReport(job) {
     html += `
       <div style="margin-top: 8px;">
         <button class="btn ghost small" id="undoSourcingBtn" style="color: #dc2626;">Undo — remove all ${addedSlugs.length} queued targets</button>
-      </div>
-    `;
-  }
-
-  const heldCandidates = candidates.filter(c => c.verdict === "needs_review" || c.tier === "Tier 2");
-  if (heldCandidates.length) {
-    html += `
-      <div style="margin-top: 12px; padding-top: 8px; border-top: 1px solid #f1f5f9;">
-        <div style="font-weight: 500; font-size: 12px; color: #334155; margin-bottom: 4px;">Held for review (${heldCandidates.length}):</div>
-        ${heldCandidates.map(c => `
-          <div style="font-size: 12px; margin-top: 4px; display: flex; justify-content: space-between; align-items: center;">
-            <span><strong>${esc(c.name)}</strong> — ${esc(c.reject_reason || c.fit?.why_fit || 'Review required')}</span>
-            <button class="btn ghost small add-held-btn" data-slug="${esc(c.canon_slug)}">Add to queue</button>
-          </div>
-        `).join('')}
       </div>
     `;
   }
@@ -3446,26 +3438,6 @@ function renderSourcingReport(job) {
       }
     };
   }
-
-  $$(".add-held-btn").forEach(btn => {
-    btn.onclick = async () => {
-      const slug = btn.dataset.slug;
-      try {
-        await api(`/api/source/research/${job.job_id}/add`, {
-          method: "POST",
-          body: { slugs: [slug] }
-        });
-        toast("Added to queue");
-        btn.disabled = true;
-        btn.textContent = "Added";
-        const q = await api(`/api/queue?list_id=${encodeURIComponent(state.activeListId || "default")}`);
-        state.queue = q.queue;
-        renderQueue();
-      } catch (e) {
-        toast(e.message, true);
-      }
-    };
-  });
 }
 
 /* ================= CANDIDATE PROFILE MODAL (Phase 4) ================= */

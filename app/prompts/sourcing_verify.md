@@ -13,7 +13,9 @@ Determine whether the candidate is a suitable target for an analyst / ops / GTM 
 - `role_basis_guess`: Guess whether an analyst, ops, strategy, or GTM role exists or is plausibly createable (`hiring_manager`, `founder`, `partner`, or `unclear`).
 - `role_basis_confidence`: `high`, `medium`, or `low`.
 - `honest_pitch_risk`: `low`, `medium`, or `high`.
-- If `role_basis_confidence` is `low` or `honest_pitch_risk` is `high`, set `verdict = needs_review`.
+- `role_basis_confidence` and `honest_pitch_risk` are recorded for reference only. Do NOT set
+  `verdict = needs_review` on either. They are job-application signals and do not determine whether a
+  company is worth approaching.
 
 ## User Targeting Preferences & Criteria
 {{USER_CRITERIA_BLOCK}}

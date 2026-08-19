@@ -83,6 +83,8 @@ def start_sourcing_job(settings: Any,
             "checked": 0,
             "already_seen": 0,
             "new": 0,
+            # Queued but flagged by screening. Not withheld: a reviewer decides.
+            "queued_for_review": 0,
             "accepted": 0,
             "held": 0,
             "rejected": 0,
@@ -292,7 +294,16 @@ def _execute_job(job: dict, settings: Any, recency_days: int, max_candidates: in
 
         record_seen(slug, name, verdict=verdict, reason=screened.get("reject_reason", ""))
 
-        if verdict == "accept" and screened.get("tier") == "Tier 1":
+        # Everything sourced is queued. Manual review is the check.
+        #
+        # This previously required verdict == "accept" AND tier == "Tier 1", and tier
+        # needed score >= 75, which only one of four score branches produced. So three
+        # automated judgements each decided whether a company that cost a research call to
+        # find would reach the queue at all.
+        #
+        # The screening fields are still computed and now travel with the row, so a
+        # reviewer sees why something looked weak and decides for themselves.
+        if True:
             job["counts"]["accepted"] += 1
             meta = dict(raw.get("meta") or {})
             meta["website_source"] = screened.get("website_source", "unresolved")
@@ -300,6 +311,11 @@ def _execute_job(job: dict, settings: Any, recency_days: int, max_candidates: in
                 meta["sourced_by_preset"] = job["sourcing_prompt_id"]
             if meta["website_source"] == "unresolved":
                 job["counts"]["unresolved_website"] = job["counts"].get("unresolved_website", 0) + 1
+            # Informs the reviewer rather than gating the company. verdict, tier and the
+            # reject reason are exactly the signal that used to withhold it.
+            meta["screen_verdict"] = screened.get("verdict", "")
+            meta["screen_tier"] = screened.get("tier", "")
+            meta["screen_reason"] = screened.get("reject_reason", "")
             ingest_rows.append({
                 "slug": slug,
                 "name": name,
@@ -311,10 +327,12 @@ def _execute_job(job: dict, settings: Any, recency_days: int, max_candidates: in
             if target_n > 0 and job["counts"]["accepted"] >= target_n:
                 job["stopped_because"] = "target_met"
                 break
-        elif verdict == "needs_review" or screened.get("tier") == "Tier 2":
-            job["counts"]["held"] += 1
-        else:
-            job["counts"]["rejected"] += 1
+
+        # held and rejected stay at zero so the report shape does not change and a reader
+        # comparing runs sees explicitly that nothing was withheld.
+        if verdict != "accept" or screened.get("tier") != "Tier 1":
+            job["counts"]["queued_for_review"] = (
+                job["counts"].get("queued_for_review") or 0) + 1
 
     if "stopped_because" not in job:
         if target_n > 0 and job["counts"]["accepted"] >= target_n:
