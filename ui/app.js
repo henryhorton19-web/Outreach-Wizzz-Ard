@@ -779,6 +779,96 @@ async function draftAllInQueue() {
 
 let activeDraftJobId = null;
 let draftJobPollTimer = null;
+let activeSourcingJobId = null;
+let sourcingJobPollTimer = null;
+
+// Mirrors trackDraftJob deliberately: same poll interval, same terminal-state check,
+// same cleanup. The sourcing run is now threaded, so it can be watched while it works.
+function trackSourcingJob(jobId) {
+  activeSourcingJobId = jobId;
+  updateSourcingUIState(true);
+
+  if (sourcingJobPollTimer) clearInterval(sourcingJobPollTimer);
+
+  sourcingJobPollTimer = setInterval(async () => {
+    try {
+      const res = await api(`/api/source/research/${jobId}`);
+      const job = res.job || res;
+      renderSourcingJobProgress(job);
+      // The target list fills as the run goes, so refresh it every tick.
+      await refreshQueue();
+      if (job.status === "done" || job.status === "cancelled" || job.status === "error") {
+        clearInterval(sourcingJobPollTimer);
+        sourcingJobPollTimer = null;
+        activeSourcingJobId = null;
+        updateSourcingUIState(false);
+        renderSourcingReport(job);
+        if (job.status === "cancelled") {
+          toast(`Sourcing stopped. ${job.counts?.queued || 0} companies kept.`);
+        } else if (job.status === "error") {
+          toast("Sourcing failed. See the run report.");
+        }
+      }
+    } catch (e) {
+      clearInterval(sourcingJobPollTimer);
+      sourcingJobPollTimer = null;
+      activeSourcingJobId = null;
+      updateSourcingUIState(false);
+    }
+  }, 1000);
+}
+
+async function stopSourcingNow() {
+  if (!activeSourcingJobId) return;
+  try {
+    await api(`/api/source/research/${activeSourcingJobId}/cancel`, { method: "POST" });
+    // Do not clear the timer here. The next poll sees "cancelled" and runs the same
+    // cleanup as a normal finish, so there is one code path rather than two.
+  } catch (e) {
+    toast("Could not stop the run.");
+  }
+}
+
+// Defaults to the active list, so anyone who ignores this control gets the behaviour
+// they had before. GET /api/lists already returns {active, lists}.
+async function refreshSourcingListSelect() {
+  const el = $("#sourcingListSelect");
+  if (!el) return;
+  try {
+    const res = await api("/api/lists");
+    const active = res.active || "default";
+    el.innerHTML = (res.lists || [])
+      .map(l => `<option value="${l.id}"${l.id === active ? " selected" : ""}>${l.name || l.id}</option>`)
+      .join("");
+  } catch (e) { /* leave it empty rather than blocking the panel */ }
+}
+
+function updateSourcingUIState(isSourcing) {
+  const stopBtn = $("#sourcingStopBtn");
+  if (stopBtn) {
+    if (isSourcing) stopBtn.classList.remove("hidden");
+    else stopBtn.classList.add("hidden");
+  }
+  const runBtn = $("#runSourcingBtn");
+  if (runBtn) {
+    runBtn.disabled = isSourcing;
+  }
+  const listSel = $("#sourcingListSelect");
+  if (listSel) {
+    listSel.disabled = isSourcing;
+  }
+}
+
+function renderSourcingJobProgress(job) {
+  const statusEl = $("#sourcingStatusText");
+  if (!statusEl) return;
+  if (!job) return;
+  const stage = job.stage || "Harvesting";
+  const counts = job.counts || {};
+  const checked = counts.checked || counts.harvested || 0;
+  const queued = counts.queued || 0;
+  statusEl.textContent = `🚀 Sourcing (${stage}): checked ${checked}, queued ${queued}...`;
+}
 
 function trackDraftJob(jobId) {
   activeDraftJobId = jobId;
@@ -2718,6 +2808,7 @@ function wire() {
   if ($("#findTargetsBtn")) $("#findTargetsBtn").onclick = openSourcingPanel;
   if ($("#closeSourcingPanelBtn")) $("#closeSourcingPanelBtn").onclick = closeSourcingPanel;
   if ($("#runSourcingBtn")) $("#runSourcingBtn").onclick = runSourcing;
+  if ($("#sourcingStopBtn")) $("#sourcingStopBtn").onclick = stopSourcingNow;
   if ($("#managePresetsBtn")) $("#managePresetsBtn").onclick = openPresetsManager;
   if ($("#presetsCloseBtn")) $("#presetsCloseBtn").onclick = () => $("#sourcingPresetsModal").classList.add("hidden");
   if ($("#newPresetBtn")) $("#newPresetBtn").onclick = () => openPresetEditor(null);
@@ -2910,6 +3001,7 @@ async function loadSourcingPrompts() {
     sel.innerHTML = `<option value="">Default (Hot Startups & Fresh Funding)</option>` +
       sourcingPrompts.map(p => `<option value="${esc(p.id)}"${p.id === curVal ? " selected" : ""}>${esc(p.display_name)}</option>`).join("");
     updateSourcingPanelMandateHint();
+    refreshSourcingListSelect();
   } catch (e) {
     console.error("Failed to load sourcing prompts", e);
   }
@@ -3127,10 +3219,20 @@ async function deletePreset(promptId) {
   } catch (e) { toast(e.message, true); }
 }
 
-function openSourcingPanel() {
+async function openSourcingPanel() {
   const panel = $("#sourcingPanel");
   if (panel) panel.classList.remove("hidden");
-  loadSourcingPrompts();
+  await loadSourcingPrompts();
+  await refreshSourcingListSelect();
+  try {
+    const res = await api("/api/source/research/last");
+    const job = res.job || res;
+    if (job && (job.status === "running" || job.status === "queued")) {
+      trackSourcingJob(job.job_id);
+    } else if (job) {
+      renderSourcingReport(job);
+    }
+  } catch (e) {}
 }
 
 function closeSourcingPanel() {
@@ -3141,6 +3243,8 @@ function closeSourcingPanel() {
 async function runSourcing() {
   const promptSelect = $("#sourcingPromptSelect");
   const promptId = (promptSelect && promptSelect.value) || null;
+  const listSelect = $("#sourcingListSelect");
+  const listId = (listSelect && listSelect.value) || undefined;
   const statusEl = $("#sourcingStatusText");
   const reportEl = $("#sourcingReport");
   if (statusEl) statusEl.textContent = "🚀 Sourcing run in progress...";
@@ -3149,15 +3253,15 @@ async function runSourcing() {
   try {
     const r = await api("/api/source/research", {
       method: "POST",
-      body: { sourcing_prompt_id: promptId }
+      body: { sourcing_prompt_id: promptId, list_id: listId }
     });
-    const job = r.job;
-    if (statusEl) statusEl.textContent = `Completed sourcing run in ${job.stage || 'Completed'}.`;
-    renderSourcingReport(job);
-
-    const q = await api(`/api/queue?list_id=${encodeURIComponent(state.activeListId || "default")}`);
-    state.queue = q.queue;
-    renderQueue();
+    const job = r.job || r;
+    if (job && job.job_id) {
+      trackSourcingJob(job.job_id);
+    } else {
+      if (statusEl) statusEl.textContent = `Completed sourcing run in ${job.stage || 'Completed'}.`;
+      renderSourcingReport(job);
+    }
   } catch (e) {
     if (statusEl) statusEl.textContent = "Sourcing run failed: " + e.message;
     toast(e.message, true);

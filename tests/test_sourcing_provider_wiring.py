@@ -60,9 +60,14 @@ def test_the_provider_reaches_the_harvester():
                 source_urls = ["https://news.example/x"]
             return Result()
 
+    import time
     prov = FakeProvider()
-    rj.start_sourcing_job(settings=Settings(), target_n=2, max_candidates=5,
+    job = rj.start_sourcing_job(settings=Settings(), target_n=2, max_candidates=5,
                           recency_days=180, sources=["grounded_search"], provider=prov)
+    for _ in range(50):
+        if prov.calls >= 1:
+            break
+        time.sleep(0.1)
     assert prov.calls >= 1, "the harvester never called the provider"
 
 

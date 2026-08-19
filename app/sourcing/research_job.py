@@ -40,7 +40,8 @@ def start_sourcing_job(settings: Any,
                        sources: list[str] | None = None,
                        sourcing_prompt_id: str | None = None,
                        fixture_harvest: list[dict] | None = None,
-                       provider: Any = None) -> dict:
+                       provider: Any = None,
+                       list_id: str | None = None) -> dict:
     """Start a new sourcing job in background or synchronous mode."""
     job_id = str(uuid.uuid4())
     started_at = datetime.now(timezone.utc).isoformat()
@@ -92,12 +93,45 @@ def start_sourcing_job(settings: Any,
         "errors": [],
         "notes": [],
         "added_slugs": [],
+        # The list this run writes to, chosen at start. Falls back to whatever is active
+        # so an older caller that passes nothing behaves as before.
+        "target_list_id": (list_id or store.active_list_id()),
     }
+    try:
+        if list_id and not any(l.get("id") == list_id for l in store.load_lists()):
+            job["errors"].append(
+                f"list {list_id!r} no longer exists; using the active list instead")
+            job["target_list_id"] = store.active_list_id()
+    except Exception:
+        pass
     _ACTIVE_JOBS[job_id] = job
 
-    # Run execution synchronous for clean predictability
-    _execute_job(job, settings, recency_days, max_candidates, custom_prompt, fixture_harvest,
-                 target_n=target_n, provider=provider)
+    # Threaded, so the request returns immediately and the run can be polled and stopped
+    # while it works. It was synchronous "for clean predictability", which also meant
+    # there was nothing to poll and a stop button had no request to answer, even though
+    # cancel_job and the loop's cancelled check both already existed.
+    #
+    # daemon=True so a closing app does not wait on a long run.
+    import threading
+
+    def _run():
+        try:
+            _execute_job(job, settings, recency_days, max_candidates, custom_prompt,
+                         fixture_harvest, target_n=target_n, provider=provider)
+        except Exception as exc:
+            job["status"] = "error"
+            job["stage"] = "Error"
+            job["errors"].append(str(exc))
+
+    if fixture_harvest is not None:
+        # Tests that supply fixture data run inline, so assertions see a finished job
+        # without sleeping. Only the live path needs a thread.
+        _run()
+    else:
+        job["status"] = "running"
+        job["stage"] = "Starting"
+        threading.Thread(target=_run, name=f"sourcing-{job_id}", daemon=True).start()
+
     return job
 
 
@@ -213,7 +247,34 @@ def _execute_job(job: dict, settings: Any, recency_days: int, max_candidates: in
             break
 
     # 3. VERIFY & SCREEN
-    ingest_rows = []
+    # Ingested in small batches as the run proceeds, so the target list fills visibly and
+    # a cancelled run keeps everything already found. This previously accumulated through
+    # the whole loop and ingested once at the end.
+    ingest_rows: list = []
+    _INGEST_BATCH = 3
+
+    def _flush_ingest():
+        """Push what we have into the target list. Safe to call repeatedly."""
+        nonlocal ingest_rows
+        if not ingest_rows:
+            return
+        if not getattr(settings, "sourcing_enabled", True):
+            return
+        try:
+            from app.server import _ingest_to_queue
+            target = job.get("target_list_id") or store.active_list_id()
+            res = _ingest_to_queue(list(ingest_rows), list_id=target)
+            added = res.get("added")
+            added_n = added if isinstance(added, int) else len(added or [])
+            job["counts"]["queued"] = (job["counts"].get("queued") or 0) + added_n
+            job["added_slugs"] = (job.get("added_slugs") or []) + [
+                r["slug"] for r in ingest_rows if r.get("slug")]
+            job["added_list_id"] = target
+        except Exception as exc:            # never let ingest kill the run
+            job["errors"].append(f"ingest failed: {exc}")
+        finally:
+            ingest_rows = []
+
     for raw in candidates_to_verify:
         if job["status"] == "cancelled":
             break
@@ -245,6 +306,8 @@ def _execute_job(job: dict, settings: Any, recency_days: int, max_candidates: in
                 "ref": screened.get("website", ""),
                 "meta": meta,
             })
+            if len(ingest_rows) >= _INGEST_BATCH:
+                _flush_ingest()
             if target_n > 0 and job["counts"]["accepted"] >= target_n:
                 job["stopped_because"] = "target_met"
                 break
@@ -259,22 +322,8 @@ def _execute_job(job: dict, settings: Any, recency_days: int, max_candidates: in
         else:
             job["stopped_because"] = "budget_exhausted"
             
-    # 4. AUTO-QUEUE (If sourcing_enabled)
-    sourcing_enabled = getattr(settings, "sourcing_enabled", True)
-    if sourcing_enabled and ingest_rows:
-        from app.server import _ingest_to_queue
-        list_id = store.active_list_id()
-        res = _ingest_to_queue(ingest_rows, list_id=list_id)
-        added_count = res.get("added") or 0
-        job["counts"]["queued"] = added_count
-        ex_blocked = len(res.get("excluded_blocked") or [])
-        job["counts"]["excluded"] = ex_blocked
-        if ex_blocked > 0:
-            job["notes"].append(f"{ex_blocked} target(s) blocked by permanent exclusion set (excluded.json).")
-        job["added_slugs"] = [r["slug"] for r in ingest_rows]
-        # Undo must reverse the list the rows actually went into, not whichever
-        # list happens to be active when the user clicks undo.
-        job["added_list_id"] = list_id
+    # 4. AUTO-QUEUE (flushes any remaining rows)
+    _flush_ingest()
 
     # Novelty note
     chk = job["counts"]["checked"]
@@ -294,7 +343,7 @@ def _execute_job(job: dict, settings: Any, recency_days: int, max_candidates: in
         except Exception:
             pass
 
-    job["status"] = "completed"
+    job["status"] = "done"
     job["stage"] = "Completed"
     _LAST_RUN = job
 
