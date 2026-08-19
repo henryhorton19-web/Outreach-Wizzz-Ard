@@ -63,6 +63,7 @@ def followup_floor_preamble() -> str:
 
 
 TOKEN_HELP = {
+    "sector_label": "the market they operate in, for mid-sentence use, e.g. local marketing",
     "observation": "the one thing true of this company and no other",
     "link_strength": "strong, weak or none: whether a real background overlap was found",
     "shared_subject": "the subject you and they both worked on, when one exists",
@@ -87,6 +88,58 @@ TOKEN_HELP = {
 }
 
 
+# Market vocabulary for {sector_label}. These are the words an investor uses to name a
+# space, which is what the token has to supply: the sentence reads "developments in X",
+# so X must be a market, not a company description.
+#
+# Ordering is irrelevant because the longest match wins, but keep entries specific. A
+# term true of thousands of companies, such as SaaS, is only useful as a last resort.
+_SECTOR_TERMS = (
+    "local payments", "cross-border payments", "payments infrastructure", "embedded finance",
+    "elderly care", "at-home care", "home care", "mental health", "digital health", "health tech",
+    "local marketing", "location marketing", "marketing software",
+    "pension software", "life insurance", "insurtech", "wealth management",
+    "developer tools", "platform-as-a-service", "data infrastructure", "cloud infrastructure",
+    "cybersecurity", "supply chain", "logistics", "freight", "e-commerce enablement",
+    "climate tech", "energy transition", "renewable energy",
+    "HR software", "workforce management", "restaurant technology", "construction software",
+    "FinTech", "payments", "B2B software", "vertical SaaS", "SaaS", "marketplaces",
+)
+
+# Used when nothing in the description matches. Deliberately generic and grammatical:
+# an empty value ships "developments in  and given", which is worse than the literal
+# token this replaces.
+_SECTOR_FALLBACK = "your market"
+
+
+def _normalise_for_sector(text: str) -> str:
+    """Lowercase and flatten separators, so local-marketing matches local marketing."""
+    import re as _re
+    return _re.sub(r"[-_/]+", " ", (text or "").lower())
+
+
+def resolve_sector_label(what_they_do: str, mandate: list | None = None) -> str:
+    """Name the market this company operates in, for mid-sentence use.
+
+    Longest match wins rather than first match: "local marketing" must beat "SaaS",
+    which is true of thousands of companies and tells a founder nothing.
+
+    Falls back to the first mandate sector when the description names no known market,
+    and to a generic phrase when there is no mandate either. It never returns empty.
+    """
+    haystack = _normalise_for_sector(what_they_do)
+    if haystack:
+        hits = [term for term in _SECTOR_TERMS
+                if _normalise_for_sector(term) in haystack]
+        if hits:
+            return max(hits, key=len)
+    for entry in (mandate or []):
+        candidate = str(entry or "").strip()
+        if candidate:
+            return candidate
+    return _SECTOR_FALLBACK
+
+
 def derive_tokens(spec: dict, variables: dict | None = None) -> dict:
     company = spec.get("company", "")
     role = spec.get("role_title", "")
@@ -103,6 +156,14 @@ def derive_tokens(spec: dict, variables: dict | None = None) -> dict:
         # Plan 28: lower-cased company for voices whose house style never capitalises it (subject
         # lines and fixed blocks). Additive: {company} is unchanged, so no existing voice moves.
         "company_lower": (company or "").lower(),
+        # The market this company operates in, for mid-sentence use. Voices reference
+        # {sector_label} in fixed text and it previously rendered literally, because
+        # nothing emitted it. Never empty: an empty value ships "developments in  and
+        # given", which is worse than the unresolved token.
+        "sector_label": resolve_sector_label(
+            spec.get("what_they_do", "") or "",
+            (spec.get("target_firm_types") or None),
+        ),
         "what_they_do": spec.get("what_they_do", "") or "",
         "situation_read": spec.get("situation_read", "") or "",
         "observation": spec.get("observation", "") or "",
