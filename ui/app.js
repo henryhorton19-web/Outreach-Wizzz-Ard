@@ -37,8 +37,6 @@ const state = {
   view: "workspace",      // active working view (tab strip single source of truth)
   followups: null,
   perfKind: "outreach",
-  triageBucket: "replied",
-  triageData: null,
 };
 
 let selectedDefaultAttachment = "";   // module-scope, near other UI state
@@ -269,18 +267,6 @@ async function openSettings() {
   $("#setFuEnabled").onchange = syncFuDisabled;
   syncFuDisabled();
 
-  // inbox (Phase 5)
-  $("#setImapEnabled").checked = !!fs.imap_enabled;
-  $("#setImapHost").value = fs.imap_host || "";
-  $("#setImapPort").value = String(fs.imap_port || 993);
-  $("#setImapSsl").checked = fs.imap_ssl !== false;
-  $("#setImapUser").value = fs.imap_username || "";
-  $("#setImapPass").value = "";
-  $("#setImapMailboxes").value = (fs.imap_mailboxes || ["INBOX"]).join(", ");
-  $("#setImapPoll").value = String(fs.imap_poll_minutes || 0);
-  const syncImap = () => $("#imapFields").classList.toggle("hidden", !$("#setImapEnabled").checked);
-  $("#setImapEnabled").onchange = syncImap; syncImap();
-  $("#imapTestResult").textContent = "";
 
   // learning + thresholds + send-window (Phases 7, 3, 2, 6c)
   $("#setLearningRouting").value = fs.voice_learning_routing || "off";
@@ -316,14 +302,6 @@ async function saveSettings() {
       .map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n) && n >= 0)) .length
       ? $("#setFuDelays").value.split(",").map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n) && n >= 0)
       : [3, 7, 7],
-    // inbox (Phase 5)
-    imap_enabled: $("#setImapEnabled").checked,
-    imap_host: $("#setImapHost").value.trim(),
-    imap_port: parseInt($("#setImapPort").value, 10) || 993,
-    imap_ssl: $("#setImapSsl").checked,
-    imap_username: $("#setImapUser").value.trim(),
-    imap_mailboxes: $("#setImapMailboxes").value.split(",").map(s => s.trim()).filter(Boolean),
-    imap_poll_minutes: parseInt($("#setImapPoll").value, 10) || 0,
     // learning + thresholds + send-window
     voice_learning_routing: $("#setLearningRouting").value,
     voice_learning_mode: $("#setLearningMode").value,
@@ -338,19 +316,16 @@ async function saveSettings() {
   };
   const key = $("#setKeyInput").value.trim();
   const apolloKey = $("#setApolloKeyInput").value.trim();
-  const imapPass = $("#setImapPass").value.trim();
   const remember = $("#setRemember").checked;
   const trackerPath = $("#setTrackerPath").value.trim();
   try {
     await api("/api/settings", { method: "POST", body: payload });
     if (prov !== "stub" && key) await api("/api/keys", { method: "POST", body: { provider: prov, key, remember } });
     if (apolloKey) await api("/api/keys", { method: "POST", body: { provider: "apollo", key: apolloKey, remember } });
-    if (imapPass) await api("/api/keys", { method: "POST", body: { provider: "imap", key: imapPass, remember } });
     await api("/api/tracker_path", { method: "POST", body: { path: trackerPath } });
     await refreshStatus();
     $("#setKeyInput").value = "";
     $("#setApolloKeyInput").value = "";
-    $("#setImapPass").value = "";
     $("#settingsModal").classList.add("hidden");
     toast("Settings saved");
   } catch (e) { $("#settingsNote").textContent = e.message; }
@@ -1513,7 +1488,7 @@ async function clearArchive() {
 
 // Unified view router. The tab strip is the single source of truth for "where am I working".
 // Workspace = the split (ingest + queue + drafts); the others are full-width views.
-const VIEWS = ["workspace", "followups", "pipeline", "performance", "triage", "profile"];
+const VIEWS = ["workspace", "followups", "pipeline", "performance", "profile"];
 
 /* ---------- topbar tab strip ---------- */
 function initTabStripScroll() {
@@ -1547,7 +1522,6 @@ function showView(name) {
   $("#followupsView").classList.toggle("hidden", name !== "followups");
   $("#pipelineView").classList.toggle("hidden", name !== "pipeline");
   $("#performanceView").classList.toggle("hidden", name !== "performance");
-  $("#triageView").classList.toggle("hidden", name !== "triage");
   $("#profileView").classList.toggle("hidden", name !== "profile");
   // tab strip a11y + active state
   $$(".topbar-tab").forEach(t => {
@@ -1559,7 +1533,6 @@ function showView(name) {
   if (name === "followups") refreshFollowups();
   else if (name === "pipeline") refreshPipeline();
   else if (name === "performance") refreshPerformance();
-  else if (name === "triage") refreshTriage();
   else if (name === "profile") refreshProfileTab();
 }
 
@@ -1797,7 +1770,7 @@ function renderPipeline() {
     const body = document.createElement("div"); body.className = "board-col-body";
     if (!cards.length) {
       const empty = document.createElement("div"); empty.className = "board-empty";
-      empty.textContent = stage === "replied" ? "No replies yet — connect an inbox in Settings to track them."
+      empty.textContent = stage === "replied" ? "No replies recorded yet."
         : stage === "bounced" ? "No bounces. Good."
         : stage === "sent" ? "Nothing sent yet." : "Nothing here yet.";
       body.appendChild(empty);
@@ -1829,7 +1802,6 @@ function pipelineCard(c, stage) {
       else if (a === "draft") { b.textContent = "draft"; b.onclick = () => { showView("workspace"); draftFromQueue(c.slug); }; }
       else if (a === "approve") { b.textContent = "approve"; b.onclick = () => approveOne(c.slug); }
       else if (a === "reopen") { b.textContent = "reopen"; b.onclick = () => markPipeline(c.slug, "reopen"); }
-      else if (a === "draft_reply") { b.textContent = "draft reply"; b.onclick = () => showView("triage"); }
       else if (a === "view_retry") { b.textContent = "view retry"; b.onclick = () => { showView("workspace"); renderDrafts(); }; }
       if (b.textContent) acts.appendChild(b);
     }
@@ -1911,176 +1883,7 @@ function editBar(intensity) {
   return "▓".repeat(filled) + "░".repeat(5 - filled);
 }
 
-/* ================= TRIAGE (Phase 6a) ================= */
 
-async function refreshTriage() {
-  const list = $("#triageList");
-  if (list) list.innerHTML = '<div class="col-empty shimmer" style="padding:24px; text-align:center;">Loading triage items\u2026</div>';
-  try { state.triageData = await api("/api/triage"); }
-  catch (e) {
-    if (list) list.innerHTML = `<div class="col-empty" style="padding:24px; text-align:center;"><p>${esc(e.message)}</p><button class="btn ghost small" onclick="refreshTriage()">Retry</button></div>`;
-    toast(e.message, true);
-    return;
-  }
-  const c = state.triageData.counts || {};
-  $("#triageCountReplied").textContent = c.replied || "";
-  $("#triageCountBounced").textContent = c.bounced || "";
-  $("#triageCountQuiet").textContent = c.gone_quiet || "";
-  const aw = $("#triageCountAwaiting"); if (aw) aw.textContent = c.awaiting || "";
-  updateTriageBadge();
-  renderTriage();
-}
-
-function setTriageBucket(bucket) {
-  state.triageBucket = bucket;
-  $$("#triageView .triage-filter .vk-seg").forEach(b => {
-    const on = b.dataset.bucket === bucket;
-    b.classList.toggle("is-active", on); b.setAttribute("aria-selected", on);
-  });
-  renderTriage();
-}
-
-// One outcome button. Marking fires the SAME backend effects the automated sweep fires.
-function outcomeBtn(it, outcome, label, cls) {
-  const b = document.createElement("button");
-  b.className = "linklike" + (cls ? " " + cls : "");
-  b.textContent = label;
-  b.onclick = () => markOutcome(it.id, outcome);
-  return b;
-}
-
-function renderTriage() {
-  const data = state.triageData; if (!data) return;
-  const items = data[state.triageBucket] || [];
-  const list = $("#triageList");
-  $("#triageEmpty").classList.toggle("hidden", items.length > 0);
-  list.innerHTML = "";
-  items.forEach(it => {
-    const row = document.createElement("div"); row.className = "triage-row";
-    row.dataset.id = it.id;
-    const age = it.age_days ? `${it.age_days}d ago` : "recent";
-    const src = it.outcome_source === "manual"
-      ? `<span class="badge" title="You marked this by hand">marked</span> ` : "";
-    let subLine = `${esc(it.sent_to || "")} · ${esc(it.subject || "")} · ${age}`;
-    // bounced rows: show who the next retry would target (different person + format)
-    if (state.triageBucket === "bounced" && it.next_rung) {
-      const who = it.next_rung.person ? `${esc(it.next_rung.person)} ` : "";
-      const tier = it.next_rung.tier === "alt_person" ? " (different person)" : "";
-      subLine += ` · next: ${who}&lt;${esc(it.next_rung.email)}&gt;${tier}`;
-    }
-    row.innerHTML = `<div class="triage-main"><div class="triage-name">${src}${esc(it.name)}</div>
-      <div class="triage-sub">${subLine}</div></div>`;
-    const act = document.createElement("div"); act.className = "triage-act";
-
-    if (state.triageBucket === "replied") {
-      const b = document.createElement("span"); b.className = "badge badge-ok"; b.textContent = "replied"; act.appendChild(b);
-      act.appendChild(outcomeBtn(it, "awaiting", "not a reply — reset"));
-    } else if (state.triageBucket === "bounced") {
-      if (!it.exhausted) {
-        const v = document.createElement("button"); v.className = "linklike";
-        v.textContent = "view retry in Drafts";
-        v.onclick = () => { showView("workspace"); renderDrafts(); };
-        act.appendChild(v);
-      }
-      const r = document.createElement("button"); r.className = "linklike";
-      r.textContent = it.exhausted ? "retarget to a different person…" : "retarget elsewhere…";
-      r.onclick = () => openRetargetDialog(it);
-      act.appendChild(r);
-      act.appendChild(outcomeBtn(it, "awaiting", "not a bounce — reset"));
-    } else {
-      // gone_quiet + awaiting: the full manual-detection menu on any live send
-      act.appendChild(outcomeBtn(it, "replied", "mark replied", "ok"));
-      act.appendChild(outcomeBtn(it, "bounced", "mark bounced"));
-      if (it.pipeline_flag !== "no_response")
-        act.appendChild(outcomeBtn(it, "no_response", "mark no-response"));
-      else
-        act.appendChild(outcomeBtn(it, "reopen", "reopen"));
-    }
-    row.appendChild(act);
-    list.appendChild(row);
-  });
-}
-
-// Mark a send's outcome by hand → same effects as a sweep. Refresh triage + drafts (a bounce may
-// have staged a retry). Toast names the retry target when a different person was reached.
-async function markOutcome(sentId, outcome) {
-  try {
-    const r = await api(`/api/sent/${encodeURIComponent(sentId)}/outcome`, { method: "POST", body: { outcome } });
-    let msg = { replied: "Marked replied", bounced: "Marked bounced", awaiting: "Reset to awaiting",
-                no_response: "Marked no-response", reopen: "Reopened" }[outcome] || "Updated";
-    if (outcome === "bounced") {
-      if (r.retry && r.retry.email) {
-        const who = r.retry.person ? ` (${r.retry.person})` : "";
-        msg += ` — retry to ${r.retry.email}${who} staged in Drafts`;
-      } else if (r.exhausted) {
-        msg += " — no more addresses; use “retarget to a different person”";
-      }
-    }
-    toast(msg);
-    await refreshTriage();
-    await refreshDrafts();
-  } catch (e) { toast(e.message, true); }
-}
-
-// Stage a bounce re-draft to a person the operator names (the backstop when the ladder is spent).
-async function openRetargetDialog(it) {
-  const scrim = document.createElement("div"); scrim.className = "modal-scrim";
-  scrim.innerHTML = `
-    <div class="modal" style="max-width:440px;">
-      <h3 style="margin-top:0;">Retarget ${esc(it.name)}</h3>
-      <p class="hint">Stage a fresh draft to a different person. It re-addresses the email to them and
-        drops into Drafts for your review — nothing sends.</p>
-      <div class="field"><label>Email <span style="color:var(--error)">*</span></label>
-        <input type="email" id="rtEmail" placeholder="person@company.com" autocomplete="off" /></div>
-      <div class="field" style="display:flex; gap:10px;">
-        <div style="flex:1;"><label>Name</label><input type="text" id="rtName" placeholder="Jordan Lee" /></div>
-        <div style="flex:1;"><label>Title</label><input type="text" id="rtTitle" placeholder="Head of Ops" /></div>
-      </div>
-      <div class="modal-actions" style="display:flex; gap:8px; justify-content:flex-end; margin-top:14px;">
-        <button class="btn ghost" id="rtCancel">Cancel</button>
-        <button class="btn primary" id="rtGo">Stage draft</button>
-      </div>
-      <div class="note-line" id="rtNote" style="margin-top:8px;"></div>
-    </div>`;
-  document.body.appendChild(scrim);
-  const close = () => scrim.remove();
-  scrim.querySelector("#rtCancel").onclick = close;
-  scrim.addEventListener("click", (e) => { if (e.target === scrim) close(); });
-  scrim.querySelector("#rtGo").onclick = async () => {
-    const email = scrim.querySelector("#rtEmail").value.trim();
-    if (!email || !email.includes("@")) { scrim.querySelector("#rtNote").textContent = "A valid email is required."; return; }
-    const body = { email, name: scrim.querySelector("#rtName").value.trim(), title: scrim.querySelector("#rtTitle").value.trim() };
-    try {
-      const r = await api(`/api/sent/${encodeURIComponent(it.id)}/retarget`, { method: "POST", body });
-      close(); toast(`Retarget to ${r.email} staged in Drafts`);
-      await refreshTriage(); await refreshDrafts(); showView("workspace"); renderDrafts();
-    } catch (e) { scrim.querySelector("#rtNote").textContent = e.message; }
-  };
-  setTimeout(() => scrim.querySelector("#rtEmail").focus(), 30);
-}
-
-async function updateTriageBadge() {
-  let n = 0;
-  if (state.triageData) n = (state.triageData.counts.replied || 0) + (state.triageData.counts.bounced || 0);
-  const badge = $("#triageBadge");
-  if (!badge) return;
-  badge.textContent = n ? String(n) : "";
-  badge.classList.toggle("hidden", n === 0);
-}
-
-async function runSweep(btn) {
-  if (btn) { btn.disabled = true; btn.textContent = "Checking…"; }
-  const status = $("#triageStatus");
-  try {
-    const r = await api("/api/inbox/sweep", { method: "POST" });
-    const parts = [`${r.replied} repl${r.replied === 1 ? "y" : "ies"}`, `${r.bounced} bounce${r.bounced === 1 ? "" : "s"}`];
-    if (r.retries && r.retries.length) parts.push(`${r.retries.length} retry draft${r.retries.length === 1 ? "" : "s"} staged`);
-    toast(parts.join(", "));
-    if (status) status.textContent = `Last checked just now — scanned ${r.scanned} messages.`;
-    await refreshTriage(); await refreshDrafts();
-  } catch (e) { toast(e.message, true); if (status) status.textContent = e.message; }
-  finally { if (btn) { btn.disabled = false; btn.textContent = "Check for replies"; } }
-}
 
 /* ================= SUPPRESSION MANAGER (Phase 4a) ================= */
 
@@ -2119,21 +1922,6 @@ async function addSuppression() {
   catch (e) { toast(e.message, true); }
 }
 
-/* ================= IMAP test (Phase 5) ================= */
-
-async function testImap(btn) {
-  const res = $("#imapTestResult");
-  res.textContent = "Testing…";
-  // save current inbox fields first so the test uses them
-  await saveSettings();
-  $("#settingsModal").classList.remove("hidden");  // saveSettings closes it; reopen for the result
-  try {
-    const r = await api("/api/inbox/test", { method: "POST" });
-    res.textContent = r.ok ? `✓ ${r.detail}` : `✗ ${r.detail}`;
-    res.style.color = r.ok ? "var(--capital)" : "var(--error)";
-  } catch (e) { res.textContent = `✗ ${e.message}`; res.style.color = "var(--error)"; }
-}
-
 /* ================= KEYBOARD LAYER (Phase 4c) ================= */
 
 let kbdFocusIdx = -1;
@@ -2166,7 +1954,6 @@ function handleShortcut(e) {
     if (e.key === "Escape" && typingInField()) document.activeElement.blur();
     return;
   }
-  if (state.view === "triage") { handleTriageShortcut(e); return; }
   if (state.view !== "workspace" && e.key !== "?") return;
   switch (e.key) {
     case "j": e.preventDefault(); moveKbdFocus(1); break;
@@ -2176,43 +1963,6 @@ function handleShortcut(e) {
     case "/": e.preventDefault(); { const t = $("#namesInput"); if (t) t.focus(); } break;
     case "?": e.preventDefault(); $("#shortcutModal").classList.remove("hidden"); break;
   }
-}
-
-// One-key triage. Reuses markOutcome / setTriageBucket, which already fire the
-// same effects as the automatic sweep.
-const TRIAGE_KEYS = { r: "replied", b: "bounced", n: "no_response", u: "reopen" };
-const TRIAGE_BUCKETS = ["replied", "bounced", "gone_quiet", "awaiting"];
-let triageFocusIdx = -1;
-
-function handleTriageShortcut(e) {
-  if (e.key === "?") { e.preventDefault(); $("#shortcutModal").classList.remove("hidden"); return; }
-  const bucketIdx = "1234".indexOf(e.key);
-  if (bucketIdx >= 0) { e.preventDefault(); setTriageBucket(TRIAGE_BUCKETS[bucketIdx]); return; }
-  if (e.key === "j" || e.key === "k") { e.preventDefault(); moveTriageFocus(e.key === "j" ? 1 : -1); return; }
-  const outcome = TRIAGE_KEYS[e.key];
-  if (!outcome) return;
-  const id = focusedTriageId();
-  if (!id) return;
-  e.preventDefault();
-  markOutcome(id, outcome);
-}
-
-function visibleTriageRows() { return $$("#triageList .triage-row"); }
-
-function moveTriageFocus(delta) {
-  const rows = visibleTriageRows();
-  if (!rows.length) return;
-  rows.forEach(r => r.classList.remove("kbd-focus"));
-  triageFocusIdx = Math.max(0, Math.min(rows.length - 1, triageFocusIdx + delta));
-  const row = rows[triageFocusIdx];
-  row.classList.add("kbd-focus");
-  row.scrollIntoView({ block: "nearest", behavior: (matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth") });
-}
-
-function focusedTriageId() {
-  const rows = visibleTriageRows();
-  if (triageFocusIdx < 0 || triageFocusIdx >= rows.length) return null;
-  return rows[triageFocusIdx].dataset.id || null;
 }
 
 
@@ -2823,12 +2573,6 @@ function wire() {
   $("#perfKindOutreach").onclick = () => setPerfKind("outreach");
   $("#perfKindFollowup").onclick = () => setPerfKind("followup");
 
-  // triage filter + sweep
-  $$("#triageView .triage-filter .vk-seg").forEach(b => {
-    b.onclick = () => setTriageBucket(b.dataset.bucket);
-  });
-  $("#triageSweepBtn").onclick = () => runSweep($("#triageSweepBtn"));
-
   // suppression manager
   $("#openSuppBtn").onclick = openSuppressions;
   $("#suppCloseBtn").onclick = () => $("#suppModal").classList.add("hidden");
@@ -2840,9 +2584,6 @@ function wire() {
     await api("/api/suppressions/clear", { method: "POST" }); await refreshSuppressions(); toast("Cleared");
   };
 
-  // imap test connection
-  $("#imapTestBtn").onclick = () => testImap($("#imapTestBtn"));
-
   // keyboard shortcuts + cheat-sheet
   $("#shortcutCloseBtn").onclick = () => $("#shortcutModal").classList.add("hidden");
   document.addEventListener("keydown", handleShortcut);
@@ -2852,7 +2593,6 @@ function wire() {
   if ($("#emptyUploadBtn")) $("#emptyUploadBtn").onclick = () => $("#fileInput").click();
   if ($("#emptySourceBtn")) $("#emptySourceBtn").onclick = openSourcingPanel;
   if ($("#emptyDraft5Btn")) $("#emptyDraft5Btn").onclick = draft5;
-  if ($("#emptyTriageSweepBtn")) $("#emptyTriageSweepBtn").onclick = () => runSweep($("#emptyTriageSweepBtn"));
 
   $("#guideBtn").onclick = () => $("#guideModal").classList.remove("hidden");
   $("#guideCloseBtn").onclick = () => $("#guideModal").classList.add("hidden");
@@ -3708,7 +3448,6 @@ async function boot() {
     await refreshDrafts();
     await updateFollowupsBadge();
     await refreshCost();
-    try { const t = await api("/api/triage"); state.triageData = t; updateTriageBadge(); } catch (e) {}
     showView("workspace");
     if (needsKey(state.status)) openStartup();
   } catch (e) {

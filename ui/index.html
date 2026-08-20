@@ -37,11 +37,6 @@
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"></path><path d="M18 9l-5 5-3-3-4 4"></path></svg>
         <span>Performance</span>
       </button>
-      <button class="topbar-tab" id="tab-triage" role="tab" aria-selected="false" data-view="triage" title="Triage" aria-label="Triage">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
-        <span>Triage</span>
-        <span class="badge-count hidden" id="triageBadge"></span>
-      </button>
       <button class="topbar-tab" id="tab-profile" role="tab" aria-selected="false" data-view="profile" title="Profile" aria-label="Profile">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
         <span>Profile</span>
@@ -257,32 +252,6 @@
       </div>
     </section>
 
-    <!-- TRIAGE VIEW -->
-    <section class="triage-view hidden" id="triageView">
-      <div class="fu-head">
-        <div>
-          <h2>Inbox Triage</h2>
-          <p class="hint">Incoming target emails and reply drafting.</p>
-        </div>
-        <div class="header-actions">
-          <button class="btn ghost small" id="triageSweepBtn">Run Sweep</button>
-        </div>
-      </div>
-      <div class="triage-buckets">
-        <button class="vk-seg is-active" data-bucket="replied" role="tab" aria-selected="true">Replied <span class="col-count" id="triageCountReplied"></span></button>
-        <button class="vk-seg" data-bucket="bounced" role="tab" aria-selected="false">Bounced <span class="col-count" id="triageCountBounced"></span></button>
-        <button class="vk-seg" data-bucket="gone_quiet" role="tab" aria-selected="false">Gone quiet <span class="col-count" id="triageCountQuiet"></span></button>
-        <button class="vk-seg" data-bucket="awaiting" role="tab" aria-selected="false">Awaiting <span class="col-count" id="triageCountAwaiting"></span></button>
-      </div>
-      <div class="triage-status" id="triageStatus"></div>
-      <div id="triageList"></div>
-      <div class="col-empty hidden" id="triageEmpty">
-        <span>Nothing to work here.</span>
-        <div class="empty-actions">
-          <button class="btn ghost small" id="emptyTriageSweepBtn">Check for replies</button>
-        </div>
-      </div>
-    </section>
 
     <!-- CANDIDATE PROFILE PROOF LIBRARY VIEW -->
     <section class="profile-view hidden" id="profileView">
@@ -465,26 +434,6 @@
           <input type="checkbox" id="setAttachDefault" checked /> Attach the selected file to every draft
         </label>
       </div>
-      <!-- Inbox (reply detection) — Phase 5, entirely behind the toggle -->
-      <div class="field">
-        <label class="check"><input type="checkbox" id="setImapEnabled" /> Check my inbox for replies and bounces</label>
-        <div class="desc">Read-only. Your app password is stored in your OS keychain, never sent anywhere else.</div>
-      </div>
-      <div id="imapFields" class="hidden" style="border-left:2px solid var(--line-strong); padding-left:12px; margin-bottom:12px;">
-        <div class="field"><label>IMAP host</label><input type="text" id="setImapHost" placeholder="imap.gmail.com" /></div>
-        <div class="field" style="display:flex; gap:10px;">
-          <div style="flex:1;"><label>Port</label><input type="text" id="setImapPort" placeholder="993" /></div>
-          <div style="flex:1;"><label class="check" style="margin-top:22px;"><input type="checkbox" id="setImapSsl" checked /> SSL</label></div>
-        </div>
-        <div class="field"><label>Username</label><input type="text" id="setImapUser" placeholder="you@example.com" autocomplete="off" /></div>
-        <div class="field"><label>App password</label><input type="password" id="setImapPass" placeholder="leave blank to keep current" autocomplete="off" /></div>
-        <div class="field"><label>Mailboxes (comma-separated)</label><input type="text" id="setImapMailboxes" placeholder="INBOX, All Mail" /></div>
-        <div class="field"><label>Poll every N minutes (0 = manual)</label><input type="text" id="setImapPoll" placeholder="0" /></div>
-        <div style="display:flex; gap:10px; align-items:center;">
-          <button class="btn ghost small" id="imapTestBtn" type="button">Test connection</button>
-          <span id="imapTestResult" class="note-line"></span>
-        </div>
-      </div>
 
       <!-- Learning routing — Phase 7 -->
       <div class="field">
@@ -654,14 +603,6 @@
         <kbd>a</kbd><span>Approve focused draft</span>
         <kbd>e</kbd><span>Open / edit focused draft</span>
         <kbd>/</kbd><span>Focus the ingest box</span>
-        <span class="eyebrow" style="grid-column:1/-1; margin-top:10px; margin-bottom:2px;">Triage view</span>
-        <kbd>j</kbd><span>Next triage row</span>
-        <kbd>k</kbd><span>Previous triage row</span>
-        <kbd>r</kbd><span>Mark replied</span>
-        <kbd>b</kbd><span>Mark bounced</span>
-        <kbd>n</kbd><span>Mark no response</span>
-        <kbd>u</kbd><span>Reopen</span>
-        <kbd>1</kbd>–<kbd>4</kbd><span>Switch bucket</span>
         <span class="eyebrow" style="grid-column:1/-1; margin-top:10px; margin-bottom:2px;">Global</span>
         <kbd>?</kbd><span>Show this sheet</span>
       </div>

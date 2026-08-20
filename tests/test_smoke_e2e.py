@@ -85,15 +85,13 @@ def test_end_to_end_outcome_flow(client, monkeypatch):
     # a follow-up was enrolled for each (default max_steps=1)
     assert len(store.load_followups()) == 2
 
-    # simulate a sweep: Acme replies, Beta bounces. Patch inbox.fetch_recent with fixtures.
-    import app.inbox as inbox
-    raw = [_reply_to(acme.message_id, acme.sent_to), _dsn(beta.sent_to)]
-    monkeypatch.setattr(inbox, "fetch_recent", lambda days=30: raw)
-    st = S.load_settings(); st.imap_enabled = True; st.imap_host = "h"; st.imap_username = "u"
-    monkeypatch.setattr(S, "load_settings", lambda: st)
-
-    summary = c.post("/api/inbox/sweep", headers=H).json()
-    assert summary["replied"] == 1 and summary["bounced"] == 1
+    # Mark Acme replied and Beta bounced via the manual outcome endpoint
+    from urllib.parse import quote
+    sent_items = store.load_sent_items()
+    acme_si = next(s for s in sent_items if s.slug == "acme")
+    beta_si = next(s for s in sent_items if s.slug == "beta")
+    c.post(f"/api/sent/{quote(acme_si.id, safe='')}/outcome", json={"outcome": "replied"}, headers=H)
+    c.post(f"/api/sent/{quote(beta_si.id, safe='')}/outcome", json={"outcome": "bounced"}, headers=H)
 
     # reply auto-paused Acme's follow-up; Beta's remains
     fus = {f.parent_slug: f.status for f in store.load_followups()}
@@ -101,11 +99,6 @@ def test_end_to_end_outcome_flow(client, monkeypatch):
 
     # bounce auto-suppressed Beta's address; re-ingesting Beta is now guarded
     assert store.load_suppressions(), "bounce should have auto-suppressed the dead address"
-
-    # Triage lists the reply + the bounce
-    triage = c.get("/api/triage", headers=H).json()
-    assert triage["counts"]["replied"] == 1
-    assert triage["counts"]["bounced"] == 1
 
     # Pipeline shows correct columns (staged retry draft supersedes bounce on board)
     board = c.get("/api/pipeline", headers=H).json()

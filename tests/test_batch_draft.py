@@ -22,6 +22,21 @@ import pytest
 from app import settings as S
 
 
+@pytest.fixture(autouse=True)
+def clean_batch(tmp_path, monkeypatch):
+    from app import store, server
+    for name, val in [
+        ("SENT_ITEMS_FILE", "sent_items.json"), ("SUPPRESSIONS_FILE", "suppressions.json"),
+        ("FOLLOWUPS_FILE", "follow_ups.json"), ("DRAFTS_FILE", "drafts.json"),
+        ("ARCHIVE_FILE", "archive.json"), ("QUEUE_FILE", "queue.json"),
+        ("SNIPPETS_FILE", "snippets.json"), ("SESSION_STATS_FILE", "session_stats.json"),
+        ("LISTS_FILE", "lists.json"), ("EXCLUDED_FILE", "excluded.json"),
+    ]:
+        monkeypatch.setattr(store, name, tmp_path / val)
+    server._STATE["batch"] = None
+    yield
+
+
 @pytest.fixture()
 def client():
     from fastapi.testclient import TestClient
@@ -94,7 +109,7 @@ def test_other_endpoints_respond_while_a_batch_draft_is_running(client):
     """Pipeline/Triage/Follow-ups rendered blank while emails drafted."""
     _seed_batch(client, n=5)
     client.post("/api/draft", json={}, headers=_h())
-    for ep in ("/api/status", "/api/pipeline", "/api/triage", "/api/followups"):
+    for ep in ("/api/status", "/api/pipeline", "/api/followups"):
         r = client.get(ep, headers=_h())
         assert r.status_code == 200, f"{ep} returned {r.status_code} during a draft run"
 

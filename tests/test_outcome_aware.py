@@ -12,7 +12,7 @@ from email.utils import make_msgid
 
 import pytest
 
-from app import detect, sweep, voice_stats, suppression, apollo, pipeline_view, store
+from app import detect, outcomes, voice_stats, suppression, apollo, pipeline_view, store
 from app import settings as S
 from app.models import SentItem, AddressCandidate, ReplyState, FollowUp, FollowUpStatus, CompanyState, State
 
@@ -159,7 +159,7 @@ def test_auto_reply_not_counted():
     assert res["kind"] == "ignore"
 
 
-# ---- sweep effects ---------------------------------------------------------
+# ---- outcome effects ---------------------------------------------------------
 
 def test_sweep_reply_pauses_followup_and_records():
     mid = make_msgid()
@@ -169,8 +169,8 @@ def test_sweep_reply_pauses_followup_and_records():
                   due_at="2026-07-04T00:00:00+00:00", origin_message_id=mid,
                   status=FollowUpStatus.pending)
     store.upsert_followup(fu)
-    summary = sweep.run([_reply(mid)], provider=None)
-    assert summary["replied"] == 1
+    res = outcomes.set_outcome("acme#0", "replied", provider=None)
+    assert res["ok"]
     assert store.get_sent_item("acme#0").reply_state == ReplyState.replied
     assert store.get_followup("acme__f1").status == FollowUpStatus.dismissed
 
@@ -181,18 +181,12 @@ def test_sweep_bounce_autosuppresses_and_no_autosend():
               {"email": "jane.doe@acme.com", "source": "pattern", "confidence": "low"}]
     store.upsert_sent_item(_sent(mid, ladder=ladder))
     # provider=None: bounce recorded + suppressed, but NO retry draft staged (no auto anything)
-    summary = sweep.run([_dsn_hard("jane@acme.com")], provider=None)
-    assert summary["bounced"] == 1
+    res = outcomes.set_outcome("acme#0", "bounced", provider=None)
+    assert res["ok"]
     assert store.get_sent_item("acme#0").reply_state in (ReplyState.bounced, ReplyState.bounced_exhausted)
     hit, reason = suppression.is_suppressed("jane@acme.com")
     assert hit and reason == "bounced"
     assert store.load_drafts() == []   # nothing auto-sent, nothing auto-staged without a provider
-
-
-def test_sweep_off_equals_today():
-    # no sent items, no messages -> a no-op summary, no state change
-    summary = sweep.run([], provider=None)
-    assert summary == {"replied": 0, "bounced": 0, "retries": [], "exhausted": 0, "scanned": 0}
 
 
 # ---- voice stats -----------------------------------------------------------
@@ -287,15 +281,7 @@ def test_pipeline_mark_no_response_terminal():
     assert len(board["columns"]["sent"]) == 0
 
 
-# ---- invariants: read-only IMAP, bounce retry is approve-first -------------
-
-def test_readonly_imap_guard_blocks_mutation():
-    from app import inbox
-    # the guard refuses any mutation verb without ever opening a socket
-    c = inbox._ReadOnlyIMAP.__new__(inbox._ReadOnlyIMAP)
-    for verb in ("APPEND", "STORE", "EXPUNGE", "DELETE", "COPY", "MOVE"):
-        with pytest.raises(inbox.InboxError):
-            getattr(c, verb)
+# ---- invariants: bounce retry is approve-first -----------------------------
 
 
 def test_bounce_retry_stages_approvable_draft_not_send(monkeypatch, tmp_path):
@@ -316,11 +302,11 @@ def test_bounce_retry_stages_approvable_draft_not_send(monkeypatch, tmp_path):
 
     from app.providers.base import make_provider
     provider = make_provider("stub", None)
-    summary = sweep.run([_dsn_hard("jane@acme.com")], provider=provider)
-    assert summary["bounced"] == 1
+    r = outcomes.set_outcome("acme#0", "bounced", provider=provider)
+    assert r["ok"]
     # a retry draft was staged (state=drafted) to the next rung; nothing was sent
-    retries = summary["retries"]
-    assert len(retries) == 1 and retries[0]["email"] == "jane.doe@acme.com"
+    retry = r["retry"]
+    assert retry and retry["email"] == "jane.doe@acme.com"
     d = store.get_draft("acme__b1")
     assert d is not None and d.state == State.drafted
     assert (d.spec or {}).get("send_to") == "jane.doe@acme.com"
