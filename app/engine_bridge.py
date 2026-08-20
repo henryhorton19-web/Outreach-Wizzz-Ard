@@ -17,4 +17,9 @@ if str(ENGINE_DIR) not in sys.path:
 import draft_engine as de          # noqa: E402
 import config as engine_config     # noqa: E402
 
-__all__ = ["de", "engine_config", "ENGINE_DIR"]
+
+def extract_recent_raise_facts(*args, **kwargs):
+    return de.extract_recent_raise_facts(*args, **kwargs)
+
+
+__all__ = ["de", "engine_config", "ENGINE_DIR", "extract_recent_raise_facts"]

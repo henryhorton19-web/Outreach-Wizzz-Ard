@@ -181,7 +181,8 @@ def ensure_seeded() -> None:
     # Runs once per build, before any seeding, so migrated-away files are replaced by
     # the shipped versions in the same pass.
     _stale_check_needed = _last_seeded_build() != BUILD_VERSION
-    _migrate_stale_sourcing_prompts()
+    if _stale_check_needed:
+        _migrate_stale_sourcing_prompts()
 
     import json as _json
     import shutil
@@ -218,19 +219,19 @@ def ensure_seeded() -> None:
                     pass
 
     # 2. Custom Sourcing Prompts
-    try:
-        existing_sp = list(SOURCING_PROMPTS_DIR.glob("*.json"))
-    except Exception:
-        existing_sp = []
-
-    if not existing_sp:
-        sp_dirs = [pkg / "seed_sourcing_prompts", pkg / "seed_sourcing_prompts_local"]
-        for sp_dir in sp_dirs:
-            if not sp_dir.exists():
-                continue
-            for src in sp_dir.glob("*.json"):
+    # Per file, not all-or-nothing. This was `if not existing_sp:`, so a single
+    # user-created preset stopped every shipped preset from ever seeding. Same
+    # never-overwrite class as the profile and the voices.
+    sp_dirs = [pkg / "seed_sourcing_prompts", pkg / "seed_sourcing_prompts_local"]
+    for sp_dir in sp_dirs:
+        if not sp_dir.exists():
+            continue
+        for src in sp_dir.glob("*.json"):
+            target = SOURCING_PROMPTS_DIR / src.name
+            if not target.exists():
                 try:
-                    shutil.copyfile(src, SOURCING_PROMPTS_DIR / src.name)
+                    SOURCING_PROMPTS_DIR.mkdir(parents=True, exist_ok=True)
+                    shutil.copyfile(src, target)
                 except Exception:
                     pass
 

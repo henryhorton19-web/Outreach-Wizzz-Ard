@@ -101,9 +101,12 @@
         <div class="sourcing-controls">
           <label>Preset:
             <select id="sourcingPromptSelect" class="mini-select"></select>
+            <label for="sourcingListSelect" class="sr-only">List to add companies to</label>
+            <select id="sourcingListSelect" class="mini-select" title="Which company list the sourced companies are added to"></select>
           </label>
           <button class="btn ghost small" id="managePresetsBtn">+ Manage presets</button>
           <button class="btn primary small" id="runSourcingBtn">Start sourcing run</button>
+          <button class="btn ghost hidden" id="sourcingStopBtn" title="Stop searching for more companies. Everything already found is kept.">Stop now</button>
         </div>
         <div class="sourcing-status hidden" id="sourcingMandateHint"></div>
         <div class="sourcing-status" id="sourcingStatusText"></div>

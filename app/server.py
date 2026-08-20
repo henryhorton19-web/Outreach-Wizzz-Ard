@@ -872,12 +872,22 @@ def arbitrate_voices():
 
 # ---- ingest ----------------------------------------------------------------
 
-def _exclusion_blocked(slug: str) -> bool:
-    """Return True iff this slug is in the permanent exclusion set and the toggle is enabled."""
+def _exclusion_blocked(slug: str, ignore_reason: str = "") -> bool:
+    """Return True iff this slug is in the permanent exclusion set.
+
+    ignore_reason: if set, exclusions with this reason are IGNORED. Sourcing runs tag
+    their own outputs with reason="sourced", so batched ingest (which calls this) does
+    not block a run from ingesting its own later batches. Exclusions tagged "contacted"
+    or historic unlabelled exclusions still block ingest.
+    """
     st = S.load_settings()
     if not getattr(st, "exclusion_enabled", True):
         return False
-    return store.is_excluded(slug)
+    if not store.is_excluded(slug):
+        return False
+    if ignore_reason and store.exclusion_reasons().get(slug) == ignore_reason:
+        return False
+    return True
 
 
 def _ingest_to_queue(rows: list[dict], list_id: str = "default") -> dict:
@@ -893,7 +903,7 @@ def _ingest_to_queue(rows: list[dict], list_id: str = "default") -> dict:
             already.append(r["name"])
             continue
         # permanent exclusion check (Stage E): already-approved entities are permanently blocked
-        if _exclusion_blocked(slug):
+        if _exclusion_blocked(slug, ignore_reason="sourced"):
             excluded_blocked.append(r["name"])
             continue
         # suppression / do-not-contact check (by any email/domain the ingest row carries)
@@ -914,7 +924,9 @@ def _ingest_to_queue(rows: list[dict], list_id: str = "default") -> dict:
         if dom and dom in contacted_domains:
             contacted.append(r["name"])
             continue
-        if current >= store.QUEUE_CAP:
+        # 0 means no limit. Without this guard an unlimited cap refuses every company,
+        # because any count is >= 0.
+        if store.QUEUE_CAP and store.QUEUE_CAP > 0 and current >= store.QUEUE_CAP:
             over_cap.append(r["name"])
             continue
         to_add.append(r)
@@ -923,6 +935,18 @@ def _ingest_to_queue(rows: list[dict], list_id: str = "default") -> dict:
         added.append(r["name"])
     if to_add:
         store.upsert_queue_batch(to_add, list_id=list_id)
+        # A sourced company is never sourced again. Approving already writes to the
+        # exclusion set permanently; a company left in the queue was covered only by
+        # sourced_seen.json, whose is_seen() expires at 60 days, so on day 61 it was
+        # re-researched and re-verified before being deduped: a silently wasted call.
+        #
+        # AFTER the batch is written, never before. The exclusion check runs earlier in
+        # this same function, so adding first would make a run block its own results.
+        for _r in to_add:
+            try:
+                store.add_to_exclusion_set(_r["slug"], reason="sourced")
+            except Exception:
+                pass        # bookkeeping must never lose a company already queued
     return {"queue": store.load_queue(list_id=list_id), "added": len(added),
             "skipped_duplicates": already, "over_cap": over_cap,
             "suppressed": suppressed, "already_contacted": contacted,
@@ -1134,6 +1158,9 @@ def start_sourcing_research(payload: dict = Body(...)):
     max_candidates = payload.get("max_candidates", st.sourcing_max_candidates)
     recency_days = payload.get("recency_days", st.sourcing_recency_days)
     sources = payload.get("sources") or st.sourcing_sources
+    # The list this run writes to, chosen when the run starts. Absent means use whatever
+    # is active, which is how every earlier caller behaved.
+    list_id = (payload.get("list_id") or "").strip() or None
 
     job = sourcing_job_mod.start_sourcing_job(
         settings=st,
@@ -1142,6 +1169,11 @@ def start_sourcing_research(payload: dict = Body(...)):
         recency_days=recency_days,
         sources=sources,
         sourcing_prompt_id=prompt_id,
+        # A real provider must reach the harvester or grounded search cannot run at all.
+        # _provider_optional() returns a real provider when a key is stored, the stub when
+        # the provider is configured as stub, and None otherwise, so it never raises.
+        provider=_provider_optional(),
+        list_id=list_id,
     )
     return {"ok": True, "job": job}
 
@@ -2302,7 +2334,7 @@ def _approve_rows(rows: list[CompanyState], batch: BatchState | None) -> dict:
         try:
             from app.sourcing.normalize import canonicalize_name
             base_slug = cs.slug.split("__")[0]   # strip __f1 / __b1 suffixes
-            store.add_to_exclusion_set(base_slug)
+            store.add_to_exclusion_set(base_slug, reason="contacted")
         except Exception:
             pass
 

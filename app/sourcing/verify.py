@@ -97,11 +97,11 @@ def verify_candidate(candidate_raw: dict,
         reject_reason = f"Excluded by custom prompt criteria: '{matched_exclusion}'"
         tier = "Needs Review"
         score = 30
-    elif role_basis_confidence == "low" or honest_pitch_risk == "high":
-        verdict = "needs_review"
-        reject_reason = "Unclear role basis or high honest-pitch risk"
-        tier = "Needs Review"
-        score = 55
+    # Removed: this branch assigned score 55 and "Needs Review" when
+    # role_basis_confidence was "low" or honest_pitch_risk was "high". Both are
+    # job-application concepts: one asks whether there is a credible basis for pitching
+    # into a role, the other whether a candidate would be overclaiming. Neither determines
+    # whether a company is worth approaching. Both fields are still reported below.
     else:
         verdict = "accept"
         reject_reason = ""

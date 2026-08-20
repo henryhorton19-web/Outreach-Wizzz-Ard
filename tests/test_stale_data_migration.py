@@ -41,10 +41,11 @@ def test_a_build_marker_is_written_on_first_seed(tmp_path, monkeypatch):
 
 def test_a_stale_job_search_preset_is_moved_aside(tmp_path, monkeypatch):
     S = _fresh_data_dir(tmp_path, monkeypatch)
+    (tmp_path / "build_version.json").unlink(missing_ok=True)
     prompts = tmp_path / "sourcing_prompts"
     prompts.mkdir(parents=True, exist_ok=True)
-    (prompts / "ai_infra_seed.json").write_text(json.dumps({
-        "id": "ai_infra_seed",
+    (prompts / "custom_stale.json").write_text(json.dumps({
+        "id": "custom_stale",
         "display_name": "Hot AI & Infra Seed Rounds",
         "criteria_text": ("Early-stage AI, machine learning, software infrastructure, and developer "
                           "tool startups in Paris or remote-English, backed by European VCs."),
@@ -54,9 +55,9 @@ def test_a_stale_job_search_preset_is_moved_aside(tmp_path, monkeypatch):
 
     S.ensure_seeded()
 
-    assert (prompts / "ai_infra_seed.json.stale.bak").exists(), \
+    assert (prompts / "custom_stale.json.stale.bak").exists(), \
         "the stale preset was not backed up"
-    assert not (prompts / "ai_infra_seed.json").exists(), \
+    assert not (prompts / "custom_stale.json").exists(), \
         "the stale preset is still active"
     shipped = sorted(p.stem for p in prompts.glob("*.json"))
     assert shipped, "no preset was seeded to replace the stale one"

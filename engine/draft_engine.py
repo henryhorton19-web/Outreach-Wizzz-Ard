@@ -16,10 +16,14 @@ candidate profile.
 """
 from __future__ import annotations
 
+import json
 import re
 from dataclasses import dataclass, field
 
-import config as C
+try:
+    from . import config as C
+except (ImportError, ValueError):
+    import config as C
 
 
 # ---------------------------------------------------------------------------
@@ -144,6 +148,36 @@ def target_domains(cache: dict) -> list[str]:
     return doms
 
 
+def extract_recent_raise_facts(research_text: str, provider: Any = None) -> dict:
+    """Extract structured raise facts from raw research text using LLM, returning a dict."""
+    if not research_text or not provider or getattr(provider, "is_stub", False):
+        return {}
+    prompt = (
+        "Analyze the following research text about a company and extract facts about any recent funding/raise.\n"
+        "Return ONLY a valid JSON object with the following keys:\n"
+        '- "press_signal": "raised" if a funding/raise is mentioned, else ""\n'
+        '- "raise_amount": e.g. "EUR 15m", "$10M", or "" if unknown\n'
+        '- "round_name": e.g. "Series A", "Seed", or "" if unknown\n'
+        '- "raise_date": e.g. "March 2026", or "" if unknown\n\n'
+        f"Research text:\n{research_text}\n"
+    )
+    try:
+        res = provider.generate(prompt=prompt, system_prompt="You are a data extraction system. Output JSON only.")
+        text = getattr(res, "text", "") or ""
+        text = text.strip().removeprefix("```json").removeprefix("```").removesuffix("```").strip()
+        data = json.loads(text)
+        if isinstance(data, dict):
+            return {
+                "press_signal": str(data.get("press_signal") or "").strip(),
+                "raise_amount": str(data.get("raise_amount") or "").strip(),
+                "round_name": str(data.get("round_name") or "").strip(),
+                "raise_date": str(data.get("raise_date") or "").strip(),
+            }
+    except Exception:
+        pass
+    return {}
+
+
 def domain_overlap(exp: dict, doms: list[str]) -> bool:
     """True if experience's domains overlap with target domains."""
     exp_doms = set(exp.get("domains") or [])
@@ -218,9 +252,33 @@ def select_evidence(cache: dict, prefer=(), pin=(), exclude=(), weights=None, co
     ranked = rank_evidence(cache, prefer, pin, exclude, weights)
     picked = [e for e in ranked if e["_score"] > 0 or e["_pinned"]][:max(1, int(count or 2))]
     if not picked:
-        exps = C.CANDIDATE_PROFILE["experiences"]
-        fk = "solano" if "solano" in exps else next(iter(exps))
-        picked = [dict(exps[fk], _key=fk, _score=0, _pinned=False)]
+        # Two faults in the previous three lines. next(iter(exps)) raised StopIteration
+        # on an empty experiences dict, failing every draft in a batch, and it fired
+        # whenever a voice specified prefer: [] and pin: [] and nothing scored above
+        # zero. It also hardcoded one specific experience key inside engine logic.
+        exps = {}
+        if hasattr(C, "CANDIDATE_PROFILE") and isinstance(C.CANDIDATE_PROFILE, dict):
+            exps = C.CANDIDATE_PROFILE.get("experiences") or {}
+        if exps:
+            fk = next(iter(exps))
+            picked = [dict(exps[fk], _key=fk, _score=0, _pinned=False)]
+        else:
+            # A neutral placeholder, asserting nothing. A fallback that stated facts
+            # about the sender would put invented claims in a real email, so this one
+            # carries no name, no figure and no achievement. Downstream guards already
+            # handle empty facts.
+            picked = [{
+                "_key": "unspecified",
+                "_score": 0,
+                "_pinned": False,
+                "name": "",
+                "title": "",
+                "when": "",
+                "anchor": "",
+                "facts": [],
+                "bridges": [],
+                "xyz": {"action": "", "metric": "", "method": ""},
+            }]
     return picked
 
 
@@ -533,7 +591,9 @@ def mock_email(spec: dict) -> dict:
     candidate evidence to one target proof point, no dashes, in range, no forbidden phrases."""
     proof = (spec.get("proof_points") or [""])[0]
     ev = spec.get("evidence") or []
-    ev_anchor = ev[0]["anchor"] if ev else C.CANDIDATE_PROFILE["experiences"]["solano"]["anchor"]
+    _exps = C.CANDIDATE_PROFILE.get("experiences", {}) if isinstance(getattr(C, "CANDIDATE_PROFILE", None), dict) else {}
+    _fallback_anchor = next(iter(_exps.values()), {}).get("anchor", "") if _exps else ""
+    ev_anchor = ev[0]["anchor"] if ev else _fallback_anchor
 
     lead = spec.get("lead")
     company = spec["company"]

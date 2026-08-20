@@ -111,6 +111,27 @@ function dialog({ title = "", message = "", options = [{ label: "OK", value: tru
 
 /* ---------- helpers ---------- */
 function esc(s) { return (s == null ? "" : String(s)).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
+function timeAgo(isoStr) {
+  if (!isoStr) return "";
+  try {
+    const then = new Date(isoStr).getTime();
+    const ms = Date.now() - then;
+    if (isNaN(ms)) return isoStr;
+    // Clock skew between the machine and whatever set the timestamp is the only way
+    // this can go negative in practice, since last_run_at is always server-generated.
+    // Rounding it to "just now" would misreport a future time as having just happened.
+    if (ms < 0) return "just now (clock skew)";
+    const mins = Math.floor(ms / 60000);
+    if (mins < 1) return "just now";
+    if (mins < 60) return `${mins}m ago`;
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return `${hours}h ago`;
+    const days = Math.floor(hours / 24);
+    return `${days}d ago`;
+  } catch (e) {
+    return isoStr;
+  }
+}
 function shortUrl(u) { try { const x = new URL(u); return x.hostname.replace(/^www\./, "") + (x.pathname.length > 1 ? x.pathname : ""); } catch { return u; } }
 function wordCount(s) { return (s || "").trim() ? (s.trim().match(/\S+/g) || []).length : 0; }
 
@@ -484,8 +505,13 @@ function renderQueue() {
     if (m.employees_band) chips.push(humanBadgeLabel(m.employees_band));
     if (m.funding_heat || m.signal_basis || m.discovery_label) chips.push(humanBadgeLabel(m.funding_heat || m.signal_basis || m.discovery_label));
     if (m.hq_city || m.hq_country) chips.push([m.hq_city, m.hq_country].filter(Boolean).join(", "));
+    // Screening no longer decides whether a company is queued, so its verdict is shown to
+    // the reviewer instead. A weak signal is worth seeing, not worth withholding.
+    const screenNote = m.screen_reason || (
+      m.screen_verdict && m.screen_verdict !== "accept" ? m.screen_verdict : "");
 
-    const chipHtml = chips.map(c => `<span class="tag neutral">${esc(c)}</span>`).join("");
+    const chipHtml = chips.map(c => `<span class="tag neutral">${esc(c)}</span>`).join("")
+      + (screenNote ? `<span class="tag caution" title="Flagged by automatic screening. Review and decide.">${esc(screenNote)}</span>` : "");
 
     const activeVoiceId = state.sessionVoice || state.defaultVoice || (allVoices[0] ? allVoices[0].id : "");
     const activeVoice = voiceById(activeVoiceId);
@@ -779,6 +805,96 @@ async function draftAllInQueue() {
 
 let activeDraftJobId = null;
 let draftJobPollTimer = null;
+let activeSourcingJobId = null;
+let sourcingJobPollTimer = null;
+
+// Mirrors trackDraftJob deliberately: same poll interval, same terminal-state check,
+// same cleanup. The sourcing run is now threaded, so it can be watched while it works.
+function trackSourcingJob(jobId) {
+  activeSourcingJobId = jobId;
+  updateSourcingUIState(true);
+
+  if (sourcingJobPollTimer) clearInterval(sourcingJobPollTimer);
+
+  sourcingJobPollTimer = setInterval(async () => {
+    try {
+      const res = await api(`/api/source/research/${jobId}`);
+      const job = res.job || res;
+      renderSourcingJobProgress(job);
+      // The target list fills as the run goes, so refresh it every tick.
+      await refreshQueue();
+      if (job.status === "done" || job.status === "cancelled" || job.status === "error") {
+        clearInterval(sourcingJobPollTimer);
+        sourcingJobPollTimer = null;
+        activeSourcingJobId = null;
+        updateSourcingUIState(false);
+        renderSourcingReport(job);
+        if (job.status === "cancelled") {
+          toast(`Sourcing stopped. ${job.counts?.queued || 0} companies kept.`);
+        } else if (job.status === "error") {
+          toast("Sourcing failed. See the run report.");
+        }
+      }
+    } catch (e) {
+      clearInterval(sourcingJobPollTimer);
+      sourcingJobPollTimer = null;
+      activeSourcingJobId = null;
+      updateSourcingUIState(false);
+    }
+  }, 1000);
+}
+
+async function stopSourcingNow() {
+  if (!activeSourcingJobId) return;
+  try {
+    await api(`/api/source/research/${activeSourcingJobId}/cancel`, { method: "POST" });
+    // Do not clear the timer here. The next poll sees "cancelled" and runs the same
+    // cleanup as a normal finish, so there is one code path rather than two.
+  } catch (e) {
+    toast("Could not stop the run.");
+  }
+}
+
+// Defaults to the active list, so anyone who ignores this control gets the behaviour
+// they had before. GET /api/lists already returns {active, lists}.
+async function refreshSourcingListSelect() {
+  const el = $("#sourcingListSelect");
+  if (!el) return;
+  try {
+    const res = await api("/api/lists");
+    const active = res.active || "default";
+    el.innerHTML = (res.lists || [])
+      .map(l => `<option value="${l.id}"${l.id === active ? " selected" : ""}>${l.name || l.id}</option>`)
+      .join("");
+  } catch (e) { /* leave it empty rather than blocking the panel */ }
+}
+
+function updateSourcingUIState(isSourcing) {
+  const stopBtn = $("#sourcingStopBtn");
+  if (stopBtn) {
+    if (isSourcing) stopBtn.classList.remove("hidden");
+    else stopBtn.classList.add("hidden");
+  }
+  const runBtn = $("#runSourcingBtn");
+  if (runBtn) {
+    runBtn.disabled = isSourcing;
+  }
+  const listSel = $("#sourcingListSelect");
+  if (listSel) {
+    listSel.disabled = isSourcing;
+  }
+}
+
+function renderSourcingJobProgress(job) {
+  const statusEl = $("#sourcingStatusText");
+  if (!statusEl) return;
+  if (!job) return;
+  const stage = job.stage || "Harvesting";
+  const counts = job.counts || {};
+  const checked = counts.checked || counts.harvested || 0;
+  const queued = counts.queued || 0;
+  statusEl.textContent = `🚀 Sourcing (${stage}): checked ${checked}, queued ${queued}...`;
+}
 
 function trackDraftJob(jobId) {
   activeDraftJobId = jobId;
@@ -2718,10 +2834,17 @@ function wire() {
   if ($("#findTargetsBtn")) $("#findTargetsBtn").onclick = openSourcingPanel;
   if ($("#closeSourcingPanelBtn")) $("#closeSourcingPanelBtn").onclick = closeSourcingPanel;
   if ($("#runSourcingBtn")) $("#runSourcingBtn").onclick = runSourcing;
+  if ($("#sourcingStopBtn")) $("#sourcingStopBtn").onclick = stopSourcingNow;
   if ($("#managePresetsBtn")) $("#managePresetsBtn").onclick = openPresetsManager;
   if ($("#presetsCloseBtn")) $("#presetsCloseBtn").onclick = () => $("#sourcingPresetsModal").classList.add("hidden");
   if ($("#newPresetBtn")) $("#newPresetBtn").onclick = () => openPresetEditor(null);
-  if ($("#presetCancelBtn")) $("#presetCancelBtn").onclick = () => $("#presetEditor").classList.add("hidden");
+  if ($("#presetCancelBtn")) $("#presetCancelBtn").onclick = () => {
+    // Clearing this is what makes the NEXT action correct. Left set, a later save
+    // issues PUT against the preset that was being edited here, overwriting it even
+    // when the user intended to create something new.
+    editingPresetId = null;
+    $("#presetEditor").classList.add("hidden");
+  };
   if ($("#presetSaveBtn")) $("#presetSaveBtn").onclick = savePreset;
   if ($("#sourcingPromptSelect")) $("#sourcingPromptSelect").onchange = updateSourcingPanelMandateHint;
   setupBulkExportHandlers();
@@ -2910,6 +3033,7 @@ async function loadSourcingPrompts() {
     sel.innerHTML = `<option value="">Default (Hot Startups & Fresh Funding)</option>` +
       sourcingPrompts.map(p => `<option value="${esc(p.id)}"${p.id === curVal ? " selected" : ""}>${esc(p.display_name)}</option>`).join("");
     updateSourcingPanelMandateHint();
+    refreshSourcingListSelect();
   } catch (e) {
     console.error("Failed to load sourcing prompts", e);
   }
@@ -3003,6 +3127,12 @@ async function renderPresetsList() {
 
 async function openPresetEditor(promptId) {
   editingPresetId = promptId;
+  // The lookup below reads sourcingPrompts, which is filled by a separate call. If it
+  // is empty, find() returns undefined and every field is filled with "", so an
+  // existing preset opens as a blank form and saving it wipes the preset.
+  if (promptId && (!Array.isArray(sourcingPrompts) || sourcingPrompts.length === 0)) {
+    try { await loadSourcingPrompts(); } catch (e) { /* fall through to a blank form */ }
+  }
   const sourcesList = await fetchSourcingSources();
   const editor = $("#presetEditor");
   editor.classList.remove("hidden");
@@ -3067,18 +3197,32 @@ async function savePreset() {
     max_candidates: $("#presetMaxCandidatesInput") ? (parseInt($("#presetMaxCandidatesInput").value, 10) || 40) : 40,
     exclude_notes: $("#presetExcludeInput").value.trim(),
   };
+  let body = pdef;
   if (editingPresetId) {
     const existing = sourcingPrompts.find(x => x.id === editingPresetId);
-    if (existing) pdef.seeded_from = existing.seeded_from;
+    if (existing) {
+      // The PUT endpoint replaces the whole object with no merge, so any field the
+      // form does not carry resets to its Pydantic default: created_at, last_run_at,
+      // total_candidates_seen, the revenue band, exclusion_policy and the rest.
+      //
+      // Spread order matters and is easy to get backwards. Applying left to right
+      // into a NEW object means pdef wins on every key it defines and existing
+      // supplies the remainder. An invalid Object.assign merge would do the
+      // opposite and silently discard the user's edits.
+      body = { ...existing, ...pdef };
+    }
   }
 
   try {
     if (editingPresetId) {
-      await api(`/api/sourcing_prompts/${encodeURIComponent(editingPresetId)}`, { method: "PUT", body: pdef });
+      await api(`/api/sourcing_prompts/${encodeURIComponent(editingPresetId)}`, { method: "PUT", body: body });
     } else {
-      await api("/api/sourcing_prompts", { method: "POST", body: pdef });
+      await api("/api/sourcing_prompts", { method: "POST", body: body });
     }
     toast("Preset saved");
+    // Cleared on the way out, so the next open decides fresh whether this is an edit
+    // or a create. Left set, the next save overwrites whatever was edited here.
+    editingPresetId = null;
     $("#presetEditor").classList.add("hidden");
     renderPresetsList();
   } catch (e) { toast(e.message, true); }
@@ -3127,10 +3271,34 @@ async function deletePreset(promptId) {
   } catch (e) { toast(e.message, true); }
 }
 
-function openSourcingPanel() {
+async function openSourcingPanel() {
   const panel = $("#sourcingPanel");
   if (panel) panel.classList.remove("hidden");
-  loadSourcingPrompts();
+  await loadSourcingPrompts();
+  await refreshSourcingListSelect();
+  // Always write the banner, never leave it. A null last_run otherwise leaves
+  // "Sourcing run in progress..." on screen forever after a restart.
+  try {
+    const res = await api("/api/source/research/last");
+    const last = res.last_run || res.job || res;
+    const el = $("#sourcingStatusText");
+    if (el) {
+      if (last && last.status === "running") {
+        el.textContent = "Sourcing run in progress...";
+        // trackSourcingJob only exists once live polling has been added; guard for it so
+        // this works either way.
+        if (last.job_id && typeof trackSourcingJob === "function") trackSourcingJob(last.job_id);
+      } else if (last && (last.counts || last.added_slugs)) {
+        el.textContent = `Last run: ${last.counts?.queued || last.added_slugs?.length || 0} companies added`;
+        renderSourcingReport(last);
+      } else {
+        el.textContent = "";
+      }
+    }
+  } catch (e) {
+    const el = $("#sourcingStatusText");
+    if (el) el.textContent = "";
+  }
 }
 
 function closeSourcingPanel() {
@@ -3141,6 +3309,8 @@ function closeSourcingPanel() {
 async function runSourcing() {
   const promptSelect = $("#sourcingPromptSelect");
   const promptId = (promptSelect && promptSelect.value) || null;
+  const listSelect = $("#sourcingListSelect");
+  const listId = (listSelect && listSelect.value) || undefined;
   const statusEl = $("#sourcingStatusText");
   const reportEl = $("#sourcingReport");
   if (statusEl) statusEl.textContent = "🚀 Sourcing run in progress...";
@@ -3149,15 +3319,15 @@ async function runSourcing() {
   try {
     const r = await api("/api/source/research", {
       method: "POST",
-      body: { sourcing_prompt_id: promptId }
+      body: { sourcing_prompt_id: promptId, list_id: listId }
     });
-    const job = r.job;
-    if (statusEl) statusEl.textContent = `Completed sourcing run in ${job.stage || 'Completed'}.`;
-    renderSourcingReport(job);
-
-    const q = await api(`/api/queue?list_id=${encodeURIComponent(state.activeListId || "default")}`);
-    state.queue = q.queue;
-    renderQueue();
+    const job = r.job || r;
+    if (job && job.job_id) {
+      trackSourcingJob(job.job_id);
+    } else {
+      if (statusEl) statusEl.textContent = `Completed sourcing run in ${job.stage || 'Completed'}.`;
+      renderSourcingReport(job);
+    }
   } catch (e) {
     if (statusEl) statusEl.textContent = "Sourcing run failed: " + e.message;
     toast(e.message, true);
@@ -3284,6 +3454,18 @@ function renderSourcingReport(job) {
     notes.unshift(`${counts.ungrounded} companies were produced without a web search and are not verified findings.`);
   }
 
+  // errors previously went nowhere: the ingest path writes failures into this list and
+  // nothing displayed them, so a failed ingest looked like a clean run.
+  if ((job.errors || []).length) {
+    notes.unshift(`Run reported ${job.errors.length} error(s): ${job.errors[0]}`);
+  }
+  if (job.added_list_id) {
+    notes.push(`Companies added to list: ${job.added_list_id}`);
+  }
+  if ((counts.checked || 0) > 0 && (counts.queued || 0) === 0) {
+    notes.unshift("Nothing reached the queue. Check the destination list and any errors above.");
+  }
+
   let html = `
     <div style="background: #ffffff; padding: 12px; border-radius: 6px; border: 1px solid #e2e8f0; font-size: 13px;">
       <div class="sr-preset" style="font-weight:600; font-size:12px; color:var(--ink-soft); margin-bottom:6px;">Preset: ${esc(presetName)}</div>
@@ -3293,10 +3475,12 @@ function renderSourcingReport(job) {
       <div style="display: flex; gap: 16px; font-weight: 500; color: #1e293b; margin-bottom: 8px;">
         <span>Checked: ${counts.checked || 0}</span>
         <span style="color: #16a34a;">Queued: ${counts.queued || 0}</span>
-        <span style="color: #d97706;">Held for review: ${counts.held || 0}</span>
-        <span style="color: #64748b;">Filtered: ${counts.rejected || 0}</span>
       </div>
   `;
+
+  if (counts.queued_for_review) {
+    notes.push(`${counts.queued_for_review} flagged by screening and queued for review`);
+  }
 
   if (notes.length) {
     html += `<div style="font-size: 12px; color: #475569; margin-bottom: 8px;">ℹ️ ${notes.map(esc).join('<br/>')}</div>`;
@@ -3306,21 +3490,6 @@ function renderSourcingReport(job) {
     html += `
       <div style="margin-top: 8px;">
         <button class="btn ghost small" id="undoSourcingBtn" style="color: #dc2626;">Undo — remove all ${addedSlugs.length} queued targets</button>
-      </div>
-    `;
-  }
-
-  const heldCandidates = candidates.filter(c => c.verdict === "needs_review" || c.tier === "Tier 2");
-  if (heldCandidates.length) {
-    html += `
-      <div style="margin-top: 12px; padding-top: 8px; border-top: 1px solid #f1f5f9;">
-        <div style="font-weight: 500; font-size: 12px; color: #334155; margin-bottom: 4px;">Held for review (${heldCandidates.length}):</div>
-        ${heldCandidates.map(c => `
-          <div style="font-size: 12px; margin-top: 4px; display: flex; justify-content: space-between; align-items: center;">
-            <span><strong>${esc(c.name)}</strong> — ${esc(c.reject_reason || c.fit?.why_fit || 'Review required')}</span>
-            <button class="btn ghost small add-held-btn" data-slug="${esc(c.canon_slug)}">Add to queue</button>
-          </div>
-        `).join('')}
       </div>
     `;
   }
@@ -3342,26 +3511,6 @@ function renderSourcingReport(job) {
       }
     };
   }
-
-  $$(".add-held-btn").forEach(btn => {
-    btn.onclick = async () => {
-      const slug = btn.dataset.slug;
-      try {
-        await api(`/api/source/research/${job.job_id}/add`, {
-          method: "POST",
-          body: { slugs: [slug] }
-        });
-        toast("Added to queue");
-        btn.disabled = true;
-        btn.textContent = "Added";
-        const q = await api(`/api/queue?list_id=${encodeURIComponent(state.activeListId || "default")}`);
-        state.queue = q.queue;
-        renderQueue();
-      } catch (e) {
-        toast(e.message, true);
-      }
-    };
-  });
 }
 
 /* ================= CANDIDATE PROFILE MODAL (Phase 4) ================= */

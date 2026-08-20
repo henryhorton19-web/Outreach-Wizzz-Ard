@@ -37,7 +37,14 @@ SNIPPETS_FILE = S.DATA_DIR / "snippets.json"
 SESSION_STATS_FILE = S.DATA_DIR / "session_stats.json"
 EXCLUDED_FILE = S.DATA_DIR / "excluded.json"
 
-QUEUE_CAP  = 500
+# 0 means no limit, which is the default. This was 500, enforced in two places that
+# behaved differently: server.py refused new companies and reported them, while the
+# truncation in upsert_queue_batch silently removed older rows from the saved queue. A
+# user holding 498 who added 10 ended with 500, having lost 8, with no message anywhere.
+#
+# The mechanism is kept so a ceiling can still be configured. A positive value refuses
+# additions rather than deleting anything.
+QUEUE_CAP  = 0
 DRAFTS_CAP = 15
 
 
@@ -303,7 +310,12 @@ def upsert_queue_batch(records: list[dict], list_id: str = "default") -> None:
 
         # New batch placed at beginning of queue (Row 1 at top), followed by existing queue
         new_items = batch_items + items
-        new_items = sorted(new_items, key=lambda x: x.get("queued_at") or "", reverse=True)[:QUEUE_CAP]
+        new_items = sorted(new_items, key=lambda x: x.get("queued_at") or "", reverse=True)
+        # Truncation is now opt-in. This previously cut the SAVED queue to the newest
+        # QUEUE_CAP entries, deleting older companies rather than refusing new ones, and
+        # nothing reported it. Refusal belongs at ingest, where it can be surfaced.
+        if QUEUE_CAP and QUEUE_CAP > 0:
+            new_items = new_items[:QUEUE_CAP]
         save_queue(new_items, list_id=list_id)
 
 
@@ -935,7 +947,22 @@ def excluded_slugs() -> set[str]:
     return set()
 
 
-def add_to_exclusion_set(slug: str) -> None:
+EXCLUSION_REASONS_FILE = S.DATA_DIR / "excluded_reasons.json"
+
+
+def exclusion_reasons() -> dict:
+    """slug -> why it was excluded. Absent entries are historic and unlabelled."""
+    try:
+        if EXCLUSION_REASONS_FILE.exists():
+            data = json.loads(EXCLUSION_REASONS_FILE.read_text(encoding="utf-8"))
+            if isinstance(data, dict):
+                return data
+    except Exception:
+        pass
+    return {}
+
+
+def add_to_exclusion_set(slug: str, reason: str = "") -> None:
     """Unconditionally add a slug to the exclusion set. Thread-safe."""
     if not slug:
         return
@@ -947,6 +974,18 @@ def add_to_exclusion_set(slug: str) -> None:
             json.dumps(sorted(current), indent=2, ensure_ascii=False),
             encoding="utf-8",
         )
+        if reason:
+            try:
+                reasons = exclusion_reasons()
+                # "contacted" outranks "sourced": approving upgrades the reason, and
+                # re-sourcing must never downgrade it.
+                if reason == "contacted" or slug not in reasons:
+                    reasons[slug] = reason
+                EXCLUSION_REASONS_FILE.parent.mkdir(parents=True, exist_ok=True)
+                EXCLUSION_REASONS_FILE.write_text(
+                    json.dumps(reasons, indent=2, ensure_ascii=False), encoding="utf-8")
+            except Exception:
+                pass
 
 
 def is_excluded(slug: str) -> bool:

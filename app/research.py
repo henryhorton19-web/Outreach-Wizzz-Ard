@@ -1092,6 +1092,16 @@ def research_company(provider: Provider, name: str, website: str | None,
             cache["candidate_link"] = resolve_link(cache, exps_list, provider=provider, voice=vdef)
         except Exception:
             pass          # a matcher failure must never break research
+
+        try:
+            from .engine_bridge import extract_recent_raise_facts
+            research_summary = f"{cache.get('company', {})}\n{cache.get('proof_points', [])}\n{cache.get('recent', {})}"
+            rf = extract_recent_raise_facts(research_summary, provider=provider)
+            if rf and any(rf.values()):
+                cache["recent_raise_facts"] = rf
+        except Exception:
+            pass
+
         return cache
 
     # both attempts hard-failed to parse/validate
