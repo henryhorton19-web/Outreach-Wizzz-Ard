@@ -321,15 +321,6 @@ class Settings:
     # ---- Phase 3: voice stats ----
     voice_stats_min_n: int = 15                   # below this, show "not enough data yet", never a %
 
-    # ---- Phase 5: inbox (reply/bounce detection) — all opt-in, off = today ----
-    imap_enabled: bool = False
-    imap_host: str = ""
-    imap_port: int = 993
-    imap_username: str = ""
-    imap_ssl: bool = True
-    imap_mailboxes: list[str] = field(default_factory=lambda: ["INBOX"])
-    imap_poll_minutes: int = 0                    # 0 = manual sweep only
-    imap_confirm_replies: bool = False            # ask before marking an ambiguous match replied
 
     # ---- Phase 6b: bounce re-draft ----
     # Retries walk the ranked ladder: the current person's remaining address formats first, then a
@@ -411,19 +402,7 @@ class Settings:
             d["max_bounce_retries"] = max(0, min(5, int(d.get("max_bounce_retries", 3))))
         except (TypeError, ValueError):
             d["max_bounce_retries"] = 3
-        d["imap_enabled"] = bool(d.get("imap_enabled", False))
-        d["imap_ssl"] = bool(d.get("imap_ssl", True))
         d["send_window_advisory"] = bool(d.get("send_window_advisory", True))
-        try:
-            d["imap_port"] = max(1, min(65535, int(d.get("imap_port", 993))))
-        except (TypeError, ValueError):
-            d["imap_port"] = 993
-        try:
-            d["imap_poll_minutes"] = max(0, min(1440, int(d.get("imap_poll_minutes", 0))))
-        except (TypeError, ValueError):
-            d["imap_poll_minutes"] = 0
-        mb = d.get("imap_mailboxes") or ["INBOX"]
-        d["imap_mailboxes"] = [str(m) for m in mb if isinstance(m, str) and m.strip()] or ["INBOX"]
         # ---- Layer 4 content-learning fields ----
         if d.get("voice_learning_mode") not in ("off", "suggest", "auto"):
             d["voice_learning_mode"] = "auto"

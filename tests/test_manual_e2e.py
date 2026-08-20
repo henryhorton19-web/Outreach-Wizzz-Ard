@@ -93,12 +93,6 @@ def test_manual_bounce_stages_readdressed_retry_over_http(client):
     # parent cache untouched
     assert store.load_cache(slug)["contact"]["name"] == "Jane Doe"
 
-    # Triage reflects the bounce with a next-rung preview and marked-by-hand provenance
-    triage = c.get("/api/triage", headers=H).json()
-    assert triage["counts"]["bounced"] == 1
-    row = triage["bounced"][0]
-    assert row["outcome_source"] == "manual"
-
 
 def test_manual_reply_mark_pauses_followup_over_http(client):
     c = client; H = c._H; store = c._store
@@ -108,10 +102,6 @@ def test_manual_reply_mark_pauses_followup_over_http(client):
     r = c.post(f"/api/sent/{_sid(si.id)}/outcome", json={"outcome": "replied"}, headers=H).json()
     assert r["ok"] and r["followup_paused"] is True
     assert str(store.load_followups()[0].status) in ("FollowUpStatus.dismissed", "dismissed")
-    # correcting a false positive flips it back to awaiting and into that bucket
-    c.post(f"/api/sent/{_sid(si.id)}/outcome", json={"outcome": "awaiting"}, headers=H)
-    triage = c.get("/api/triage", headers=H).json()
-    assert triage["counts"]["awaiting"] == 1
 
 
 def test_explicit_retarget_endpoint_over_http(client):
