@@ -132,6 +132,17 @@ function timeAgo(isoStr) {
     return isoStr;
   }
 }
+
+async function refreshQueue() {
+  try {
+    const listId = state.activeListId || "default";
+    const qRes = await api(`/api/queue?list_id=${encodeURIComponent(listId)}`);
+    state.queue = qRes.queue || [];
+    renderQueue();
+  } catch (e) {
+    console.error("Failed to refresh queue", e);
+  }
+}
 function shortUrl(u) { try { const x = new URL(u); return x.hostname.replace(/^www\./, "") + (x.pathname.length > 1 ? x.pathname : ""); } catch { return u; } }
 function wordCount(s) { return (s || "").trim() ? (s.trim().match(/\S+/g) || []).length : 0; }
 
