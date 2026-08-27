@@ -90,8 +90,8 @@ Follow these steps for a complete, fresh setup ("virgin run") of Outreach Wizz-a
 
 **Windows (PowerShell):**
 ```powershell
-git clone git@github.com:henryhorton19-web/Outreach-Wizzz-Ard.git outreach-wizzard
-cd outreach-wizzard
+git clone git@github.com:henryhorton19-web/Outreach-Wizzz-Ard.git outreach-wizzz-ard
+cd outreach-wizzz-ard
 python -m venv venv
 .\venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
@@ -100,8 +100,8 @@ pip install -r requirements.txt
 
 **macOS / Linux (Bash):**
 ```bash
-git clone git@github.com:henryhorton19-web/Outreach-Wizzz-Ard.git outreach-wizzard
-cd outreach-wizzard
+git clone git@github.com:henryhorton19-web/Outreach-Wizzz-Ard.git outreach-wizzz-ard
+cd outreach-wizzz-ard
 python3 -m venv venv
 source venv/bin/activate
 pip install --upgrade pip
