@@ -1,0 +1,111 @@
+{
+  "id": "operator_observation",
+  "display_name": "Operator - Observation & Soft Ask",
+  "created_at": "2026-07-27T13:29:55.276369+00:00",
+  "updated_at": "2026-07-27T13:29:55.277435+00:00",
+  "seeded_from": "blank",
+  "kind": "outreach",
+  "situations": [
+    "role_small",
+    "role_large",
+    "no_role_small"
+  ],
+  "subject": "{company} \u2014 a quick question",
+  "blocks": [
+    {
+      "id": "greeting",
+      "label": "Greeting",
+      "mode": "fixed",
+      "text": "Hi {contact_first},",
+      "guidance": "",
+      "fact_scope": [],
+      "length": "one_line",
+      "optional": false
+    },
+    {
+      "id": "opening",
+      "label": "Opening observation",
+      "mode": "ai",
+      "text": "",
+      "guidance": "Open with ONE sentence about THEM, not me. Name the single most specific, non-obvious thing the company is doing or about to do \u2014 a stated plan, a new initiative, a strategic move, a capability they are building. This is the 'why I am writing now' signal and it must prove real homework. Reach PAST the headline: if the only fresh fact is a funding round, do not congratulate the round \u2014 name the specific plan the round enables. Never use generic praise ('impressed by', 'following your growth', 'love what you are doing'), never use 'exciting time', never use 'an extra pair of hands'. If no specific plan or initiative is available in scope, write nothing and let this block be omitted. Do not open on my own background. One sentence, no metrics dump.",
+      "fact_scope": [
+        "situation_read",
+        "target_proofs",
+        "recent"
+      ],
+      "length": "one_line",
+      "optional": true
+    },
+    {
+      "id": "body",
+      "label": "Credibility bridge",
+      "mode": "ai",
+      "text": "",
+      "guidance": "Two to three sentences. Bridge my background to the specific thing named in the opening (or, if the opening was omitted, to the company's clearest strategic priority in scope). Do NOT recite a CV. Lead the paragraph on THEM/their domain, then attach my evidence to it. Use at most the shortlisted experiences; present exactly ONE concrete proof per experience (proof_density is single). Name their actual domain or problem area in words a domain insider would use, so the connection is legible. Do not start three consecutive sentences with 'I'. Present tense for current roles. Invent nothing: every claim traces to shortlisted candidate evidence or the target research cache. No sign-off.",
+      "fact_scope": [
+        "candidate_evidence",
+        "candidate_spine",
+        "situation_read",
+        "target_proofs"
+      ],
+      "length": "body",
+      "optional": false
+    },
+    {
+      "id": "positioning",
+      "label": "Positioning & availability",
+      "mode": "ai",
+      "text": "",
+      "guidance": "ONE sentence stating who I am and what I want, adapted to their situation. State candidate interest in a part-time operating seat alongside studies. If a relevant role appears to exist at the company, frame it as interest in that kind of seat. If no role is posted, frame it as a flexible part-time operating seat where I can take ownership, without presuming they are hiring. Keep it light and non-presumptuous, never desperate. Keep the candidate background light and clear. Do not restate proofs from the body. No sign-off.",
+      "fact_scope": [
+        "situation_read"
+      ],
+      "length": "short",
+      "optional": false
+    },
+    {
+      "id": "close",
+      "label": "Close",
+      "mode": "fixed",
+      "text": "Worth a short call to see if there's a fit? CV attached if useful.\n\nKind regards,\n{candidate_first}",
+      "guidance": "",
+      "fact_scope": [],
+      "length": "short",
+      "optional": false
+    }
+  ],
+  "style": {
+    "formality": 2,
+    "warmth": 2,
+    "directness": 3,
+    "sentence_length": "medium",
+    "hedging": "neutral",
+    "humor": "none",
+    "person_focus": "recipient_first",
+    "proof_density": "single",
+    "notes": "Warm but economical. Every sentence earns its place; if a line does not do a job, it should not exist. Lead with the recipient and their business before my own experience. Confident, never desperate or salesy. Concrete over abstract. No throat-clearing openers, no filler pleasantries ('hope you are well'), no hype adjectives.",
+    "examples": [
+      "Hi Guilhem,\n\nThe plan to stand up a dedicated crypto credit desk is the part of your next chapter I would most want to work on; new desks live or die on the modelling and process built before the P&L shows up.\n\nThis summer in growth equity I diligence software businesses on unit economics and build the valuation models, and at an AI startup I built an end-to-end LLM pipeline for their investment system and won the cohort competition.\n\nI am an {candidate_education} this year and looking for a part-time seat exactly like the one you have open.\n\nWorth a short call to see if there's a fit? CV attached if useful.\n\nKind regards,\n{candidate_first}",
+      "Hi Corn\u00e9,\n\nDoubling the portfolio-support team while pushing further into health-tech is a sequencing problem as much as a hiring one, and that is the kind of question I like being in the room for.\n\nI diligence and model growth-stage software in growth equity by day, and I build the tooling too, having shipped an end-to-end LLM investment pipeline at an AI startup solo.\n\nI am at {candidate_education} this year and looking for a flexible part-time operating seat where I can take real ownership, whether or not you are actively hiring.\n\nWorth a short call to see if there's a fit? CV attached if useful.\n\nKind regards,\n{candidate_first}"
+    ]
+  },
+  "evidence": {
+    "prefer": [],
+    "pin": [],
+    "exclude": [],
+    "category_weights": {
+      "fintech_ai": 2,
+      "builds": 1
+    },
+    "count": 2,
+    "custom_facts": [],
+    "identity_note": "Investing-side range with real execution: I model and diligence growth-stage software, I understand the fundraising process from the investor seat, and I ship (Python, Claude, n8n)."
+  },
+  "length_min": 80,
+  "length_max": 120,
+  "variables": {},
+  "allow_dashes": false,
+  "origin": "user",
+  "challenger_of": "",
+  "learning_meta": {}
+}

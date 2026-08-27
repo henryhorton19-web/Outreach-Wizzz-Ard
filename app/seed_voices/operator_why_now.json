@@ -1,0 +1,111 @@
+{
+  "id": "operator_why_now",
+  "display_name": "Operator - Why You, Why Now (Narrative)",
+  "created_at": "2026-07-27T13:37:48.770869+00:00",
+  "updated_at": "2026-07-27T13:38:18.847596+00:00",
+  "seeded_from": "blank",
+  "kind": "outreach",
+  "situations": [
+    "role_small",
+    "role_large",
+    "no_role_small"
+  ],
+  "subject": "why {company}, why now",
+  "blocks": [
+    {
+      "id": "greeting",
+      "label": "Greeting",
+      "mode": "fixed",
+      "text": "Hi {contact_first},",
+      "guidance": "",
+      "fact_scope": [],
+      "length": "one_line",
+      "optional": false
+    },
+    {
+      "id": "why_now",
+      "label": "Why now (their moment)",
+      "mode": "ai",
+      "text": "",
+      "guidance": "One to two sentences establishing why THIS is the moment, entirely from THEIR side. Name a specific inflection in their world \u2014 a raise and the plan it unlocks, a growth curve, a new desk/market/product, a workload that is compounding faster than the team can absorb. Read the second-order consequence of that moment (e.g. 'a raise like that usually means the work is compounding faster than headcount can catch up'), because naming the consequence is what proves real understanding rather than decorative research. This block is NOT about me and must not mention my availability or my job search. No generic praise, no 'exciting time', no 'impressed by'. This block is mandatory (not optional): if no specific inflection is in scope, fall back to the company's clearest current strategic priority from situation_read \u2014 never open on a generic industry statement.",
+      "fact_scope": [
+        "situation_read",
+        "target_proofs",
+        "recent"
+      ],
+      "length": "medium",
+      "optional": false
+    },
+    {
+      "id": "why_you",
+      "label": "Why me, connected to their moment",
+      "mode": "ai",
+      "text": "",
+      "guidance": "Two to three sentences that answer the moment named in the previous block. The FIRST clause must connect back to that specific moment ('that gap is where I'm useful', 'that is exactly the kind of problem I work on'), so the two halves read as one thread, not two stacked paragraphs. Then establish fit: I sit on the investing side (diligence and modelling growth-stage software) and I also build/ship. Present exactly ONE concrete proof per shortlisted experience, at most two experiences (proof_density is single). Present tense for current roles \u2014 do NOT narrate my past in a way that reads as a CV history; frame capabilities as current and active. Do not start three consecutive sentences with 'I'. Invent nothing. No sign-off. Do not mention availability or candidate background here \u2014 that is the next block. Keep sentences punchy and concise to respect the overall email word limit.",
+      "fact_scope": [
+        "candidate_evidence",
+        "candidate_spine",
+        "situation_read",
+        "target_proofs"
+      ],
+      "length": "body",
+      "optional": false
+    },
+    {
+      "id": "positioning_close",
+      "label": "Positioning, availability & ask",
+      "mode": "ai",
+      "text": "",
+      "guidance": "One to two sentences resolving the narrative: I am seeking a flexible part-time seat, and THIS is where my availability becomes the answer to their moment \u2014 frame my availability as convenient timing for them, not as my need. Adapt to situation: if a relevant role exists, express interest in that kind of seat; if none is posted, offer a flexible part-time operating seat without presuming they are hiring. End with a single soft, binary ask ('worth a short call?'). Keep the candidate background light and clear. Keep it light, never desperate. No sign-off (the fixed close owns it). Do NOT restate proofs from the previous block.",
+      "fact_scope": [
+        "situation_read"
+      ],
+      "length": "short",
+      "optional": false
+    },
+    {
+      "id": "signoff",
+      "label": "Sign-off",
+      "mode": "fixed",
+      "text": "Either way, thanks for reading this far.\n\nKind regards,\n{candidate_first}",
+      "guidance": "",
+      "fact_scope": [],
+      "length": "one_line",
+      "optional": false
+    }
+  ],
+  "style": {
+    "formality": 2,
+    "warmth": 3,
+    "directness": 3,
+    "sentence_length": "flowing",
+    "hedging": "neutral",
+    "humor": "none",
+    "person_focus": "recipient_first",
+    "proof_density": "single",
+    "notes": "Considered and narrative, but earning every extra word with contextual specificity. This is the one voice that flows; that is a licence to connect ideas, NOT to pad. The through-line is: their moment -> the gap it creates -> why I fit that gap -> my availability as the answer. If any sentence could have been sent to a different company unchanged, it has failed and must be cut or made specific. Warm and human, never a formal cover letter, never 'I am writing to express my interest'. No hype adjectives, no throat-clearing.",
+    "examples": [
+      "Hi Guilhem,\n\nThe eightfold revenue jump last year and the raise behind it usually mean one thing inside a company: the work starts compounding faster than the team can absorb it, and standing up a credit desk on top of that only widens the gap.\n\nThat gap is where I am useful. I sit on the investing side by day, diligencing software on unit economics in growth equity, but I also build, having shipped an end-to-end LLM investment pipeline at an AI startup solo.\n\nI am at {candidate_education} this year, which happens to line up neatly with the seat you have open, and I would rather be useful inside a company scaling this hard than watch from a fund. Worth a short call?\n\nEither way, thanks for reading this far.\n\nKind regards,\n{candidate_first}",
+      "Hi Corn\u00e9,\n\nPushing deeper into health-tech while the rest of the portfolio keeps demanding attention is the kind of moment where sourcing and diligence quietly become the bottleneck, long before capital does.\n\nThat is exactly the work I like owning. I diligence and model growth-stage software in growth equity, and I build the tooling around it too, having shipped an LLM investment pipeline end to end at an AI startup.\n\nI am on exchange at {candidate_education} this year and would happily take a flexible part-time seat where I can carry some of that load, whether or not you are hiring right now. Worth a short call?\n\nEither way, thanks for reading this far.\n\nKind regards,\n{candidate_first}"
+    ]
+  },
+  "evidence": {
+    "prefer": [],
+    "pin": [],
+    "exclude": [],
+    "category_weights": {
+      "fintech_ai": 2,
+      "builds": 1
+    },
+    "count": 2,
+    "custom_facts": [],
+    "identity_note": "Investing-side judgement plus real execution: I diligence and model growth-stage software and I ship (Python, Claude, n8n). The story is that I both decide and build, which is rare at my stage."
+  },
+  "length_min": 95,
+  "length_max": 125,
+  "variables": {},
+  "allow_dashes": false,
+  "origin": "user",
+  "challenger_of": "",
+  "learning_meta": {}
+}

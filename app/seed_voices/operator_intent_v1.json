@@ -1,0 +1,90 @@
+{
+  "id": "operator_intent_v1",
+  "display_name": "Operator Intent (v1)",
+  "kind": "outreach",
+  "audience": "self",
+  "lead_mode": "noticing",
+  "subject": "{candidate_first} & {company_lower}",
+  "length_min": 45,
+  "length_max": 85,
+  "allow_dashes": false,
+  "signature": "",
+  "situations": [],
+  "variables": {
+    "feedback_checks": "",
+    "lowercase_company": "true",
+    "variation_history": "true"
+  },
+  "style": {
+    "formality": 2,
+    "warmth": 2,
+    "directness": 4,
+    "sentence_length": "medium",
+    "hedging": "none",
+    "humor": "none",
+    "person_focus": "sender_first",
+    "proof_density": "single",
+    "notes": "Plain, blunt, slightly rushed. Short declarative sentences. No flattery, no scene-setting, no abstractions, no adjectives that cannot be checked. Never open by describing what the company does back to them. Never restate a fact from their funding announcement or homepage. Write like someone who looked at the product for ten minutes and has one thing to say about it.",
+    "examples": []
+  },
+  "evidence": {
+    "count": 2,
+    "prefer": [],
+    "pin": [],
+    "exclude": [],
+    "category_weights": {},
+    "custom_facts": [
+      "Built a sourcing and outreach system: finds companies, researches them, drafts the email",
+      "Built an outreach engine with voice learning, follow-up sequencing and bounce handling",
+      "Built an automated sourcing pipeline using LLMs and Python",
+      "Built a financial modelling framework for B2B SaaS unit economics"
+    ],
+    "identity_note": ""
+  },
+  "blocks": [
+    {
+      "id": "greeting",
+      "label": "Greeting",
+      "mode": "fixed",
+      "text": "Hi {contact_first},",
+      "length": "one_line",
+      "guidance": ""
+    },
+    {
+      "id": "opening",
+      "label": "Opening / Trigger",
+      "mode": "fixed",
+      "text": "I saw {company_lower}, which is what prompted me to write.",
+      "length": "short",
+      "guidance": ""
+    },
+    {
+      "id": "body",
+      "label": "Body / Pitch",
+      "mode": "ai",
+      "length": "body",
+      "fact_scope": [
+        "profile_evidence",
+        "profile_spine",
+        "earned_observation"
+      ],
+      "guidance": "Write a 2-3 sentence body paragraph explaining why you're reaching out. Connect your operational background to their company's stage/situation."
+    },
+    {
+      "id": "close",
+      "label": "Close",
+      "mode": "fixed",
+      "text": "Open to a short call to discuss? :) CV is attached",
+      "length": "one_line",
+      "guidance": ""
+    },
+    {
+      "id": "signoff",
+      "label": "Signoff",
+      "mode": "fixed",
+      "text": "Kind regards,\n{candidate_name}\n\n{candidate_education}\n{candidate_linkedin}",
+      "length": "short",
+      "guidance": ""
+    }
+  ]
+}

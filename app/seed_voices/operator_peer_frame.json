@@ -1,0 +1,109 @@
+{
+  "id": "operator_peer_frame",
+  "display_name": "Operator - Peer Frame (Strategic)",
+  "created_at": "2026-07-27T13:39:30.189373+00:00",
+  "updated_at": "2026-07-27T13:40:07.320042+00:00",
+  "seeded_from": "blank",
+  "kind": "outreach",
+  "situations": [
+    "role_small",
+    "role_large",
+    "no_role_small"
+  ],
+  "subject": "a thought on {company}'s next move",
+  "blocks": [
+    {
+      "id": "greeting",
+      "label": "Greeting",
+      "mode": "fixed",
+      "text": "Hi {contact_first},",
+      "guidance": "",
+      "fact_scope": [],
+      "length": "one_line",
+      "optional": false
+    },
+    {
+      "id": "strategic_frame",
+      "label": "Strategic frame",
+      "mode": "ai",
+      "text": "",
+      "guidance": "One to two sentences naming a specific strategic tension or non-obvious second-order question in THEIR situation \u2014 the kind of thing an insider would actually be weighing. Good frames are about SEQUENCING, TRADE-OFFS, or ORDER-OF-OPERATIONS ('doing X and Y at once is a sequencing problem: which order de-risks the other?'), not vague praise or a restated fact. GROUNDING IS MANDATORY: the frame must attach to a specific, sourced signal in scope (a stated plan, a named market move, a structural fact about their position). If the only material available is generic industry-level fact with no company-specific signal, DO NOT pose a strategic diagnosis \u2014 instead write a softer, honest observation and let the credibility block carry more weight, because an ungrounded strategic claim reads as presumptuous know-it-all-ism. Never diagnose their internal problems as if certain; frame as a question or a tension you find interesting, not a verdict. This is a peer sharing a thought, not a consultant pitching a finding. No 'impressed', no 'exciting time', no invented numbers. Not about me. Keep sentences punchy and concise.",
+      "fact_scope": [
+        "situation_read",
+        "target_proofs",
+        "recent"
+      ],
+      "length": "medium",
+      "optional": false
+    },
+    {
+      "id": "peer_credibility",
+      "label": "Peer credibility",
+      "mode": "ai",
+      "text": "",
+      "guidance": "ONE sentence establishing WHY I can credibly hold the view just expressed \u2014 I reason about exactly these questions professionally. Lead with the reasoning identity ('I diligence and model businesses working through this kind of question'), then at most one supporting proof from a second experience. Present exactly ONE proof per experience, at most two experiences (proof_density is single). This is a peer signalling competence briefly, NOT a CV and NOT a vendor's 'we help' pitch. Present tense for current roles. Do not start with 'I' if the previous block ended on my voice already. Invent nothing. No sign-off. Write EXACTLY one single concise sentence, never two sentences, to respect the overall email word limit.",
+      "fact_scope": [
+        "candidate_evidence",
+        "candidate_spine"
+      ],
+      "length": "short",
+      "optional": false
+    },
+    {
+      "id": "positioning",
+      "label": "Positioning & availability",
+      "mode": "ai",
+      "text": "",
+      "guidance": "ONE sentence: State candidate interest in a part-time operating seat. Adapt to situation: if a relevant role exists, note interest in that kind of seat; if none is posted, offer a flexible part-time operating seat without presuming they are hiring. Keep it subordinate to the idea \u2014 the frame is the star, the availability is a light aside. Keep the candidate background light and clear. Never desperate, never a hard pitch. No sign-off. Do not restate proofs.",
+      "fact_scope": [
+        "situation_read"
+      ],
+      "length": "short",
+      "optional": false
+    },
+    {
+      "id": "close",
+      "label": "Close",
+      "mode": "fixed",
+      "text": "Mostly I wanted to know if the way I'm reading it lands. Worth comparing notes?\n\nKind regards,\n{candidate_first}",
+      "guidance": "",
+      "fact_scope": [],
+      "length": "short",
+      "optional": false
+    }
+  ],
+  "style": {
+    "formality": 2,
+    "warmth": 1,
+    "directness": 3,
+    "sentence_length": "medium",
+    "hedging": "hedged",
+    "humor": "none",
+    "person_focus": "recipient_first",
+    "proof_density": "single",
+    "notes": "Analytical and peer-level. The voice of someone who genuinely finds their strategic situation interesting and is thinking out loud as an equal, not selling and not applying. Cooler and more cerebral than the other voices; the warmth comes from the quality of attention paid to their problem, not from friendliness. Crucially, hold the strategic view with appropriate humility: it is a frame offered for discussion ('the way I'm reading it'), not a verdict delivered. Presumptuousness is the cardinal sin here. No 'we help' vendor language, no 'I am writing to express interest' applicant language, no hype. If it sounds like a consultant's pitch or a cover letter, it has failed.",
+    "examples": [
+      "Hi Guilhem,\n\nScaling OTC derivatives and standing up a credit desk while doubling headcount looks less like a trading problem than a sequencing one: which of the two you build out first probably determines how much risk the other one carries. I have been curious how you are thinking about that order.\n\nI sit on the investing side in growth equity, pressure-testing exactly these kinds of build-vs-sequence questions for software businesses, and I build the tooling to model them too.\n\nI am at {candidate_education} this year and would like to be in the room for questions like that one, in the seat you have open.\n\nMostly I wanted to know if the way I'm reading it lands. Worth comparing notes?\n\nKind regards,\n{candidate_first}",
+      "Hi Corn\u00e9,\n\nPushing further into health-tech while the existing portfolio still needs attention reads as a bandwidth trade-off more than a thesis one: the harder question is probably what sourcing you are willing to let slip elsewhere to fund it. I would be interested to know if that is how it looks from inside.\n\nI model and pressure-test growth-stage software in growth equity and build the sourcing tooling around it, so this is the kind of question I chew on anyway.\n\nI am on exchange at {candidate_education} this year and would happily take a flexible part-time seat to help carry some of it, whether or not you are hiring.\n\nMostly I wanted to know if the way I'm reading it lands. Worth comparing notes?\n\nKind regards,\n{candidate_first}"
+    ]
+  },
+  "evidence": {
+    "prefer": [],
+    "pin": [],
+    "exclude": [],
+    "category_weights": {
+      "fintech_ai": 2,
+      "builds": 1
+    },
+    "count": 2,
+    "custom_facts": [],
+    "identity_note": "Someone who reasons about exactly these strategic questions for a living: I diligence, model, and pressure-test growth-stage software businesses, and I build the tooling to do it faster. I think like an investor and ship like an operator."
+  },
+  "length_min": 85,
+  "length_max": 120,
+  "variables": {},
+  "allow_dashes": false,
+  "origin": "user",
+  "challenger_of": "",
+  "learning_meta": {}
+}

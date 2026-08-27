@@ -1,0 +1,97 @@
+{
+  "id": "operator_three_lines",
+  "display_name": "Operator - Three Lines (Minimalist)",
+  "created_at": "2026-07-27T13:36:46.302893+00:00",
+  "updated_at": "2026-07-27T13:36:46.302893+00:00",
+  "seeded_from": "blank",
+  "kind": "outreach",
+  "situations": [
+    "role_small",
+    "role_large",
+    "no_role_small"
+  ],
+  "subject": "3 lines, {company}",
+  "blocks": [
+    {
+      "id": "greeting",
+      "label": "Greeting",
+      "mode": "fixed",
+      "text": "Hi {contact_first},",
+      "guidance": "",
+      "fact_scope": [],
+      "length": "one_line",
+      "optional": false
+    },
+    {
+      "id": "frame",
+      "label": "Respect frame",
+      "mode": "fixed",
+      "text": "I know the inbox is brutal, so three lines:",
+      "guidance": "",
+      "fact_scope": [],
+      "length": "one_line",
+      "optional": false
+    },
+    {
+      "id": "bullets",
+      "label": "Three bullets",
+      "mode": "ai",
+      "text": "",
+      "guidance": "Output EXACTLY three bullet lines, each prefixed with the bullet leader '\u00b7' and a single space, each on its own line, no blank lines between them. Each bullet is one tight clause, no more than ~15 words. Structure:\n  Bullet 1 (what I do now): my current work, stated as a capability tied to their world. Present tense. One proof only.\n  Bullet 2 (what I have done): one prior proof that makes bullet 1 credible. One experience, one proof.\n  Bullet 3 (who I am + what I want): I am seeking a part-time operating seat alongside my studies. Adapt the ask to their situation: if a relevant role exists, name interest in that kind of seat; if none is posted, say flexible part-time operating seat without presuming they are hiring.\nThis block handles the candidate background and ask. Do NOT write prose sentences, do NOT write more or fewer than three bullets, do NOT add sub-bullets. Invent no numbers or findings; every claim traces to shortlisted evidence or the research cache. No sign-off. TECHNICAL EXCEPTION: only if the recipient is clearly a deeply technical buyer (e.g. an engineering or quant lead) may a bullet carry one extra technical proof clause that a generalist could not have written; otherwise keep each bullet ruthlessly short. Never let total email exceed the ceiling for the sake of a fourth idea.",
+      "fact_scope": [
+        "candidate_evidence",
+        "situation_read",
+        "target_proofs",
+        "candidate_spine"
+      ],
+      "length": "short",
+      "optional": false
+    },
+    {
+      "id": "close",
+      "label": "Close",
+      "mode": "fixed",
+      "text": "Open to a short call?\n\nKind regards,\n{candidate_first}",
+      "guidance": "",
+      "fact_scope": [],
+      "length": "short",
+      "optional": false
+    }
+  ],
+  "style": {
+    "formality": 1,
+    "warmth": 2,
+    "directness": 4,
+    "sentence_length": "short",
+    "hedging": "assertive",
+    "humor": "none",
+    "person_focus": "balanced",
+    "proof_density": "single",
+    "notes": "Ruthlessly brief. The format is the message: pre-commit to three lines and deliver exactly three. No throat-clearing, no adjectives, no hedging words ('perhaps', 'might', 'a little'). Every word earns its place or is cut. Confident and plain. This voice should read like it took ten seconds to read and was obviously written by a person who respects the reader's time.",
+    "examples": [
+      "Hi Guilhem,\n\nI know the inbox is brutal, so three lines:\n\n\u00b7 At a growth fund this summer: diligencing software on unit economics, building the valuation models.\n\u00b7 Before that at an AI startup: built their end-to-end LLM investment pipeline, won the cohort competition.\n\u00b7 {candidate_education} this year, after a part-time seat like the one you have open.\n\nOpen to a short call?\n\nKind regards,\n{candidate_first}",
+      "Hi Corn\u00e9,\n\nI know the inbox is brutal, so three lines:\n\n\u00b7 At a growth fund this summer: sourcing and modelling growth-stage software deals.\n\u00b7 At an AI startup: shipped an end-to-end LLM investment pipeline solo.\n\u00b7 On exchange at {candidate_education} this year, after a flexible part-time seat, whether or not you are hiring.\n\nOpen to a short call?\n\nKind regards,\n{candidate_first}"
+    ]
+  },
+  "evidence": {
+    "prefer": [],
+    "pin": [],
+    "exclude": [],
+    "category_weights": {
+      "fintech_ai": 1,
+      "builds": 1
+    },
+    "count": 2,
+    "custom_facts": [],
+    "identity_note": "One line each: I diligence and model growth-stage software; I ship LLM tooling end to end; I want a part-time operating seat. Nothing that cannot be said in a single clause."
+  },
+  "length_min": 55,
+  "length_max": 80,
+  "variables": {},
+  "allow_dashes": false,
+  "origin": "user",
+  "challenger_of": "",
+  "learning_meta": {
+    "bullet_leader": "\u00b7"
+  }
+}

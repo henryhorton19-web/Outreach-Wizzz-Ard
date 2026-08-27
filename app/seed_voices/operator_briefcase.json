@@ -1,0 +1,123 @@
+{
+  "id": "operator_briefcase",
+  "display_name": "Operator - Give-First (Briefcase)",
+  "created_at": "2026-07-27T13:33:44.055095+00:00",
+  "updated_at": "2026-07-27T13:33:44.055095+00:00",
+  "seeded_from": "blank",
+  "kind": "outreach",
+  "situations": [
+    "role_small",
+    "role_large",
+    "no_role_small"
+  ],
+  "subject": "a quick teardown for {company}",
+  "blocks": [
+    {
+      "id": "greeting",
+      "label": "Greeting",
+      "mode": "fixed",
+      "text": "Hi {contact_first},",
+      "guidance": "",
+      "fact_scope": [],
+      "length": "one_line",
+      "optional": false
+    },
+    {
+      "id": "hook",
+      "label": "Hook observation",
+      "mode": "ai",
+      "text": "",
+      "guidance": "ONE sentence about THEM that sets up why the attached/offered artifact is relevant. Name the specific area the gift speaks to \u2014 a stated plan, a scaling challenge, a new desk/product/market they are entering. This is the setup line, not the gift itself. No generic praise, no 'exciting time', no 'impressed by', no 'extra pair of hands'. If nothing specific is in scope to anchor the gift, omit this block and let the artifact-offer stand on its own domain framing. Do not describe my background here.",
+      "fact_scope": [
+        "situation_read",
+        "target_proofs",
+        "recent"
+      ],
+      "length": "one_line",
+      "optional": true
+    },
+    {
+      "id": "artifact_offer",
+      "label": "Artifact offer (the give)",
+      "mode": "ai",
+      "text": "",
+      "guidance": "One to two sentences describing a concrete, specific piece of work I have built or a framework I would run FOR THEM, and offering it freely. Ground it in a real capability from my shortlisted evidence (e.g. the kind of diligence screen, model, or LLM tooling I actually build) applied to something specific in their world. CRITICAL HONESTY CONSTRAINT: frame this as an approach/framework/screen I would run or have built, NOT as a finding I have already produced about their real numbers. I have not seen their internal data, so never state a result, metric, or diagnosis about them as if already computed (no 'I found your NRR is X', no invented figures). Describe the shape of the deliverable, then offer it: end with a soft giveaway such as 'happy to send it over' or 'yours either way'. The offer is the value; do not gate it behind a call. No metrics I could not truthfully know. No sign-off.",
+      "fact_scope": [
+        "candidate_evidence",
+        "situation_read",
+        "target_proofs"
+      ],
+      "length": "medium",
+      "optional": false
+    },
+    {
+      "id": "credibility",
+      "label": "Credibility (one line)",
+      "mode": "ai",
+      "text": "",
+      "guidance": "ONE compact sentence establishing that I can credibly produce the artifact just offered. Present exactly ONE proof per shortlisted experience, at most two experiences (proof_density is single). This is context for the gift, not a CV recital: keep it to what makes the give believable. Present tense for current roles. Do not start with 'I' if the previous block already did. Invent nothing. No sign-off.",
+      "fact_scope": [
+        "candidate_evidence",
+        "candidate_spine"
+      ],
+      "length": "short",
+      "optional": false
+    },
+    {
+      "id": "positioning",
+      "label": "Positioning & availability",
+      "mode": "ai",
+      "text": "",
+      "guidance": "ONE sentence: State interest in a part-time operating seat alongside studies. If a relevant role appears to exist, frame it as interest in that kind of seat; if none is posted, frame it as a flexible part-time operating seat, without presuming they are hiring. Light, never desperate. Keep the candidate background light and clear. Do not restate the artifact or proofs. No sign-off.",
+      "fact_scope": [
+        "situation_read"
+      ],
+      "length": "short",
+      "optional": false
+    },
+    {
+      "id": "close",
+      "label": "Close",
+      "mode": "fixed",
+      "text": "Either way, happy to send the write-up across. And if it turns into a wider conversation, even better.\n\nKind regards,\n{candidate_first}",
+      "guidance": "",
+      "fact_scope": [],
+      "length": "short",
+      "optional": false
+    }
+  ],
+  "style": {
+    "formality": 2,
+    "warmth": 2,
+    "directness": 3,
+    "sentence_length": "medium",
+    "hedging": "neutral",
+    "humor": "none",
+    "person_focus": "recipient_first",
+    "proof_density": "single",
+    "notes": "Generous and concrete. The email leads with something useful I am giving them, not with what I want. Specific over abstract; describe a real deliverable, not a vague offer to 'help'. Confident but never presumptuous about their internal situation. No throat-clearing, no filler pleasantries, no hype adjectives. The give is genuine: if it reads as a bait-and-switch for a meeting, it has failed.",
+    "examples": [
+      "Hi Guilhem,\n\nYou are standing up a dedicated crypto credit desk, and new desks are a data problem before they are a trading one.\n\nI put together a rough framework for scoring venue-level liquidity depth and counterparty risk across a multi-venue footprint like yours, the same kind of screen I build for diligence in growth equity. Happy to send it over, it is yours either way.\n\nFor context, this summer I diligence software businesses on unit economics in growth equity and I built an end-to-end LLM investment pipeline at an AI startup.\n\nI am at {candidate_education} this year and looking for a part-time seat like the one you have open.\n\nEither way, happy to send the write-up across. And if it turns into a wider conversation, even better.\n\nKind regards,\n{candidate_first}",
+      "Hi Corn\u00e9,\n\nYou are pushing further into health-tech, which makes early-signal sourcing in that vertical the bottleneck long before capital is.\n\nI built a rubric-based screen that ranks a health-tech longlist on the signals that actually predict a fundable round, the kind of sourcing tooling I ship in growth equity and built solo at an AI startup. Happy to run it on a slice of your pipeline and send the output, no strings.\n\nI am on exchange at {candidate_education} this year and looking for a flexible part-time operating seat where I can take real ownership, whether or not you are hiring right now.\n\nEither way, happy to send the write-up across. And if it turns into a wider conversation, even better.\n\nKind regards,\n{candidate_first}"
+    ]
+  },
+  "evidence": {
+    "prefer": [],
+    "pin": [],
+    "exclude": [],
+    "category_weights": {
+      "builds": 2,
+      "fintech_ai": 1
+    },
+    "count": 2,
+    "custom_facts": [],
+    "identity_note": "I build things and give them away: diligence screens, valuation models, and LLM tooling I can run for a target before anyone asks me to. Investing-side judgement plus real shipping (Python, Claude, n8n)."
+  },
+  "length_min": 85,
+  "length_max": 125,
+  "variables": {},
+  "allow_dashes": false,
+  "origin": "user",
+  "challenger_of": "",
+  "learning_meta": {}
+}

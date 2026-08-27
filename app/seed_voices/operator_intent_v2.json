@@ -1,0 +1,97 @@
+{
+  "id": "operator_intent_v2",
+  "display_name": "Operator Intent (v2)",
+  "kind": "outreach",
+  "audience": "self",
+  "lead_mode": "news",
+  "subject": "{candidate_first} & {company_lower}",
+  "length_min": 45,
+  "length_max": 85,
+  "allow_dashes": false,
+  "signature": "",
+  "situations": [],
+  "variables": {
+    "feedback_checks": "",
+    "lowercase_company": "true",
+    "staged": "true",
+    "variation_history": "true"
+  },
+  "style": {
+    "formality": 2,
+    "warmth": 2,
+    "directness": 4,
+    "sentence_length": "medium",
+    "hedging": "none",
+    "humor": "none",
+    "person_focus": "sender_first",
+    "proof_density": "single",
+    "notes": "Plain, blunt, slightly rushed. Short declarative sentences. No flattery, no scene-setting, no abstractions, no adjectives that cannot be checked. Never open by describing what the company does back to them. Never restate a fact from their funding announcement or homepage. Write like someone who looked at the product for ten minutes and has one thing to say about it.",
+    "examples": []
+  },
+  "evidence": {
+    "count": 2,
+    "prefer": [],
+    "pin": [],
+    "exclude": [],
+    "category_weights": {},
+    "custom_facts": [
+      "Built a sourcing and outreach system: finds companies, researches them, drafts the email",
+      "Built an outreach engine with voice learning, follow-up sequencing and bounce handling",
+      "Built an automated sourcing pipeline using LLMs and Python",
+      "Built a financial modelling framework for B2B SaaS unit economics"
+    ],
+    "identity_note": ""
+  },
+  "blocks": [
+    {
+      "id": "greeting",
+      "label": "Greeting",
+      "mode": "fixed",
+      "text": "Hi {contact_first},",
+      "length": "one_line",
+      "guidance": ""
+    },
+    {
+      "id": "opening",
+      "label": "Intent, credential, link",
+      "mode": "ai",
+      "text": "I am reaching out because I want to move from evaluating companies to building inside one.",
+      "length": "medium",
+      "fact_scope": [
+        "target_proofs",
+        "situation_read",
+        "earned_observation",
+        "custom_facts",
+        "profile_evidence",
+        "profile_spine"
+      ],
+      "guidance": "SENTENCE 1 -- the credential and what it taught you. Cite ONE credential from the allowed facts that best explains your observation about this company.\nThen a comma, then 'and', then ONE plain finding from doing that work.\nThe finding must be something that went WRONG or was HARDER than expected. A difficulty you admit is credible; a competence you assert is not.\n\nSENTENCE 2 -- the link. Choose ONE of these moves and write it in that shape. There is no default; pick the one that fits what you just said.\n  at_proper_scale   \"<company> is that same problem at proper scale.\"\n  other_side        \"<company> is that same problem from the other side.\"\n  buyer_side        \"That is your thesis from the buyer's side.\"\n  solved_properly   \"<company> is solving that properly; mine was <your crude version>.\"\n  named_component   \"<their named product> is that same idea applied to <X>.\"\n  bare              No third sentence at all. Stop after the finding.\n\"which is why I wanted to write\" is OPTIONAL and belongs to at most one of these. Do not append it by default.\n\nHARD BANS. Breaking any of these makes the draft unusable:\n- Do not begin any sentence with 'Your', 'Having', or the company name followed by praise.\n- Write the company name entirely in lower case, including at the start of a sentence: \"shiplog is that same idea\", never \"Shiplog is that same idea\".\n- Do not write the finding as \"<thing> was <bad>; I ended up <doing Y>\". That shape has been used repeatedly and now reads as a template. Vary the sentence structure, not just the nouns.\n- Only state experience that appears in the allowed facts. If a fact you want is not listed, choose a different credential rather than describing work you have not done.\n- Do not use: resonates, uniquely positioned, particularly compelling, particularly interesting, stands out, powerful vision, I understand the complexities, could be valuable, significant, leverage, alignment.\n- Do not mention their funding round, their investors, their launch date, their headcount, or their headquarters.\n- Do not use em dashes or en dashes anywhere.\n- Do not use a construction that announces a lesson ('the thing that worked was', 'what I learned was', 'this taught me').\n- Do not exceed three sentences or 60 words total."
+    },
+    {
+      "id": "ask",
+      "label": "The ask",
+      "mode": "ai",
+      "length": "short",
+      "fact_scope": [
+        "situation_read"
+      ],
+      "guidance": "Write EXACTLY ONE sentence as ONE paragraph.\n\nREPRODUCE THIS PREFIX CHARACTER FOR CHARACTER:\nI am seeking a part-time role alongside my studies: I am cheap, driven and believe I could aid\n\nThen ONE space, then a short noun phrase naming what this specific company is actually building or changing, then a full stop.\nExamples of the ending only: 'the move away from segments.' / 'the rebuild of the inbox.' / 'the creation of a real AI colleague.' / 'the push into verified data.'\nFour to eight words. Lower case unless it is a proper noun. Never write 'your mission' - naming the thing is the entire point of this sentence.\nDo not add any other sentence, clause, or qualifier."
+    },
+    {
+      "id": "close",
+      "label": "Close",
+      "mode": "fixed",
+      "text": "Open to a short call to discuss? :) CV is attached",
+      "length": "one_line",
+      "guidance": ""
+    },
+    {
+      "id": "signoff",
+      "label": "Signoff",
+      "mode": "fixed",
+      "text": "Kind regards,\n{candidate_name}\n\n{candidate_education}\n{candidate_linkedin}",
+      "length": "short",
+      "guidance": ""
+    }
+  ]
+}
