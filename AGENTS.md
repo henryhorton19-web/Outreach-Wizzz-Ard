@@ -1,6 +1,6 @@
 # Paris Outreach / Outreach Wizz-ard Project Rules & Setup Guide (`AGENTS.md`)
 
-When opening, modifying, setup, or launching this repository in a fresh chat or workspace, follow these mandatory rules and setup instructions:
+When opening, modifying, setting up, or launching this repository in a fresh chat or workspace, follow these mandatory rules and setup instructions:
 
 ---
 
@@ -14,33 +14,41 @@ Follow these steps to set up and run Outreach Wizz-ard on a brand new local mach
 * **OS**: Windows 10/11, macOS, or Linux.
 
 ### Step 1: Clone Repository
-```powershell
-git clone git@github.com:henryhorton19-web/Outreach-Wizz-Ard.git "C:\Users\HenryHorton\OneDrive\Documents\Internship\09 Personal Projects\paris-outreach"
-cd "C:\Users\HenryHorton\OneDrive\Documents\Internship\09 Personal Projects\paris-outreach"
+```bash
+git clone git@github.com:henryhorton19-web/Outreach-Wizz-Ard.git outreach-wizzard
+cd outreach-wizzard
 ```
 
 ### Step 2: Create Virtual Environment & Install Dependencies
+
+**Windows (PowerShell)**:
 ```powershell
-cd "C:\Users\HenryHorton\OneDrive\Documents\Internship\09 Personal Projects\paris-outreach"
 python -m venv venv
 .\venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
 pip install -r requirements.txt
 ```
-*(On macOS/Linux, activate using `source venv/bin/activate`)*
+
+**macOS / Linux (Bash/Zsh)**:
+```bash
+python3 -m venv venv
+source venv/bin/activate
+pip install --upgrade pip
+pip install -r requirements.txt
+```
 
 ### Step 3: Launch Application
 Run the system-agnostic launcher script. This script automatically handles pre-launch Git sync, bootstraps default starter voices and sourcing prompts, and launches the native PyWebView desktop GUI:
 
 **Windows (PowerShell)**:
 ```powershell
-cd "C:\Users\HenryHorton\OneDrive\Documents\Internship\09 Personal Projects\paris-outreach"
+cd "<path-to-repository>"
 .\run-wizzard.ps1
 ```
 
 **macOS / Linux (Bash/Zsh)**:
 ```bash
-cd "C:\Users\HenryHorton\OneDrive\Documents\Internship\09 Personal Projects\paris-outreach"
+cd "<path-to-repository>"
 ./run-wizzard.sh
 ```
 
@@ -55,7 +63,7 @@ When the user asks to "open Paris", "run Paris Outreach", "open Wizz-ard", "run 
 Outreach Wizz-ard is a self-contained desktop application powered by Python (`pywebview` + `FastAPI`). When launching the app, **always open the local desktop application GUI** (which `run-wizzard.ps1`, `run-wizzard.sh`, and `main.py` do by default). Do not start only the headless backend server unless the user explicitly requests web-only mode.
 
 ### Never Execute Launch Commands Directly
-**Do NOT execute the application launch commands yourself using tools.** Always output the exact copy-pasteable launcher commands (with full absolute directory paths) in markdown code blocks so the user can run them interactively in their terminal window.
+**Do NOT execute the application launch commands yourself using tools.** Always output the exact copy-pasteable launcher commands (with full absolute directory paths where known or generic placeholders) in markdown code blocks so the user can run them interactively in their terminal window.
 
 ---
 

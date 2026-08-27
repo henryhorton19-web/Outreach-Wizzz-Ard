@@ -82,8 +82,8 @@ Follow these steps for a complete, fresh setup ("virgin run") of Outreach Wizz-a
 
 **Windows (PowerShell):**
 ```powershell
-git clone git@github.com:henryhorton19-web/Outreach-Wizz-Ard.git "C:\Users\HenryHorton\OneDrive\Documents\Internship\09 Personal Projects\paris-outreach"
-cd "C:\Users\HenryHorton\OneDrive\Documents\Internship\09 Personal Projects\paris-outreach"
+git clone git@github.com:henryhorton19-web/Outreach-Wizz-Ard.git outreach-wizzard
+cd outreach-wizzard
 python -m venv venv
 .\venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
@@ -92,8 +92,8 @@ pip install -r requirements.txt
 
 **macOS / Linux (Bash):**
 ```bash
-git clone git@github.com:henryhorton19-web/Outreach-Wizz-Ard.git paris-outreach
-cd paris-outreach
+git clone git@github.com:henryhorton19-web/Outreach-Wizz-Ard.git outreach-wizzard
+cd outreach-wizzard
 python3 -m venv venv
 source venv/bin/activate
 pip install --upgrade pip
@@ -106,13 +106,13 @@ Outreach Wizz-ard includes OS-agnostic launcher scripts that automatically sync 
 
 **Windows (PowerShell):**
 ```powershell
-cd "C:\Users\HenryHorton\OneDrive\Documents\Internship\09 Personal Projects\paris-outreach"
+cd "<path-to-repository>"
 .\run-wizzard.ps1
 ```
 
 **macOS / Linux (Bash):**
 ```bash
-cd "<path-to-paris-outreach>"
+cd "<path-to-repository>"
 ./run-wizzard.sh
 ```
 
