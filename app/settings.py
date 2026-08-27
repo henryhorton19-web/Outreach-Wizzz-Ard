@@ -42,17 +42,17 @@ def _env(name: str) -> str | None:
 
 def _data_root() -> Path:
     """Per-user writable dir for batch JSON, caches, audit records, settings.
-    Windows: %APPDATA%\\OutreachWizzard ; else ~/.outreach_wizzard . Overridable via WIZZARD_DATA_DIR / PARIS_DATA_DIR."""
+    Windows: %APPDATA%\\OutreachWizzard ; else ~/.hpe_growth_outreach . Overridable via WIZZARD_DATA_DIR / PARIS_DATA_DIR."""
     override = _env("DATA_DIR")
     if override:
         return Path(override)
     if os.name == "nt":
         base = os.environ.get("APPDATA") or str(Path.home())
-        target = Path(base) / "OutreachWizzard"
-        legacy = Path(base) / "ParisOutreach"
+        target = Path(base) / "HPEGrowthOutreach"
+        legacy = Path(base) / "HPEGrowthOutreach_none"
     else:
-        target = Path.home() / ".outreach_wizzard"
-        legacy = Path.home() / ".paris_outreach"
+        target = Path.home() / ".hpe_growth_outreach"
+        legacy = Path.home() / ".hpe_growth_outreach_none"
     if not target.exists() and legacy.exists():
         import sys
         print(f"  [settings] Notice: Legacy data directory found at {legacy}. "
@@ -62,8 +62,10 @@ def _data_root() -> Path:
 
 
 def _default_outbox_dir() -> Path:
-    """Staged .eml files live under the data dir. Override with the eml_dir setting
-    (or WIZZARD_EML_DIR) to route them to a synced folder instead."""
+    """Staged .eml files live under local outbox dir if present, else data dir."""
+    local_outbox = Path(__file__).parent.parent / "outbox"
+    if local_outbox.exists():
+        return local_outbox
     return DATA_DIR / "outbox"
 
 
@@ -105,9 +107,9 @@ def get_outbox_helper_dir() -> Path:
 
 # Bumped when shipped seed data changes in a way that should replace stale files in an
 # existing data directory. Never-overwrite seeding is right for a user's own edits and
-# wrong for a file inherited from an earlier build, and patching one file at a time did
-# not scale: the profile was fixed and the sourcing presets were not.
-BUILD_VERSION = "2026-08-1"
+# wrong for a file inherited from an earlier build. Sourcing presets, profile, and voices
+# are migrated on a build marker change.
+BUILD_VERSION = "2026-08-3"
 
 
 def _build_marker_path():
@@ -147,6 +149,81 @@ def _looks_stale(text: str) -> bool:
     return any(m in low for m in _STALE_MARKERS)
 
 
+_VOICE_TOKEN_RE = __import__("re").compile(r"\{([a-zA-Z_][a-zA-Z0-9_]*)\}")
+
+
+def _known_voice_tokens() -> set:
+    """Tokens the compose layer can actually substitute.
+
+    Imported lazily on purpose: app.compose imports this module, so a module-level
+    import would be circular.
+    """
+    try:
+        from app.compose import derive_tokens
+        return set(derive_tokens({"company": "", "contact_first": ""}).keys())
+    except Exception:
+        return set()
+
+
+def undefined_voice_tokens(voice: dict, known: set | None = None) -> set:
+    """Tokens this voice ships that nothing can fill.
+
+    Scope is deliberately narrow, because both wider options produce false positives
+    that would move a working voice aside:
+
+      * Only fixed-block `text` is examined. Guidance is instruction prose for the
+        model and legitimately names tokens without shipping them; the shipped imran
+        voice mentions {detail} that way.
+      * A voice's own `variables` keys count as defined, because compose merges them
+        into the token set.
+    """
+    if known is None:
+        known = _known_voice_tokens()
+    if not known:
+        return set()                      # cannot judge; never flag on no information
+    allowed = set(known) | set((voice.get("variables") or {}).keys())
+    found = set()
+    for block in (voice.get("blocks") or []):
+        if block.get("mode") != "fixed":
+            continue
+        for name in _VOICE_TOKEN_RE.findall(str(block.get("text") or "")):
+            found.add(name)
+    return found - allowed
+
+
+def _migrate_stale_voices() -> None:
+    """Move aside voices that ship a token nothing can fill, so they re-seed.
+
+    Seeding is never-overwrite, which is right for a user's own edits and wrong for a
+    file inherited from an earlier build. Six voices survived on disk carrying
+    "Hi {first_name},", so live drafts went out with the literal text while the
+    corrected shipped versions were never used.
+
+    Backed up rather than deleted, and only when a token is genuinely unfillable, so
+    a voice the user edited themselves is never touched.
+    """
+    import json as _json
+    try:
+        if not VOICES_DIR.exists():
+            return
+        known = _known_voice_tokens()
+        if not known:
+            return
+        for f in list(VOICES_DIR.glob("*.json")):
+            try:
+                voice = _json.loads(f.read_text(encoding="utf-8"))
+            except Exception:
+                continue
+            if not undefined_voice_tokens(voice, known):
+                continue
+            backup = f.with_suffix(".json.stale.bak")
+            if not backup.exists():
+                backup.write_text(f.read_text(encoding="utf-8"), encoding="utf-8")
+            f.unlink()
+    except Exception:
+        pass
+
+
 def _migrate_stale_sourcing_prompts() -> None:
     """Move superseded presets aside once, so shipped presets can seed.
 
@@ -183,6 +260,9 @@ def ensure_seeded() -> None:
     _stale_check_needed = _last_seeded_build() != BUILD_VERSION
     if _stale_check_needed:
         _migrate_stale_sourcing_prompts()
+        # Runs before the seeding loop below, so a migrated-away voice is replaced by
+        # the shipped version in the same pass rather than leaving the user with none.
+        _migrate_stale_voices()
 
     import json as _json
     import shutil
@@ -218,10 +298,21 @@ def ensure_seeded() -> None:
                 except Exception:
                     pass
 
+    # 1b. Exclusion list. Seeded once, only when the user has none, so a partner starts
+    # with the firm's contacted set rather than an empty file. Never overwrites: the app
+    # appends to it on every approved send, and clobbering it would silently re-open
+    # contacted companies. WIZZARD_SEED_EXCLUSIONS=0 skips it (the test suite uses this).
+    if _env("SEED_EXCLUSIONS") != "0":
+        try:
+            _se = pkg / "seed_data" / "excluded.json"
+            _te = DATA_DIR / "excluded.json"
+            if _se.exists() and not _te.exists():
+                _te.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(_se, _te)
+        except Exception:
+            pass
+
     # 2. Custom Sourcing Prompts
-    # Per file, not all-or-nothing. This was `if not existing_sp:`, so a single
-    # user-created preset stopped every shipped preset from ever seeding. Same
-    # never-overwrite class as the profile and the voices.
     sp_dirs = [pkg / "seed_sourcing_prompts", pkg / "seed_sourcing_prompts_local"]
     for sp_dir in sp_dirs:
         if not sp_dir.exists():
@@ -230,7 +321,7 @@ def ensure_seeded() -> None:
             target = SOURCING_PROMPTS_DIR / src.name
             if not target.exists():
                 try:
-                    SOURCING_PROMPTS_DIR.mkdir(parents=True, exist_ok=True)
+                    target.parent.mkdir(parents=True, exist_ok=True)
                     shutil.copyfile(src, target)
                 except Exception:
                     pass
@@ -264,7 +355,8 @@ VALID_VOICES = ("no_role_small", "role_small", "role_large")
 @dataclass
 class Settings:
     provider: str = "gemini"                     # gemini (default) | anthropic | stub
-    default_voice: str = "chief_of_staff"        # fallback voice id when no voice is tagged for a situation
+    # chief_of_staff was a personal job-search voice and is not shipped here.
+    default_voice: str = "imran"                 # fallback voice id when no voice is tagged for a situation
     last_session_voice: str = ""                 # session voice remembered across app restarts
     gemini_model: str = DEFAULT_GEMINI_MODEL     # research + base (2.5-flash)
     anthropic_model: str = DEFAULT_ANTHROPIC_MODEL
@@ -321,7 +413,6 @@ class Settings:
     # ---- Phase 3: voice stats ----
     voice_stats_min_n: int = 15                   # below this, show "not enough data yet", never a %
 
-
     # ---- Phase 6b: bounce re-draft ----
     # Retries walk the ranked ladder: the current person's remaining address formats first, then a
     # DIFFERENT PERSON (an alt contact). Default 3 so at least one alternate person is reached.
@@ -369,6 +460,14 @@ class Settings:
     # adding a target. Unconditional write on approve_one remains even when disabled
     # (so the list stays current). Never gates a human override -- operator can always
     # manually add a target.
+    # ON by default. Sourced companies are now added to the exclusion set as they are
+    # queued, so this is what stops a company being sourced twice.
+    #
+    # It was turned off after a run appeared to find nothing, which was misdiagnosed:
+    # the real cause was the harvester returning three offline fixture companies. Checked
+    # against the six companies a real run actually produced, none were in the shipped
+    # list, because real sourcing output is long-tail and the shipped list holds
+    # well-known names.
     exclusion_enabled: bool = True
     allow_org_voice_learning: bool = False   # G2: gates Layer-4 learning on org-audience voices
 
@@ -539,7 +638,7 @@ def save_settings(s: Settings) -> None:
         atomic_write_text(SETTINGS_FILE, json.dumps(s.sanitized(), indent=2))
     except OSError as e:
         raise RuntimeError(f"Permission or disk error writing to {SETTINGS_FILE}: {e}. "
-                           "If on macOS, check ownership via 'sudo chown -R $(whoami) ~/.outreach_wizzard'") from e
+                           "If on macOS, check ownership via 'sudo chown -R $(whoami) ~/.hpe_growth_outreach'") from e
 
 
 # ---- per-launch security token ---------------------------------------------

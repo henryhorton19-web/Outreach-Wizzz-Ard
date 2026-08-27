@@ -1,4 +1,4 @@
-/* Outreach Wizz-ard — front-end controller (vanilla JS, no build step).
+/* Example Capital Outreach — front-end controller (vanilla JS, no build step).
    Talks to the local FastAPI server. Every /api/* request carries the per-launch session token
    the server injected into the page. Drafts are reviewed and edited here; the reviewer's edit is
    the final word, sent to the server verbatim. */
@@ -130,8 +130,12 @@ function timeAgo(isoStr) {
     return isoStr;
   }
 }
-
 async function refreshQueue() {
+  // Called by trackSourcingJob on EVERY poll tick, not only a terminal one, so this
+  // must never throw: one failed fetch would otherwise kill polling on an
+  // otherwise-healthy running job through the same door the missing function did.
+  //
+  // Also called by trackDraftJob on completion only.
   try {
     const listId = state.activeListId || "default";
     const qRes = await api(`/api/queue?list_id=${encodeURIComponent(listId)}`);
@@ -288,7 +292,6 @@ async function openSettings() {
   };
   $("#setFuEnabled").onchange = syncFuDisabled;
   syncFuDisabled();
-
 
   // learning + thresholds + send-window (Phases 7, 3, 2, 6c)
   $("#setLearningRouting").value = fs.voice_learning_routing || "off";
@@ -491,8 +494,9 @@ function renderQueue() {
     if (m.employees_band) chips.push(humanBadgeLabel(m.employees_band));
     if (m.funding_heat || m.signal_basis || m.discovery_label) chips.push(humanBadgeLabel(m.funding_heat || m.signal_basis || m.discovery_label));
     if (m.hq_city || m.hq_country) chips.push([m.hq_city, m.hq_country].filter(Boolean).join(", "));
+
     // Screening no longer decides whether a company is queued, so its verdict is shown to
-    // the reviewer instead. A weak signal is worth seeing, not worth withholding.
+    // the reviewer instead. A weak signal is worth seeing, not worth discarding.
     const screenNote = m.screen_reason || (
       m.screen_verdict && m.screen_verdict !== "accept" ? m.screen_verdict : "");
 
@@ -794,8 +798,47 @@ let draftJobPollTimer = null;
 let activeSourcingJobId = null;
 let sourcingJobPollTimer = null;
 
-// Mirrors trackDraftJob deliberately: same poll interval, same terminal-state check,
-// same cleanup. The sourcing run is now threaded, so it can be watched while it works.
+async function refreshSourcingListSelect() {
+  const el = $("#sourcingListSelect");
+  if (!el) return;
+  try {
+    const res = await api("/api/lists");
+    const active = res.active || "default";
+    el.innerHTML = (res.lists || [])
+      .map(l => `<option value="${l.id}"${l.id === active ? " selected" : ""}>${l.name || l.id}</option>`)
+      .join("");
+  } catch (e) { /* leave the control empty rather than blocking the panel */ }
+}
+
+function updateSourcingUIState(isSourcing) {
+  const runBtn = $("#runSourcingBtn");
+  if (runBtn) {
+    runBtn.disabled = isSourcing;
+    runBtn.textContent = isSourcing ? "Sourcing..." : "Start sourcing run";
+  }
+  const promptSelect = $("#sourcingPromptSelect");
+  if (promptSelect) promptSelect.disabled = isSourcing;
+  const listSelect = $("#sourcingListSelect");
+  if (listSelect) listSelect.disabled = isSourcing;
+  const stopBtn = $("#sourcingStopBtn");
+  if (stopBtn) {
+    if (isSourcing) stopBtn.classList.remove("hidden");
+    else stopBtn.classList.add("hidden");
+  }
+}
+
+function renderSourcingJobProgress(job) {
+  const statusEl = $("#sourcingStatusText");
+  if (!statusEl) return;
+  if (!job) return;
+  const stage = job.stage || job.status || "Running";
+  const c = job.counts || {};
+  const checked = c.checked || 0;
+  const queued = c.queued || 0;
+  const targetN = job.target_n || 0;
+  statusEl.textContent = `🚀 Sourcing in progress (${stage})... Checked ${checked}, Queued ${queued}` + (targetN ? `/${targetN}` : "");
+}
+
 function trackSourcingJob(jobId) {
   activeSourcingJobId = jobId;
   updateSourcingUIState(true);
@@ -807,7 +850,6 @@ function trackSourcingJob(jobId) {
       const res = await api(`/api/source/research/${jobId}`);
       const job = res.job || res;
       renderSourcingJobProgress(job);
-      // The target list fills as the run goes, so refresh it every tick.
       await refreshQueue();
       if (job.status === "done" || job.status === "cancelled" || job.status === "error") {
         clearInterval(sourcingJobPollTimer);
@@ -834,52 +876,9 @@ async function stopSourcingNow() {
   if (!activeSourcingJobId) return;
   try {
     await api(`/api/source/research/${activeSourcingJobId}/cancel`, { method: "POST" });
-    // Do not clear the timer here. The next poll sees "cancelled" and runs the same
-    // cleanup as a normal finish, so there is one code path rather than two.
   } catch (e) {
     toast("Could not stop the run.");
   }
-}
-
-// Defaults to the active list, so anyone who ignores this control gets the behaviour
-// they had before. GET /api/lists already returns {active, lists}.
-async function refreshSourcingListSelect() {
-  const el = $("#sourcingListSelect");
-  if (!el) return;
-  try {
-    const res = await api("/api/lists");
-    const active = res.active || "default";
-    el.innerHTML = (res.lists || [])
-      .map(l => `<option value="${l.id}"${l.id === active ? " selected" : ""}>${l.name || l.id}</option>`)
-      .join("");
-  } catch (e) { /* leave it empty rather than blocking the panel */ }
-}
-
-function updateSourcingUIState(isSourcing) {
-  const stopBtn = $("#sourcingStopBtn");
-  if (stopBtn) {
-    if (isSourcing) stopBtn.classList.remove("hidden");
-    else stopBtn.classList.add("hidden");
-  }
-  const runBtn = $("#runSourcingBtn");
-  if (runBtn) {
-    runBtn.disabled = isSourcing;
-  }
-  const listSel = $("#sourcingListSelect");
-  if (listSel) {
-    listSel.disabled = isSourcing;
-  }
-}
-
-function renderSourcingJobProgress(job) {
-  const statusEl = $("#sourcingStatusText");
-  if (!statusEl) return;
-  if (!job) return;
-  const stage = job.stage || "Harvesting";
-  const counts = job.counts || {};
-  const checked = counts.checked || counts.harvested || 0;
-  const queued = counts.queued || 0;
-  statusEl.textContent = `🚀 Sourcing (${stage}): checked ${checked}, queued ${queued}...`;
 }
 
 function trackDraftJob(jobId) {
@@ -1329,11 +1328,6 @@ function buildDrawer(cs) {
         ${domLineHtml}
         ${rs.what_they_do ? `<div class="rs-what">${esc(rs.what_they_do)}</div>` : ""}
         ${thesisHtml}
-        ${rs.role_title
-          ? `<div class="rs-read"><span class="rs-lbl">Role</span> ${esc(rs.role_title)}${rs.role_source ? ` <a href="${esc(rs.role_source)}" target="_blank" rel="noopener">(source)</a>` : ` <span class="rs-warn">(unsourced)</span>`}</div>`
-          : (cs.role_exists === false
-              ? `<div class="rs-read"><span class="rs-lbl">Role</span> No advertised role — create-the-seat</div>`
-              : `<div class="rs-read"><span class="rs-lbl">Role</span> <span class="rs-warn">not determined</span></div>`)}
         ${cs.company_size
           ? `<div class="rs-read"><span class="rs-lbl">Size</span> ${esc(cs.company_size)}${rs.company_size_evidence ? ` — ${esc(rs.company_size_evidence)}` : ` <span class="rs-warn">(no evidence captured — verify)</span>`}</div>`
           : (rs.company_size_evidence
@@ -1770,7 +1764,7 @@ async function doExport() {
     const blob = await res.blob();
     const cd = res.headers.get("content-disposition") || "";
     const m = cd.match(/filename="([^"]+)"/);
-    const name = m ? m[1] : "outreach_wizzard.csv";
+    const name = m ? m[1] : "hpe_growth_outreach.csv";
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a"); a.href = url; a.download = name; a.click();
     URL.revokeObjectURL(url);
@@ -1887,7 +1881,7 @@ function renderPipeline() {
     const body = document.createElement("div"); body.className = "board-col-body";
     if (!cards.length) {
       const empty = document.createElement("div"); empty.className = "board-empty";
-      empty.textContent = stage === "replied" ? "No replies recorded yet."
+      empty.textContent = stage === "replied" ? "No replies yet — connect an inbox in Settings to track them."
         : stage === "bounced" ? "No bounces. Good."
         : stage === "sent" ? "Nothing sent yet." : "Nothing here yet.";
       body.appendChild(empty);
@@ -2000,8 +1994,6 @@ function editBar(intensity) {
   return "▓".repeat(filled) + "░".repeat(5 - filled);
 }
 
-
-
 /* ================= SUPPRESSION MANAGER (Phase 4a) ================= */
 
 async function openSuppressions() {
@@ -2098,6 +2090,7 @@ let veLastFocus = null;         // last-focused token target element (for token 
 const SAMPLE = {
   name: "Alex", contact_first: "Alex", contact_full: "Alex Founder", company: "Acme",
   role: "Analyst", role_or_company: "Analyst", what_they_do: "B2B payments software",
+  sector_label: "local marketing",
   situation_read: "scaling their commercial team", recent: "their recent seed round",
   recent_short: "their seed round", proof_1: "they serve mid-market teams",
   proof_2: "they expanded into a second market", city: "Paris",
@@ -2958,8 +2951,8 @@ async function savePreset() {
       //
       // Spread order matters and is easy to get backwards. Applying left to right
       // into a NEW object means pdef wins on every key it defines and existing
-      // supplies the remainder. An invalid Object.assign merge would do the
-      // opposite and silently discard the user's edits.
+      // supplies the remainder. An improper Object.assign target order does the
+      // opposite and silently discards the user's edits.
       body = { ...existing, ...pdef };
     }
   }
@@ -3025,23 +3018,25 @@ async function deletePreset(promptId) {
 async function openSourcingPanel() {
   const panel = $("#sourcingPanel");
   if (panel) panel.classList.remove("hidden");
-  await loadSourcingPrompts();
-  await refreshSourcingListSelect();
+  loadSourcingPrompts();
+  refreshSourcingListSelect();
+
   // Always write the banner, never leave it. A null last_run otherwise leaves
-  // "Sourcing run in progress..." on screen forever after a restart.
+  // "Sourcing in progress..." on screen forever after a restart.
   try {
     const res = await api("/api/source/research/last");
-    const last = res.last_run || res.job || res;
+    const last = res.last_run;
     const el = $("#sourcingStatusText");
     if (el) {
       if (last && last.status === "running") {
-        el.textContent = "Sourcing run in progress...";
-        // trackSourcingJob only exists once live polling has been added; guard for it so
-        // this works either way.
+        el.textContent = "Sourcing in progress...";
         if (last.job_id && typeof trackSourcingJob === "function") trackSourcingJob(last.job_id);
-      } else if (last && (last.counts || last.added_slugs)) {
-        el.textContent = `Last run: ${last.counts?.queued || last.added_slugs?.length || 0} companies added`;
-        renderSourcingReport(last);
+      } else if (last) {
+        el.textContent = `Last run: ${last.counts?.queued || 0} companies added`;
+        if (!activeSourcingJobId) {
+          updateSourcingUIState(false);
+          renderSourcingReport(last);
+        }
       } else {
         el.textContent = "";
       }
@@ -3064,7 +3059,7 @@ async function runSourcing() {
   const listId = (listSelect && listSelect.value) || undefined;
   const statusEl = $("#sourcingStatusText");
   const reportEl = $("#sourcingReport");
-  if (statusEl) statusEl.textContent = "🚀 Sourcing run in progress...";
+  if (statusEl) statusEl.textContent = "🚀 Starting sourcing run...";
   if (reportEl) reportEl.innerHTML = "";
 
   try {
@@ -3076,8 +3071,9 @@ async function runSourcing() {
     if (job && job.job_id) {
       trackSourcingJob(job.job_id);
     } else {
-      if (statusEl) statusEl.textContent = `Completed sourcing run in ${job.stage || 'Completed'}.`;
+      if (statusEl) statusEl.textContent = `Completed sourcing run in ${job?.stage || 'Completed'}.`;
       renderSourcingReport(job);
+      await refreshQueue();
     }
   } catch (e) {
     if (statusEl) statusEl.textContent = "Sourcing run failed: " + e.message;
@@ -3197,24 +3193,24 @@ function renderSourcingReport(job) {
     notes.push(`${counts.queued || 0} queued, ${unresWeb} with no confirmed website yet`);
   }
 
-  // A run with no live provider returns offline samples. Say so plainly, or a missing
-  // API key is indistinguishable from an exhausted market.
-  if (counts.no_provider) {
-    notes.unshift("No live provider configured. These are offline sample companies, not real results. Set a provider and API key in Settings.");
-  } else if ((counts.ungrounded || 0) > 0) {
-    notes.unshift(`${counts.ungrounded} companies were produced without a web search and are not verified findings.`);
-  }
-
-  // errors previously went nowhere: the ingest path writes failures into this list and
-  // nothing displayed them, so a failed ingest looked like a clean run.
+  // errors previously went nowhere: the ingest path appends "ingest failed: ..." to this
+  // list and nothing displayed it, so a failed ingest looked like a clean run.
   if ((job.errors || []).length) {
     notes.unshift(`Run reported ${job.errors.length} error(s): ${job.errors[0]}`);
   }
   if (job.added_list_id) {
     notes.push(`Companies added to list: ${job.added_list_id}`);
   }
-  if ((counts.checked || 0) > 0 && (counts.queued || 0) === 0) {
-    notes.unshift("Nothing reached the queue. Check the destination list and any errors above.");
+  if (counts.queued_for_review) {
+    notes.push(`${counts.queued_for_review} flagged by screening and queued for review`);
+  }
+
+  // A run with no live provider returns offline samples. Say so plainly, or a missing
+  // API key is indistinguishable from an exhausted market.
+  if (counts.no_provider) {
+    notes.unshift("No live provider configured. These are offline sample companies, not real results. Set a provider and API key in Settings.");
+  } else if ((counts.ungrounded || 0) > 0) {
+    notes.unshift(`${counts.ungrounded} companies were produced without a web search and are not verified findings.`);
   }
 
   let html = `
@@ -3225,13 +3221,9 @@ function renderSourcingReport(job) {
       </div>
       <div style="display: flex; gap: 16px; font-weight: 500; color: #1e293b; margin-bottom: 8px;">
         <span>Checked: ${counts.checked || 0}</span>
-        <span style="color: #16a34a;">Queued: ${counts.queued || 0}</span>
+        <span style="color: #16a34a;">Queued: ${counts.queued || counts.accepted || 0}</span>
       </div>
   `;
-
-  if (counts.queued_for_review) {
-    notes.push(`${counts.queued_for_review} flagged by screening and queued for review`);
-  }
 
   if (notes.length) {
     html += `<div style="font-size: 12px; color: #475569; margin-bottom: 8px;">ℹ️ ${notes.map(esc).join('<br/>')}</div>`;
@@ -3278,7 +3270,6 @@ async function openProfileModal() {
     $("#profEmail").value = p.email || "";
     $("#profPhone").value = p.phone || "";
     $("#profLinkedin").value = p.linkedin || "";
-    $("#profTargetRoles").value = (p.target_roles || []).join(", ");
     $("#profTargetFirms").value = (p.target_firm_types || []).join(", ");
     $("#profTargetLocations").value = (p.target_locations || []).join(", ");
     $("#profOneLine").value = p.one_line || "";
@@ -3314,7 +3305,6 @@ async function saveProfile() {
     email: $("#profEmail").value.trim(),
     phone: $("#profPhone").value.trim(),
     linkedin: $("#profLinkedin").value.trim(),
-    target_roles: splitComma($("#profTargetRoles").value),
     target_firm_types: splitComma($("#profTargetFirms").value),
     target_locations: splitComma($("#profTargetLocations").value),
     one_line: $("#profOneLine").value.trim(),

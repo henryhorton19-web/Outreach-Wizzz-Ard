@@ -46,7 +46,11 @@
       "properties": {
         "present": {"type": "boolean"},
         "kind": {"enum": ["raise", "funding", "launch", "hire", "expansion", "other"]},
-        "detail": {"type": "string"},
+        "detail": {
+          "type": "string",
+          "maxLength": 90,
+          "description": "A short noun phrase describing the trigger, not a sentence. Correct: \"your recent EUR 8.7m raise\", \"the launch of your new product line\". Wrong: a full sentence with its own subject and verb; that will be spliced into a template as \"Congratulations on <this text>.\" and must read grammatically when it is."
+        },
         "source": {"type": "string"},
         "staleness": {"enum": ["fresh", "aging", "stale"]}
       }

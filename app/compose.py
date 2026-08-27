@@ -69,7 +69,6 @@ TOKEN_HELP = {
     "shared_subject": "the subject you and they both worked on, when one exists",
     "why": "one sentence explaining the link, in the matcher's words",
     "recent_kind": "raise, funding, launch, hire, expansion or other",
-    "recent_raise": "Congratulations sentence for a recent raise, or empty string if absent.",
     "profile_first": "your first name",
     "candidate_first": "your first name (legacy alias)",
     "candidate_name": "your full name",
@@ -96,6 +95,12 @@ TOKEN_HELP = {
 # Ordering is irrelevant because the longest match wins, but keep entries specific. A
 # term true of thousands of companies, such as SaaS, is only useful as a last resort.
 _SECTOR_TERMS = (
+    "marketing automation", "customer communication", "omnichannel messaging",
+    "Employer of Record", "global payroll", "HR compliance",
+    "localization", "translation management",
+    "document security", "digital vaults", "private banking software",
+    "fiber optic sensing", "fiber optic cables", "environmental monitoring",
+    "industrial sensing", "infrastructure monitoring",
     "local payments", "cross-border payments", "payments infrastructure", "embedded finance",
     "elderly care", "at-home care", "home care", "mental health", "digital health", "health tech",
     "local marketing", "location marketing", "marketing software",
@@ -105,11 +110,22 @@ _SECTOR_TERMS = (
     "climate tech", "energy transition", "renewable energy",
     "HR software", "workforce management", "restaurant technology", "construction software",
     "FinTech", "payments", "B2B software", "vertical SaaS", "SaaS", "marketplaces",
+    "space tech", "preventive health", "healthtech", "deep tech", "legaltech", "biotech", "life sciences",
+    # Domain additions for AI, data, manufacturing, identity, insurtech, APIs, foodtech & energy
+    "AI agents", "AI workflow", "AI platform", "AI automation", "workflow automation", "automation platform", "business workflows",
+    "multi-model database", "developer database", "database", "data platform",
+    "edtech", "educational platform", "exam preparation",
+    "manufacturing intelligence", "production intelligence", "industrial AI", "quality control",
+    "process optimization", "factory automation", "food manufacturing",
+    "business identity", "trust infrastructure", "compliance software", "compliance infrastructure",
+    "underwriting technology", "underwriting platform", "specialty insurance", "commercial insurance", "digital broking",
+    "unified API", "API platform", "integration platform",
+    "renewable and flexible assets", "flexible energy assets", "clean energy", "energy management", "renewable assets",
 )
 
-# Used when nothing in the description matches. Deliberately generic and grammatical:
-# an empty value ships "developments in  and given", which is worse than the literal
-# token this replaces.
+# Last resort, when the description names no known market.
+# Deliberately generic and grammatical: an empty value ships "developments in  and
+# given", which is worse than the literal token this replaces.
 _SECTOR_FALLBACK = "your market"
 
 
@@ -125,8 +141,9 @@ def resolve_sector_label(what_they_do: str, mandate: list | None = None) -> str:
     Longest match wins rather than first match: "local marketing" must beat "SaaS",
     which is true of thousands of companies and tells a founder nothing.
 
-    Falls back to the first mandate sector when the description names no known market,
-    and to a generic phrase when there is no mandate either. It never returns empty.
+    Falls back to _SECTOR_FALLBACK ("your market") rather than blindly defaulting to
+    mandate[0] ("B2B Software"), so an unmatched description produces an honest
+    fallback rather than an unfounded claim about the company's sector. Never returns empty.
     """
     haystack = _normalise_for_sector(what_they_do)
     if haystack:
@@ -134,28 +151,7 @@ def resolve_sector_label(what_they_do: str, mandate: list | None = None) -> str:
                 if _normalise_for_sector(term) in haystack]
         if hits:
             return max(hits, key=len)
-    for entry in (mandate or []):
-        candidate = str(entry or "").strip()
-        if candidate:
-            return candidate
     return _SECTOR_FALLBACK
-
-
-def _recent_raise_sentence(facts: dict, target_domain: str = "") -> str:
-    """Build a sentence mentioning a recent raise signal, or empty string if absent."""
-    press = (facts.get("press_signal") or "").lower()
-    if "raise" not in press and "funding" not in press and "capital" not in press:
-        return ""
-    amount = (facts.get("raise_amount") or "").strip()
-    round_name = (facts.get("round_name") or "").strip()
-    date_str = (facts.get("raise_date") or "").strip()
-    if amount and round_name:
-        return f"congratulations on the {amount} {round_name} round"
-    if round_name:
-        return f"congratulations on the {round_name} round"
-    if amount:
-        return f"congratulations on the {amount} raise"
-    return "congratulations on the recent funding"
 
 
 def derive_tokens(spec: dict, variables: dict | None = None) -> dict:
@@ -164,21 +160,6 @@ def derive_tokens(spec: dict, variables: dict | None = None) -> dict:
     proofs = spec.get("proof_points", []) or []
     recent = spec.get("recent", {}) or {}
     name = EC.CANDIDATE_PROFILE.get("name", "")
-    email = EC.CANDIDATE_PROFILE.get("email", "")
-    linkedin = EC.CANDIDATE_PROFILE.get("linkedin", "")
-    edu = EC.CANDIDATE_PROFILE.get("education", {})
-    if isinstance(edu, dict):
-        edu_str = edu.get("primary") or ", ".join(str(v) for v in edu.values() if v)
-    else:
-        edu_str = str(edu or "")
-    one_line = EC.CANDIDATE_PROFILE.get("one_line", "")
-    spine = EC.CANDIDATE_PROFILE.get("spine", "")
-    facts = (
-        spec.get("facts")
-        or spec.get("recent_raise_facts")
-        or (spec.get("cache") or {}).get("recent_raise_facts")
-        or spec
-    )
     tokens = {
         "company": company,
         "contact_first": spec.get("contact_first", "there"),
@@ -186,29 +167,36 @@ def derive_tokens(spec: dict, variables: dict | None = None) -> dict:
         "contact_full": spec.get("contact_name", ""),
         "role": role,
         "role_or_company": role or company,
+        # Plan 28: lower-cased company for voices whose house style never capitalises it (subject
+        # lines and fixed blocks). Additive: {company} is unchanged, so no existing voice moves.
         "company_lower": (company or "").lower(),
+        # The market this company operates in, for mid-sentence use. The theo voice
+        # ships "developments in {sector_label}" as fixed text and nothing emitted the
+        # token, so a founder received the literal string. Never empty: an empty value
+        # ships "developments in  and given", which is worse than the unresolved token.
+        #
+        # The mandate fallback comes from the fund profile, so an unrecognised
+        # description yields the firm's own first sector rather than a generic phrase.
         "sector_label": resolve_sector_label(
             spec.get("what_they_do", "") or "",
-            (spec.get("target_firm_types") or None),
+            (spec.get("target_firm_types")
+             or (EC.CANDIDATE_PROFILE.get("target_firm_types") if hasattr(EC, "CANDIDATE_PROFILE") else None)),
         ),
         "what_they_do": spec.get("what_they_do", "") or "",
         "situation_read": spec.get("situation_read", "") or "",
         "observation": spec.get("observation", "") or "",
         "recent": recent.get("detail", "") if recent.get("present") else "",
         "recent_short": (recent.get("detail", "").split(",")[0] if recent.get("present") else ""),
-        "recent_kind": (recent.get("kind", "") if recent.get("present") else ""),
-        "recent_raise": _recent_raise_sentence(facts),
+        # Which kind of recent point research found (raise | funding | launch | hire |
+        # expansion | other), or "" when none. Drives CustomVoice.recent_point_templates:
+        # a voice can swap a fixed block's standing text for a kind-specific opener.
+        "recent_kind": (_KIND_ALIASES.get(recent.get("kind", "").strip().lower(), recent.get("kind", "").strip().lower()) if recent.get("present") else ""),
         "proof_1": proofs[0] if len(proofs) > 0 else "",
         "proof_2": proofs[1] if len(proofs) > 1 else "",
         "city": spec.get("city", "") or "",
         "candidate_name": name,
         "profile_first": (name.split(" ")[0] if name else ""),
         "candidate_first": (name.split(" ")[0] if name else ""),   # backward-compat alias
-        "candidate_email": email,
-        "candidate_linkedin": linkedin,
-        "candidate_education": edu_str,
-        "candidate_one_line": one_line,
-        "candidate_spine": spine,
         "link_strength": spec.get("link_strength") or (spec.get("link") or {}).get("link_strength", "none"),
         "shared_subject": (spec.get("link") or {}).get("shared_subject", ""),
         "why": (spec.get("link") or {}).get("why", ""),
@@ -270,6 +258,9 @@ def _relevant_anchor(provider: Provider, point_text: str, shortlist: list, regis
 _RECENT_SWAP_BLOCK_ID = "opening"
 
 
+_KIND_ALIASES = {"raise": "funding", "funding": "funding"}
+
+
 def resolve_fixed(provider: Provider, block, tokens: dict, shortlist: list, register: str = "",
                   voice=None) -> str:
     """Render a fixed block's text.
@@ -286,10 +277,16 @@ def resolve_fixed(provider: Provider, block, tokens: dict, shortlist: list, regi
     completely unaffected.
     """
     templates = getattr(voice, "recent_point_templates", None) or {}
-    kind = (tokens.get("recent_kind") or "").strip()
+    raw_kind = (tokens.get("recent_kind") or "").strip().lower()
+    kind = _KIND_ALIASES.get(raw_kind, raw_kind)
+    tmpl = templates.get(kind) or (templates.get("raise") if kind == "funding" else (templates.get("funding") if kind == "raise" else None))
     source = block.text
-    if kind and templates.get(kind) and block.id == _RECENT_SWAP_BLOCK_ID:
-        source = templates[kind]
+    if kind and block.id == _RECENT_SWAP_BLOCK_ID:
+        if tmpl:
+            source = tmpl
+        else:
+            import logging
+            logging.debug(f"[compose] voice {getattr(voice, 'id', None)!r} has no recent_point_template for kind {kind!r}")
     text = render(source, tokens)
     if "{relevant}" in text:
         anchor = _relevant_anchor(provider, text.replace("{relevant}", "").strip(), shortlist, register)
@@ -560,8 +557,15 @@ def mock_voice(voice, ai_blocks, spec: dict, tokens: dict, shortlist: list,
             out[b.id] = de.normalize(txt).strip()
         elif "recent" in (b.fact_scope or []) and recent.get("present"):
             det = recent.get("detail", "").strip().rstrip(".")
-            out[b.id] = de.normalize(f"Congratulations on {det}." if recent.get("kind") == "raise"
-                                     else f"I saw {det}, which is what prompted me to write.").strip()
+            kind = recent.get("kind")
+            from engine.draft_engine import _is_sentence_shaped
+            if kind in ("raise", "funding") and not _is_sentence_shaped(det):
+                msg = f"Congratulations on {det}."
+            elif _is_sentence_shaped(det):
+                msg = f"I saw that {det}."
+            else:
+                msg = f"I saw {det}, which is what prompted me to write."
+            out[b.id] = de.normalize(msg).strip()
         elif "{relevant}" in (b.guidance or "") and shortlist:
             out[b.id] = de.normalize(shortlist[0]["anchor"]).strip()
         elif facts:
@@ -625,9 +629,13 @@ def produce_email(provider: Provider, voice, spec: dict, tokens: dict, shortlist
     if ai_blocks:
         parts.update(compose_voice(provider, voice, ai_blocks, spec, tokens, shortlist,
                                    followup=followup))
+    body_block = next((b for b in voice.blocks if b.length == "body"), None)
+    if body_block and parts.get(body_block.id):
+        import re as _re
+        sanitized_body = _re.sub(r"\n{2,}", " ", parts[body_block.id]).strip()
+        parts[body_block.id] = sanitized_body
     email = "\n\n".join(parts[b.id].strip() for b in voice.blocks
                         if parts.get(b.id, "").strip())
-    body_block = next((b for b in voice.blocks if b.length == "body"), None)
     body_text = parts.get(body_block.id, "") if body_block else ""
     target_block = body_block or next((b for b in voice.blocks if b.id == "opening"), None)
     target_text = parts.get(target_block.id, "") if target_block else ""
