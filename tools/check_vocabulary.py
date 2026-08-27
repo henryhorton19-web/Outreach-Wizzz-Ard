@@ -1,5 +1,5 @@
 """Fail if org-audience code or copy uses a specific-organisation vocabulary term
-instead of this project's generic ones (Part 1 of EXECUTION_PLAN_5).
+instead of this project's generic ones (see docs/ARCHITECTURE.md).
 
 Scanned: ui/, app/, engine/ (excluding seed data, which is allowed to use whatever
 vocabulary the example organisation it represents actually uses -- that is what
