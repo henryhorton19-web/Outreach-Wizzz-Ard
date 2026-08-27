@@ -1,6 +1,6 @@
-# Outreach-Wizz-Ard
+# Outreach-Wizzz-Ard
 
-[![ci](https://github.com/henryhorton19-web/Outreach-Wizz-Ard/actions/workflows/ci.yml/badge.svg)](https://github.com/henryhorton19-web/Outreach-Wizz-Ard/actions/workflows/ci.yml)
+[![ci](https://github.com/henryhorton19-web/Outreach-Wizzz-Ard/actions/workflows/ci.yml/badge.svg)](https://github.com/henryhorton19-web/Outreach-Wizzz-Ard/actions/workflows/ci.yml)
 [![licence](https://img.shields.io/badge/licence-MIT-blue.svg)](LICENSE)
 [![python](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/)
 
@@ -90,7 +90,7 @@ Follow these steps for a complete, fresh setup ("virgin run") of Outreach Wizz-a
 
 **Windows (PowerShell):**
 ```powershell
-git clone git@github.com:henryhorton19-web/Outreach-Wizz-Ard.git outreach-wizzard
+git clone git@github.com:henryhorton19-web/Outreach-Wizzz-Ard.git outreach-wizzard
 cd outreach-wizzard
 python -m venv venv
 .\venv\Scripts\Activate.ps1
@@ -100,7 +100,7 @@ pip install -r requirements.txt
 
 **macOS / Linux (Bash):**
 ```bash
-git clone git@github.com:henryhorton19-web/Outreach-Wizz-Ard.git outreach-wizzard
+git clone git@github.com:henryhorton19-web/Outreach-Wizzz-Ard.git outreach-wizzard
 cd outreach-wizzard
 python3 -m venv venv
 source venv/bin/activate
