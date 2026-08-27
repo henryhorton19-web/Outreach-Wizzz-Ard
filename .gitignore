@@ -38,3 +38,8 @@ excluded.json
 # --- Zip archives ---
 *.zip
 
+
+# --- derived market maps / exclusion lists: never commit ---
+wizzard_seed_presets_patch/
+**/market_map.json
+**/data_dir_import/
