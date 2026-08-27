@@ -1,12 +1,20 @@
-# Outreach Wizz-ard
+# Outreach-Wizz-Ard
 
-[![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-338%20passing-brightgreen.svg)](tests/)
+[![ci](https://github.com/henryhorton19-web/Outreach-Wizz-Ard/actions/workflows/ci.yml/badge.svg)](https://github.com/henryhorton19-web/Outreach-Wizz-Ard/actions/workflows/ci.yml)
+[![licence](https://img.shields.io/badge/licence-MIT-blue.svg)](LICENSE)
+[![python](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/)
 
 Outreach Wizz-ard is an end-to-end outbound outreach system: it sources targets and verified contacts, researches and drafts fact-grounded emails, runs automated CRM-style follow-up sequences, tracks outcomes, and continuously tunes its own voice from your edits — without ever sending anything you haven't approved.
 
-It originated as Example Capital's deal-sourcing outreach engine and was re-aimed at a personal problem (finding a part-time seat during the Sciences Po Paris exchange year) by swapping the candidate profile and the sourcing target — the underlying engine, voice system, and pipeline are domain-agnostic; only `engine/config.py`'s `CANDIDATE_PROFILE` and the voices themselves are specific to this deployment.
+## Why
+
+Cold outreach at any volume forces a choice between templates that read as templates and
+hand-writing every email. This engine takes the third option: it researches each target,
+grounds every claim in a fact it can point to, drafts in a voice you have tuned, and stops
+at a review gate before anything is sent. It was built to solve one concrete problem — finding
+a part-time seat during an exchange year in Paris — and the engine, voice system and pipeline
+are domain-agnostic. Only `engine/config.py`'s `CANDIDATE_PROFILE` and the voices themselves
+are specific to a given deployment.
 
 ---
 
@@ -142,3 +150,24 @@ python -m pytest tests/ -q
 - [docs/design/SCHEMA.md](docs/design/SCHEMA.md) — Reference schemas for research caches, custom voices, and candidate profiles.
 - [docs/design/SYNC_SETUP.md](docs/design/SYNC_SETUP.md) — Two-repo synchronization architecture (public code vs. private data repository).
 - [docs/README.md](docs/README.md) — Directory index for design documentation and historical build logs.
+
+## Integrations
+
+| Service | Used for |
+|---|---|
+| Anthropic API | research synthesis and drafting |
+| Google GenAI | alternate drafting provider |
+| tech.eu funding feed | sourcing signal for recently funded companies |
+| IMAP (read-only) | reply and bounce detection |
+| OS keyring | credential storage, never a file |
+
+## What is not in this repo
+
+The personal profile, the tuned outreach voices, the contact lists, the staged email bodies
+and the contacted-exclusion set are all git-ignored local state. Fixtures and seed voices ship
+as clearly fictional examples using reserved `.test` domains (RFC 2606). No credentials of any
+kind are committed.
+
+## Licence
+
+MIT — see [LICENSE](LICENSE).
