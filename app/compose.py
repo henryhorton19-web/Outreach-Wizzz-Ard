@@ -164,6 +164,15 @@ def derive_tokens(spec: dict, variables: dict | None = None) -> dict:
     proofs = spec.get("proof_points", []) or []
     recent = spec.get("recent", {}) or {}
     name = EC.CANDIDATE_PROFILE.get("name", "")
+    email = EC.CANDIDATE_PROFILE.get("email", "")
+    linkedin = EC.CANDIDATE_PROFILE.get("linkedin", "")
+    edu = EC.CANDIDATE_PROFILE.get("education", {})
+    if isinstance(edu, dict):
+        edu_str = edu.get("primary") or ", ".join(str(v) for v in edu.values() if v)
+    else:
+        edu_str = str(edu or "")
+    one_line = EC.CANDIDATE_PROFILE.get("one_line", "")
+    spine = EC.CANDIDATE_PROFILE.get("spine", "")
     facts = (
         spec.get("facts")
         or spec.get("recent_raise_facts")
@@ -195,6 +204,11 @@ def derive_tokens(spec: dict, variables: dict | None = None) -> dict:
         "candidate_name": name,
         "profile_first": (name.split(" ")[0] if name else ""),
         "candidate_first": (name.split(" ")[0] if name else ""),   # backward-compat alias
+        "candidate_email": email,
+        "candidate_linkedin": linkedin,
+        "candidate_education": edu_str,
+        "candidate_one_line": one_line,
+        "candidate_spine": spine,
         "link_strength": spec.get("link_strength") or (spec.get("link") or {}).get("link_strength", "none"),
         "shared_subject": (spec.get("link") or {}).get("shared_subject", ""),
         "why": (spec.get("link") or {}).get("why", ""),

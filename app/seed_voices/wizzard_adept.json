@@ -8,7 +8,7 @@
   "length_min": 55,
   "length_max": 85,
   "allow_dashes": false,
-  "signature": "Henry Horton\nLSE Politics and Economics, on exchange at Sciences Po Paris\nlinkedin.com/in/henry-horton",
+  "signature": "{candidate_name}\n{candidate_education}\n{candidate_linkedin}",
   "situations": [],
   "variables": {"use_shape_guidance": "true"},
   "style": {"formality": 2, "warmth": 2, "directness": 4, "sentence_length": "flowing", "hedging": "none", "humor": "none", "person_focus": "recipient_first", "proof_density": "single", "notes": "Plain and specific. No hedging, flattery, or unverifiable adjectives. Write like someone who has looked at the company and has one thing to say.", "examples": []},
