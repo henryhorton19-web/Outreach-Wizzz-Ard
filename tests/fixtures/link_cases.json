@@ -1,16 +1,16 @@
 [
   {
-    "company": "Example SaaS",
+    "company": "exsaas",
     "cache": {
-      "company": {"name": "Example SaaS", "what_they_do": "SaaS platform for private market funds to automate deal flow and sourcing"},
+      "company": {"name": "exsaas", "what_they_do": "SaaS platform for private market funds to automate deal flow and sourcing"},
       "situation_read": "Scaling platform to onboard more private markets funds"
     },
     "expected_strength": "strong"
   },
   {
-    "company": "ExampleFintech",
+    "company": "exfintech",
     "cache": {
-      "company": {"name": "ExampleFintech", "what_they_do": "No-code KYC and onboarding automation for fintechs and financial institutions"},
+      "company": {"name": "exfintech", "what_they_do": "No-code KYC and onboarding automation for fintechs and financial institutions"},
       "situation_read": "Expanding compliance automation across Europe"
     },
     "expected_strength": "strong"

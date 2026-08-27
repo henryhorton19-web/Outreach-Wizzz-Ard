@@ -6,12 +6,12 @@ draft; a sentence describing what to change can.
 """
 import app.draft_feedback as df
 
-AVYN = ("Having judged companies from the investor side and also built sourcing pipelines and "
-        "automation for private markets myself, Example SaaS really stood out to me.")
+exsaas = ("Having judged companies from the investor side and also built sourcing pipelines and "
+        "automation for private markets myself, exsaas really stood out to me.")
 
 
 def _ctx(**kw):
-    base = {"style_examples": [AVYN], "observation": "", "proof_points": [], "situation_read": ""}
+    base = {"style_examples": [exsaas], "observation": "", "proof_points": [], "situation_read": ""}
     base.update(kw)
     return base
 

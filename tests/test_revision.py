@@ -17,12 +17,12 @@ class _Stub:
         return R()
 
 
-AVYN = ("Having judged companies from the investor side and also built sourcing pipelines and "
-        "automation for private markets myself, Example SaaS really stood out to me.")
+exsaas = ("Having judged companies from the investor side and also built sourcing pipelines and "
+        "automation for private markets myself, exsaas really stood out to me.")
 
 
 def _ctx():
-    return {"style_examples": [AVYN],
+    return {"style_examples": [exsaas],
             "observation": "holding a no-technical-friction promise as agents multiply",
             "proof_points": [], "situation_read": ""}
 

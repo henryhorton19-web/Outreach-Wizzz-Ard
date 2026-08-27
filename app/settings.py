@@ -299,7 +299,7 @@ def ensure_seeded() -> None:
                     pass
 
     # 1b. Exclusion list. Seeded once, only when the user has none, so a partner starts
-    # with the firm's contacted set rather than an empty file. Never overwrites: the app
+    # with an existing contacted set rather than an empty file. Never overwrites: the app
     # appends to it on every approved send, and clobbering it would silently re-open
     # contacted companies. WIZZARD_SEED_EXCLUSIONS=0 skips it (the test suite uses this).
     if _env("SEED_EXCLUSIONS") != "0":

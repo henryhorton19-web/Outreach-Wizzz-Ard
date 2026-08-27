@@ -10,7 +10,7 @@ import app.research as research
 def _cache(email="", email_confidence="low", contact_verified=False,
           email_source_url="", company_website="https://example-saas.test"):
     return {
-        "company": {"name": "Example SaaS", "website": company_website, "role_exists": False,
+        "company": {"name": "exsaas", "website": company_website, "role_exists": False,
                     "company_size": "small", "company_size_evidence": "seed, 12 staff",
                     "work_mode": "remote_english", "working_language": "English"},
         "contact": {"status": "found", "name": "Jamie Someone", "role_basis": "founder",
@@ -48,7 +48,7 @@ def test_matching_domain_with_a_real_source_passes():
 
 
 def test_resolve_domain_prefers_an_explicitly_given_website():
-    dom, source = research.resolve_company_domain(name="Example SaaS", given_website="https://example-saas.test/about")[:2]
+    dom, source = research.resolve_company_domain(name="exsaas", given_website="https://example-saas.test/about")[:2]
     assert dom == "example-saas.test"
     assert source == "given"
 
@@ -65,7 +65,7 @@ def test_the_fabrication_instruction_is_gone_from_the_prompt():
 
 def test_post_process_discards_wrong_domain_email():
     bad_cache = _cache(email="chandler@example-saas-alt.test")
-    processed = research._post_process(bad_cache, "Example SaaS", "https://example-saas.test", [], resolved_domain="example-saas.test")
+    processed = research._post_process(bad_cache, "exsaas", "https://example-saas.test", [], resolved_domain="example-saas.test")
     assert processed["contact"]["email"] == "jamie.someone@example-saas.test"
     assert processed["contact"]["email_method"] == "pattern_guess"
     assert any("Discarded contact.email at wrong domain" in f for f in processed.get("research_failures", []))
@@ -74,7 +74,7 @@ def test_post_process_discards_wrong_domain_email():
 def test_contacts_alt_wrong_domain_email_is_discarded():
     raw_cache = _cache(email="jamie@example-saas.test", email_source_url="https://example-saas.test/team")
     raw_cache["contacts_alt"] = [{"name": "Wrong Alt", "email": "alt@wrong.com"}]
-    processed = research._post_process(raw_cache, "Example SaaS", "https://example-saas.test", [], resolved_domain="example-saas.test")
+    processed = research._post_process(raw_cache, "exsaas", "https://example-saas.test", [], resolved_domain="example-saas.test")
     assert processed["contacts_alt"][0]["email"] == ""
     assert processed["contacts_alt"][0]["email_method"] == "not_found"
 
@@ -91,7 +91,7 @@ def test_pipeline_populates_recipient_domain_and_reuses_on_redraft():
 
 def test_pattern_fallback_email_generated_when_scraped_email_missing():
     raw_cache = _cache(email="", email_source_url="")
-    processed = research._post_process(raw_cache, "Example SaaS", "https://example-saas.test", [], resolved_domain="example-saas.test")
+    processed = research._post_process(raw_cache, "exsaas", "https://example-saas.test", [], resolved_domain="example-saas.test")
     assert processed["contact"]["email"] == "jamie.someone@example-saas.test"
     assert processed["contact"]["email_method"] == "pattern_guess"
     assert processed["contact"]["email_confidence"] == "low"
@@ -102,7 +102,7 @@ def test_pattern_fallback_email_generated_when_scraped_email_missing():
 def test_address_ladder_contains_primary_fallback_first_and_alt_second():
     from app.apollo import rank_address_candidates
     raw_cache = _cache(email="", email_source_url="")
-    processed = research._post_process(raw_cache, "Example SaaS", "https://example-saas.test", [], resolved_domain="example-saas.test")
+    processed = research._post_process(raw_cache, "exsaas", "https://example-saas.test", [], resolved_domain="example-saas.test")
     ladder = rank_address_candidates(processed)
     emails = [c["email"] for c in ladder]
     assert "jamie.someone@example-saas.test" in emails

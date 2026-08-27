@@ -20,7 +20,7 @@ class _StubProvider:
 
 
 def _cache():
-    return {"company": {"name": "Example SaaS", "what_they_do": "platform for private market funds"},
+    return {"company": {"name": "exsaas", "what_they_do": "platform for private market funds"},
             "situation_read": "onboarding more funds to automate deal flow"}
 
 

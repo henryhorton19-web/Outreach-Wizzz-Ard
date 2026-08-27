@@ -1,6 +1,6 @@
 """Contact discovery must search for the person before guessing their address.
 
-Failure case: ExampleFintech / Ada Lovelace returned no contact, while a
+Failure case: exfintech / Ada Lovelace returned no contact, while a
 single search found alovelace@example-fintech.test as the first result.
 
 Three defects, each sufficient on its own:

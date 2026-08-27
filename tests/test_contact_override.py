@@ -1,6 +1,6 @@
 """A preflight refusal must be recoverable by the operator (Plan 31, Stage 4).
 
-Observed: Mankinds was correctly refused for having no named contact, and the only offered action was
+Observed: exai was correctly refused for having no named contact, and the only offered action was
 "Retry with fresh research" -- which cannot find a contact research already failed to find, and costs
 another call. The endpoint that sets an address 400s until a draft exists, and no draft exists.
 """
@@ -28,9 +28,9 @@ def client():
 
 
 def _blocked():
-    cs = CompanyState(slug="exai", name="Mankinds", state=State.error,
+    cs = CompanyState(slug="exai", name="exai", state=State.error,
                       error="not enough to write from: no named contact was found",
-                      cache={"company": {"name": "Mankinds", "what_they_do": "stealth AI",
+                      cache={"company": {"name": "exai", "what_they_do": "stealth AI",
                                          "resolved_domain": "example-ai.test"},
                              "contact": {"name": "Unknown", "email": "unknown@example-ai.test",
                                          "email_method": "pattern_guess"},
