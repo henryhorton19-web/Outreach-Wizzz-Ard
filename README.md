@@ -70,15 +70,43 @@ Targets ingested from text, CSV, or `Outreach_Tracker.xlsx` (`app/ingest.py`, `a
 
 ---
 
-## Quick Start
+## Quick Start & Fresh Setup Guide
 
-### Running the Desktop App
+Follow these steps for a complete, fresh setup ("virgin run") of Outreach Wizz-ard on a new local machine:
 
-Outreach Wizz-ard includes OS-agnostic launcher scripts that automatically handle environment activation and launch the desktop GUI:
+### 1. Prerequisites
+- **Python**: Version 3.11, 3.12, or 3.13 (Python 3.14+ is unsupported).
+- **Git**: Installed and available on system `PATH`.
+
+### 2. Clone & Setup Virtual Environment
 
 **Windows (PowerShell):**
 ```powershell
-cd "<path-to-paris-outreach>"
+git clone git@github.com:henryhorton19-web/Outreach-Wizz-Ard.git "C:\Users\HenryHorton\OneDrive\Documents\Internship\09 Personal Projects\paris-outreach"
+cd "C:\Users\HenryHorton\OneDrive\Documents\Internship\09 Personal Projects\paris-outreach"
+python -m venv venv
+.\venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+```
+
+**macOS / Linux (Bash):**
+```bash
+git clone git@github.com:henryhorton19-web/Outreach-Wizz-Ard.git paris-outreach
+cd paris-outreach
+python3 -m venv venv
+source venv/bin/activate
+pip install --upgrade pip
+pip install -r requirements.txt
+```
+
+### 3. Launching the Desktop Application
+
+Outreach Wizz-ard includes OS-agnostic launcher scripts that automatically sync code, bootstrap seed data/voices, and launch the PyWebView desktop app:
+
+**Windows (PowerShell):**
+```powershell
+cd "C:\Users\HenryHorton\OneDrive\Documents\Internship\09 Personal Projects\paris-outreach"
 .\run-wizzard.ps1
 ```
 
@@ -88,20 +116,10 @@ cd "<path-to-paris-outreach>"
 ./run-wizzard.sh
 ```
 
-### Local Development & Testing
-
-1. **Install Dependencies:**
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # On Windows: .\venv\Scripts\Activate.ps1
-   pip install -r requirements.txt
-   ```
-
-2. **Run Test Suite & Quality Gates:**
-   ```bash
-   PARIS_PROVIDER=stub python -m pytest -q
-   python tools/check_style_purity.py
-   ```
+### 4. Running Verification Tests
+```bash
+python -m pytest tests/ -q
+```
 
 ---
 
